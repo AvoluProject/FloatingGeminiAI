@@ -4,13 +4,13 @@
     android:layout_width="wrap_content"
     android:layout_height="wrap_content">
 
-    <!-- 1. BUBBLE MENGAMBANG (Akan memudar setelah 3 detik saat minimize) -->
+    <!-- 1A. BUBBLE UTAMA (LINGKARAN PENUH) -->
     <FrameLayout
         android:id="@+id/bubbleView"
         android:layout_width="56dp"
         android:layout_height="56dp"
         android:background="@drawable/bg_bubble"
-        android:elevation="10dp">
+        android:elevation="12dp">
 
         <ImageView
             android:layout_width="26dp"
@@ -20,27 +20,43 @@
             app:tint="#38BDF8" />
     </FrameLayout>
 
-    <!-- 2. POPUP CHAT GAYA MAC OS WINDOW (SEMI-TRANSPARAN) -->
+    <!-- 1B. XIAOMI EDGE PILL (GARIS SETENGAH LINGKARAN DI PINGGIR LAYAR) -->
+    <FrameLayout
+        android:id="@+id/xiaomiEdgeView"
+        android:layout_width="18dp"
+        android:layout_height="72dp"
+        android:background="@drawable/bg_xiaomi_edge_left"
+        android:elevation="12dp"
+        android:visibility="gone">
+
+        <View
+            android:layout_width="3dp"
+            android:layout_height="36dp"
+            android:layout_gravity="center"
+            android:background="@drawable/bg_xiaomi_inner_line" />
+    </FrameLayout>
+
+    <!-- 2. POPUP CHAT GAYA MAC OS WINDOW (TRANSLUCENT GLASS + RESIZABLE) -->
     <LinearLayout
         android:id="@+id/popupChatView"
-        android:layout_width="330dp"
-        android:layout_height="440dp"
+        android:layout_width="338dp"
+        android:layout_height="470dp"
         android:orientation="vertical"
         android:background="@drawable/bg_popup_glass"
-        android:elevation="14dp"
+        android:elevation="18dp"
         android:visibility="gone">
 
         <!-- MAC OS TOP ACCESSORY BAR -->
         <LinearLayout
             android:id="@+id/macTitleBar"
             android:layout_width="match_parent"
-            android:layout_height="38dp"
+            android:layout_height="40dp"
             android:orientation="horizontal"
             android:gravity="center_vertical"
             android:paddingHorizontal="12dp"
             android:background="@drawable/bg_mac_header">
 
-            <!-- Tombol Kontrol Ala macOS (Merah: Tutup Service, Kuning: Minimize) -->
+            <!-- Tombol Kontrol Ala macOS: Merah (Tutup), Kuning (Minimize ke Edge), Hijau (Expand) -->
             <View
                 android:id="@+id/btnMacClose"
                 android:layout_width="13dp"
@@ -55,41 +71,58 @@
                 android:background="@drawable/dot_mac_yellow" />
 
             <View
+                android:id="@+id/btnMacExpand"
                 android:layout_width="13dp"
                 android:layout_height="13dp"
                 android:layout_marginStart="8dp"
                 android:background="@drawable/dot_mac_green" />
 
-            <TextView
+            <LinearLayout
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:gravity="center"
-                android:text="Gemini AI"
-                android:textSize="12sp"
-                android:textStyle="bold"
-                android:textColor="#CBD5E1" />
+                android:orientation="vertical"
+                android:gravity="center">
 
-            <!-- Tombol Toggle Live Screen Share -->
+                <TextView
+                    android:id="@+id/tvMacWindowTitle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Gemini AI"
+                    android:textSize="12sp"
+                    android:textStyle="bold"
+                    android:textColor="#F8FAFC" />
+
+                <TextView
+                    android:id="@+id/tvSessionSubtitle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="3 Flash • Sesi Aktif"
+                    android:textSize="9sp"
+                    android:textColor="#94A3B8" />
+            </LinearLayout>
+
+            <!-- Toggle Live Screen Share Langsung di Header -->
             <ImageView
                 android:id="@+id/btnScreenShare"
-                android:layout_width="24dp"
-                android:layout_height="24dp"
-                android:padding="3dp"
+                android:layout_width="26dp"
+                android:layout_height="26dp"
+                android:padding="4dp"
                 android:src="@drawable/ic_screen_share"
                 app:tint="#94A3B8"
-                android:contentDescription="Screen Share" />
+                android:contentDescription="Live Screen Share" />
 
-            <!-- Tombol Toggle Token -->
+            <!-- TOMBOL PLUS (+) UNTUK MENU AKSI CEPAT & FORCE STOP -->
             <ImageView
-                android:id="@+id/btnToggleTokenPanel"
-                android:layout_width="24dp"
-                android:layout_height="24dp"
+                android:id="@+id/btnPlusMenu"
+                android:layout_width="26dp"
+                android:layout_height="26dp"
                 android:layout_marginStart="6dp"
-                android:padding="3dp"
-                android:src="@drawable/ic_key"
-                app:tint="#94A3B8"
-                android:contentDescription="Token" />
+                android:padding="4dp"
+                android:background="@drawable/bg_plus_btn"
+                android:src="@drawable/ic_plus"
+                app:tint="#38BDF8"
+                android:contentDescription="Menu Plus" />
         </LinearLayout>
 
         <!-- Indikator Status Live Screen Share -->
@@ -100,52 +133,235 @@
             android:background="#330EA5E9"
             android:paddingVertical="3dp"
             android:paddingHorizontal="12dp"
-            android:text="Live Screen Share Aktif (AI melihat layar Anda)"
+            android:text="Live Screen Share Aktif • AI Melihat Layar"
             android:textSize="10sp"
             android:textColor="#38BDF8"
             android:gravity="center"
             android:visibility="gone" />
 
-        <!-- Panel Ubah Token di dalam Popup -->
+        <!-- DRAWER MENU PLUS (+): TOKEN, GAYA AI, MODEL, COPY, RESET, & QUICK FORCE STOP -->
         <LinearLayout
-            android:id="@+id/tokenPanel"
+            android:id="@+id/plusMenuDrawer"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:background="#CC1E293B"
-            android:padding="8dp"
+            android:orientation="vertical"
+            android:background="#EB1E293B"
+            android:padding="10dp"
             android:visibility="gone">
 
-            <EditText
-                android:id="@+id/etPopupToken"
-                android:layout_width="0dp"
+            <!-- Baris 1: Token, Gaya AI, Model AI -->
+            <LinearLayout
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:hint="Tempel Gemini API Key..."
-                android:textColorHint="#64748B"
-                android:textColor="#F8FAFC"
-                android:textSize="12sp"
-                android:inputType="textPassword"
-                android:background="@android:color/transparent"
-                android:padding="4dp" />
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
 
-            <Button
-                android:id="@+id/btnSavePopupToken"
-                android:layout_width="wrap_content"
-                android:layout_height="34dp"
-                android:text="Simpan"
-                android:textSize="11sp"
-                android:backgroundTint="#2563EB"
-                android:textColor="#FFFFFF" />
+                <LinearLayout
+                    android:id="@+id/actionToggleToken"
+                    android:layout_width="0dp"
+                    android:layout_height="34dp"
+                    android:layout_weight="1"
+                    android:gravity="center"
+                    android:background="@drawable/bg_chip_action"
+                    android:orientation="horizontal">
+
+                    <ImageView
+                        android:layout_width="13dp"
+                        android:layout_height="13dp"
+                        android:src="@drawable/ic_key"
+                        app:tint="#38BDF8" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="4dp"
+                        android:text="Token"
+                        android:textSize="11sp"
+                        android:textColor="#F8FAFC" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:id="@+id/actionCyclePersona"
+                    android:layout_width="0dp"
+                    android:layout_height="34dp"
+                    android:layout_weight="1"
+                    android:layout_marginStart="6dp"
+                    android:gravity="center"
+                    android:background="@drawable/bg_chip_action"
+                    android:orientation="horizontal">
+
+                    <ImageView
+                        android:layout_width="13dp"
+                        android:layout_height="13dp"
+                        android:src="@drawable/ic_chat_style"
+                        app:tint="#A78BFA" />
+
+                    <TextView
+                        android:id="@+id/tvCurrentPersonaBadge"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="4dp"
+                        android:text="Asik"
+                        android:textSize="11sp"
+                        android:textColor="#F8FAFC" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:id="@+id/actionCycleModel"
+                    android:layout_width="0dp"
+                    android:layout_height="34dp"
+                    android:layout_weight="1.1"
+                    android:layout_marginStart="6dp"
+                    android:gravity="center"
+                    android:background="@drawable/bg_chip_action"
+                    android:orientation="horizontal">
+
+                    <ImageView
+                        android:layout_width="13dp"
+                        android:layout_height="13dp"
+                        android:src="@drawable/ic_sparkle"
+                        app:tint="#34D399" />
+
+                    <TextView
+                        android:id="@+id/tvCurrentModelBadge"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="4dp"
+                        android:text="3 Flash"
+                        android:textSize="11sp"
+                        android:textColor="#F8FAFC" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <!-- Baris 2: Salin Terakhir, Reset Sesi, Quick Force Stop -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginTop="6dp"
+                android:gravity="center_vertical">
+
+                <LinearLayout
+                    android:id="@+id/actionCopyLast"
+                    android:layout_width="0dp"
+                    android:layout_height="34dp"
+                    android:layout_weight="0.9"
+                    android:gravity="center"
+                    android:background="@drawable/bg_chip_action"
+                    android:orientation="horizontal">
+
+                    <ImageView
+                        android:layout_width="13dp"
+                        android:layout_height="13dp"
+                        android:src="@drawable/ic_copy"
+                        app:tint="#34D399" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="4dp"
+                        android:text="Salin"
+                        android:textSize="11sp"
+                        android:textColor="#F8FAFC" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:id="@+id/actionResetChat"
+                    android:layout_width="0dp"
+                    android:layout_height="34dp"
+                    android:layout_weight="1"
+                    android:layout_marginStart="6dp"
+                    android:gravity="center"
+                    android:background="@drawable/bg_chip_action"
+                    android:orientation="horizontal">
+
+                    <ImageView
+                        android:layout_width="13dp"
+                        android:layout_height="13dp"
+                        android:src="@drawable/ic_trash"
+                        app:tint="#FBBF24" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="4dp"
+                        android:text="Reset Sesi"
+                        android:textSize="11sp"
+                        android:textColor="#F8FAFC" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:id="@+id/actionQuickForceStop"
+                    android:layout_width="0dp"
+                    android:layout_height="34dp"
+                    android:layout_weight="1.2"
+                    android:layout_marginStart="6dp"
+                    android:gravity="center"
+                    android:background="@drawable/bg_chip_danger"
+                    android:orientation="horizontal">
+
+                    <ImageView
+                        android:layout_width="13dp"
+                        android:layout_height="13dp"
+                        android:src="@drawable/ic_power_stop"
+                        app:tint="#FCA5A5" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="4dp"
+                        android:text="Force Stop"
+                        android:textSize="11sp"
+                        android:textStyle="bold"
+                        android:textColor="#FCA5A5" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <!-- Input Token Gemini di dalam Drawer -->
+            <LinearLayout
+                android:id="@+id/tokenInputRow"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginTop="8dp"
+                android:background="@drawable/bg_input_glass"
+                android:paddingHorizontal="8dp"
+                android:paddingVertical="4dp"
+                android:gravity="center_vertical"
+                android:visibility="gone">
+
+                <EditText
+                    android:id="@+id/etPopupToken"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:hint="Tempel Gemini API Key..."
+                    android:textColorHint="#64748B"
+                    android:textColor="#F8FAFC"
+                    android:textSize="12sp"
+                    android:inputType="textPassword"
+                    android:background="@android:color/transparent"
+                    android:padding="4dp" />
+
+                <Button
+                    android:id="@+id/btnSavePopupToken"
+                    android:layout_width="wrap_content"
+                    android:layout_height="32dp"
+                    android:text="Simpan"
+                    android:textSize="11sp"
+                    android:backgroundTint="#2563EB"
+                    android:textColor="#FFFFFF" />
+            </LinearLayout>
         </LinearLayout>
 
-        <!-- Area Percakapan (Chat Kiri untuk Bot, Chat Kanan untuk User) -->
+        <!-- AREA PERCAKAPAN (BOT DI KIRI, USER DI KANAN) -->
         <ScrollView
             android:id="@+id/scrollChat"
             android:layout_width="match_parent"
             android:layout_height="0dp"
             android:layout_weight="1"
-            android:padding="10dp">
+            android:paddingHorizontal="10dp"
+            android:paddingTop="8dp">
 
             <LinearLayout
                 android:id="@+id/chatContainer"
@@ -154,20 +370,84 @@
                 android:orientation="vertical" />
         </ScrollView>
 
-        <!-- Input Pesan & Tombol Kirim SVG -->
+        <!-- QUICK PROMPT CHIPS BAR -->
+        <HorizontalScrollView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:scrollbars="none"
+            android:paddingHorizontal="10dp"
+            android:paddingTop="4dp">
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:id="@+id/chipScreenAnalyze"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Baca layar ini"
+                    android:textSize="10sp"
+                    android:textColor="#38BDF8"
+                    android:background="@drawable/bg_quick_chip"
+                    android:paddingHorizontal="10dp"
+                    android:paddingVertical="5dp" />
+
+                <TextView
+                    android:id="@+id/chipSummarize"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="6dp"
+                    android:text="Ringkas"
+                    android:textSize="10sp"
+                    android:textColor="#CBD5E1"
+                    android:background="@drawable/bg_quick_chip"
+                    android:paddingHorizontal="10dp"
+                    android:paddingVertical="5dp" />
+
+                <TextView
+                    android:id="@+id/chipTranslate"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="6dp"
+                    android:text="Terjemahin"
+                    android:textSize="10sp"
+                    android:textColor="#CBD5E1"
+                    android:background="@drawable/bg_quick_chip"
+                    android:paddingHorizontal="10dp"
+                    android:paddingVertical="5dp" />
+
+                <TextView
+                    android:id="@+id/chipReplyHelp"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="6dp"
+                    android:text="Bantu bales chat"
+                    android:textSize="10sp"
+                    android:textColor="#CBD5E1"
+                    android:background="@drawable/bg_quick_chip"
+                    android:paddingHorizontal="10dp"
+                    android:paddingVertical="5dp" />
+            </LinearLayout>
+        </HorizontalScrollView>
+
+        <!-- INPUT PESAN, TOMBOL KIRIM, & CORNER RESIZE GRIP -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
             android:gravity="center_vertical"
-            android:padding="10dp">
+            android:paddingStart="10dp"
+            android:paddingEnd="4dp"
+            android:paddingVertical="8dp">
 
             <EditText
                 android:id="@+id/etPrompt"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:hint="Tanya inti masalah..."
+                android:hint="Lanjut ngobrol atau tanya..."
                 android:textColorHint="#94A3B8"
                 android:textColor="#F8FAFC"
                 android:textSize="13sp"
@@ -178,13 +458,24 @@
 
             <ImageButton
                 android:id="@+id/btnSendPrompt"
-                android:layout_width="40dp"
-                android:layout_height="40dp"
+                android:layout_width="38dp"
+                android:layout_height="38dp"
                 android:layout_marginStart="8dp"
                 android:background="@drawable/bg_send_btn"
                 android:src="@drawable/ic_send"
                 app:tint="#FFFFFF"
                 android:contentDescription="Kirim" />
+
+            <!-- Corner Resize Handle -->
+            <ImageView
+                android:id="@+id/btnResizeCorner"
+                android:layout_width="18dp"
+                android:layout_height="18dp"
+                android:layout_gravity="bottom"
+                android:layout_marginStart="2dp"
+                android:src="@drawable/ic_resize_corner"
+                app:tint="#64748B"
+                android:contentDescription="Ubah Ukuran Jendela" />
         </LinearLayout>
 
     </LinearLayout>

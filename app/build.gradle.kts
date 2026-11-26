@@ -11,8 +11,8 @@ android {
         applicationId = "com.example.floatinggeminiai"
         minSdk = 26
         targetSdk = 34
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = 4
+        versionName = "3.0-Pro"
     }
 
     buildTypes {
@@ -38,10 +38,10 @@ dependencies {
     implementation("androidx.appcompat:appcompat:1.6.1")
     implementation("com.google.android.material:material:1.11.0")
     implementation("androidx.constraintlayout:constraintlayout:2.1.4")
-    
+
     // Coroutines untuk pemanggilan API Asynchronous
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
-    
+
     // OkHttp untuk koneksi langsung ke REST API Gemini
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
 }

@@ -1,97 +1,428 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:padding="24dp"
-    android:gravity="center_vertical"
-    android:background="#090D16">
+    android:background="#060A12"
+    android:fillViewport="true">
 
     <LinearLayout
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="center_vertical">
-
-        <ImageView
-            android:layout_width="32dp"
-            android:layout_height="32dp"
-            android:src="@drawable/ic_sparkle"
-            app:tint="#38BDF8" />
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="12dp"
-            android:text="Gemini Floating AI"
-            android:textSize="24sp"
-            android:textStyle="bold"
-            android:textColor="#F8FAFC" />
-    </LinearLayout>
-
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
-        android:layout_marginBottom="28dp"
-        android:text="Asisten AI mengambang dengan dukungan Live Screen Share dan antarmuka macOS."
-        android:textSize="14sp"
-        android:textColor="#94A3B8" />
-
-    <com.google.android.material.textfield.TextInputLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:hint="Gemini API Token"
-        app:boxBackgroundColor="#1E293B"
-        app:boxStrokeColor="#38BDF8"
-        app:hintTextColor="#38BDF8"
-        app:endIconMode="password_toggle"
-        style="@style/Widget.Material3.TextInputLayout.OutlinedBox">
+        android:orientation="vertical"
+        android:padding="20dp">
 
-        <com.google.android.material.textfield.TextInputEditText
-            android:id="@+id/etApiKey"
+        <!-- HEADER APLIKASI -->
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:textColor="#F8FAFC"
-            android:inputType="textPassword" />
-    </com.google.android.material.textfield.TextInputLayout>
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginTop="6dp"
+            android:layout_marginBottom="18dp">
 
-    <Button
-        android:id="@+id/btnSaveToken"
-        android:layout_width="match_parent"
-        android:layout_height="52dp"
-        android:layout_marginTop="16dp"
-        android:text="Simpan Token"
-        android:textStyle="bold"
-        android:backgroundTint="#2563EB"
-        android:textColor="#FFFFFF" />
+            <FrameLayout
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:background="@drawable/bg_bubble">
 
-    <View
-        android:layout_width="match_parent"
-        android:layout_height="1dp"
-        android:layout_marginVertical="24dp"
-        android:background="#1E293B" />
+                <ImageView
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:layout_gravity="center"
+                    android:src="@drawable/ic_sparkle"
+                    app:tint="#38BDF8" />
+            </FrameLayout>
 
-    <Button
-        android:id="@+id/btnStartOverlay"
-        android:layout_width="match_parent"
-        android:layout_height="56dp"
-        android:text="Aktifkan Floating Assistant"
-        android:textStyle="bold"
-        app:icon="@drawable/ic_sparkle"
-        app:iconGravity="textStart"
-        android:backgroundTint="#0EA5E9"
-        android:textColor="#090D16" />
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginStart="14dp"
+                android:orientation="vertical">
 
-    <Button
-        android:id="@+id/btnStopOverlay"
-        android:layout_width="match_parent"
-        android:layout_height="48dp"
-        android:layout_marginTop="12dp"
-        android:text="Nonaktifkan Assistant"
-        android:textColor="#94A3B8"
-        app:strokeColor="#334155"
-        style="@style/Widget.Material3.Button.OutlinedButton" />
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Gemini Floating Pro"
+                    android:textSize="21sp"
+                    android:textStyle="bold"
+                    android:textColor="#F8FAFC" />
 
-</LinearLayout>
+                <TextView
+                    android:id="@+id/tvDashboardSessionStatus"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Sesi Memori Aktif • Siap Digunakan"
+                    android:textSize="12sp"
+                    android:textColor="#38BDF8" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- KARTU KONTROL UTAMA & QUICK FORCE STOP -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:background="@drawable/bg_card_dark"
+            android:padding="16dp"
+            android:layout_marginBottom="16dp">
+
+            <Button
+                android:id="@+id/btnStartOverlay"
+                android:layout_width="match_parent"
+                android:layout_height="54dp"
+                android:text="Aktifkan Floating Assistant"
+                android:textStyle="bold"
+                android:textSize="14sp"
+                app:icon="@drawable/ic_sparkle"
+                app:iconGravity="textStart"
+                app:iconTint="#060A12"
+                android:backgroundTint="#38BDF8"
+                android:textColor="#060A12" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginTop="10dp">
+
+                <Button
+                    android:id="@+id/btnStopOverlay"
+                    android:layout_width="0dp"
+                    android:layout_height="46dp"
+                    android:layout_weight="1"
+                    android:text="Hentikan"
+                    android:textSize="12sp"
+                    android:textColor="#CBD5E1"
+                    app:strokeColor="#334155"
+                    style="@style/Widget.Material3.Button.OutlinedButton" />
+
+                <Button
+                    android:id="@+id/btnQuickForceStopMain"
+                    android:layout_width="0dp"
+                    android:layout_height="46dp"
+                    android:layout_weight="1.15"
+                    android:layout_marginStart="10dp"
+                    android:text="Quick Force Stop"
+                    android:textSize="12sp"
+                    android:textStyle="bold"
+                    app:icon="@drawable/ic_power_stop"
+                    app:iconSize="16dp"
+                    app:iconTint="#FCA5A5"
+                    android:backgroundTint="#450A0A"
+                    android:textColor="#FCA5A5" />
+            </LinearLayout>
+
+            <Button
+                android:id="@+id/btnClearSessionMain"
+                android:layout_width="match_parent"
+                android:layout_height="40dp"
+                android:layout_marginTop="8dp"
+                android:text="Reset Memori Sesi Obrolan"
+                android:textSize="12sp"
+                android:textColor="#94A3B8"
+                app:icon="@drawable/ic_trash"
+                app:iconSize="15dp"
+                app:iconTint="#94A3B8"
+                style="@style/Widget.Material3.Button.TextButton" />
+        </LinearLayout>
+
+        <!-- KARTU PENGATURAN TOKEN, TES KONEKSI, MODEL, & KEPRIBADIAN AI -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:background="@drawable/bg_card_dark"
+            android:padding="16dp"
+            android:layout_marginBottom="16dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginBottom="12dp">
+
+                <ImageView
+                    android:layout_width="18dp"
+                    android:layout_height="18dp"
+                    android:src="@drawable/ic_key"
+                    app:tint="#38BDF8" />
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_marginStart="8dp"
+                    android:text="Koneksi &amp; Kepribadian AI"
+                    android:textSize="15sp"
+                    android:textStyle="bold"
+                    android:textColor="#F8FAFC" />
+
+                <Button
+                    android:id="@+id/btnTestToken"
+                    android:layout_width="wrap_content"
+                    android:layout_height="34dp"
+                    android:text="Tes Token"
+                    android:textSize="11sp"
+                    android:textColor="#38BDF8"
+                    app:strokeColor="#1E3A8A"
+                    style="@style/Widget.Material3.Button.OutlinedButton" />
+            </LinearLayout>
+
+            <com.google.android.material.textfield.TextInputLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="Gemini API Token"
+                app:boxBackgroundColor="#0F172A"
+                app:boxStrokeColor="#38BDF8"
+                app:hintTextColor="#38BDF8"
+                app:endIconMode="password_toggle"
+                style="@style/Widget.Material3.TextInputLayout.OutlinedBox">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/etApiKey"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textColor="#F8FAFC"
+                    android:textSize="13sp"
+                    android:inputType="textPassword" />
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <com.google.android.material.textfield.TextInputLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:hint="Catatan Pribadi / Panggilan (Opsional)"
+                app:boxBackgroundColor="#0F172A"
+                app:boxStrokeColor="#334155"
+                app:hintTextColor="#94A3B8"
+                style="@style/Widget.Material3.TextInputLayout.OutlinedBox">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/etCustomPersonaNote"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textColor="#F8FAFC"
+                    android:textSize="12sp"
+                    android:maxLines="2" />
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="14dp"
+                android:text="Gaya Bicara Gemini"
+                android:textSize="12sp"
+                android:textColor="#94A3B8" />
+
+            <RadioGroup
+                android:id="@+id/rgPersona"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginTop="6dp">
+
+                <RadioButton
+                    android:id="@+id/rbAsik"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Asik"
+                    android:textSize="12sp"
+                    android:textColor="#E2E8F0"
+                    android:checked="true" />
+
+                <RadioButton
+                    android:id="@+id/rbRingkas"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Singkat"
+                    android:textSize="12sp"
+                    android:textColor="#E2E8F0" />
+
+                <RadioButton
+                    android:id="@+id/rbDetail"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Detail"
+                    android:textSize="12sp"
+                    android:textColor="#E2E8F0" />
+
+                <RadioButton
+                    android:id="@+id/rbKreatif"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Kreatif"
+                    android:textSize="12sp"
+                    android:textColor="#E2E8F0" />
+            </RadioGroup>
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:text="Model Mesin Gemini"
+                android:textSize="12sp"
+                android:textColor="#94A3B8" />
+
+            <RadioGroup
+                android:id="@+id/rgModel"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginTop="6dp">
+
+                <RadioButton
+                    android:id="@+id/rbModel3Flash"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="3 Flash"
+                    android:textSize="12sp"
+                    android:textColor="#E2E8F0"
+                    android:checked="true" />
+
+                <RadioButton
+                    android:id="@+id/rbModel25Flash"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="2.5 Flash"
+                    android:textSize="12sp"
+                    android:textColor="#E2E8F0" />
+
+                <RadioButton
+                    android:id="@+id/rbModel25Pro"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="2.5 Pro"
+                    android:textSize="12sp"
+                    android:textColor="#E2E8F0" />
+            </RadioGroup>
+        </LinearLayout>
+
+        <!-- KARTU PENGATURAN XIAOMI EDGE PILL & MAC OS GLASS -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:background="@drawable/bg_card_dark"
+            android:padding="16dp"
+            android:layout_marginBottom="16dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginBottom="12dp">
+
+                <ImageView
+                    android:layout_width="18dp"
+                    android:layout_height="18dp"
+                    android:src="@drawable/ic_edge_pill"
+                    app:tint="#38BDF8" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    android:text="Xiaomi Edge Pill &amp; Jendela macOS"
+                    android:textSize="15sp"
+                    android:textStyle="bold"
+                    android:textColor="#F8FAFC" />
+            </LinearLayout>
+
+            <com.google.android.material.switchmaterial.SwitchMaterial
+                android:id="@+id/swMagneticSnap"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Tempel Otomatis ke Pinggir Layar (Magnetic Snap)"
+                android:textColor="#E2E8F0"
+                android:textSize="13sp"
+                android:checked="true" />
+
+            <com.google.android.material.switchmaterial.SwitchMaterial
+                android:id="@+id/swXiaomiEdge"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:text="Garis Setengah Lingkaran Xiaomi (Edge Pill)"
+                android:textColor="#E2E8F0"
+                android:textSize="13sp"
+                android:checked="true" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Saat dilepas ke tepi layar, bubble mengecil menjadi garis setengah lingkaran ala Xiaomi Sidebar. Ketuk atau geser ke dalam untuk membuka."
+                android:textSize="11sp"
+                android:textColor="#64748B"
+                android:layout_marginBottom="12dp" />
+
+            <TextView
+                android:id="@+id/tvEdgeDelayLabel"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Jeda Berubah ke Garis Xiaomi: 3 Detik"
+                android:textSize="12sp"
+                android:textColor="#CBD5E1" />
+
+            <SeekBar
+                android:id="@+id/sbEdgeDelay"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:max="9"
+                android:progress="2"
+                android:layout_marginBottom="12dp" />
+
+            <TextView
+                android:id="@+id/tvOpacityLabel"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Transparansi Jendela Chat: 84%"
+                android:textSize="12sp"
+                android:textColor="#CBD5E1" />
+
+            <SeekBar
+                android:id="@+id/sbOpacity"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:max="55"
+                android:progress="39"
+                android:layout_marginBottom="12dp" />
+
+            <TextView
+                android:id="@+id/tvBubbleSizeLabel"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Ukuran Bubble Utama: 56dp"
+                android:textSize="12sp"
+                android:textColor="#CBD5E1" />
+
+            <SeekBar
+                android:id="@+id/sbBubbleSize"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:max="28"
+                android:progress="12" />
+        </LinearLayout>
+
+        <Button
+            android:id="@+id/btnSaveAllSettings"
+            android:layout_width="match_parent"
+            android:layout_height="52dp"
+            android:text="Simpan &amp; Terapkan Pengaturan"
+            android:textStyle="bold"
+            android:backgroundTint="#2563EB"
+            android:textColor="#FFFFFF"
+            android:layout_marginBottom="24dp" />
+
+    </LinearLayout>
+</ScrollView>
