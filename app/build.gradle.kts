@@ -3,6 +3,10 @@ plugins {
     id("org.jetbrains.kotlin.android")
 }
 
+val ciRunNumber = System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull() ?: 0
+val appVersionCode = 5 + ciRunNumber
+val appVersionName = "4.0.$ciRunNumber"
+
 android {
     namespace = "com.example.floatinggeminiai"
     compileSdk = 34
@@ -11,13 +15,35 @@ android {
         applicationId = "com.example.floatinggeminiai"
         minSdk = 26
         targetSdk = 34
-        versionCode = 4
-        versionName = "3.0-Pro"
+        versionCode = appVersionCode
+        versionName = appVersionName
+    }
+
+    signingConfigs {
+        create("floaminiSign") {
+            val ksFile = file("floamini.jks")
+            if (ksFile.exists()) {
+                storeFile = ksFile
+                storePassword = "floamini_keystore_pass_2026"
+                keyAlias = "floamini_key"
+                keyPassword = "floamini_keystore_pass_2026"
+            }
+        }
     }
 
     buildTypes {
+        debug {
+            val ksFile = file("floamini.jks")
+            if (ksFile.exists()) {
+                signingConfig = signingConfigs.getByName("floaminiSign")
+            }
+        }
         release {
             isMinifyEnabled = false
+            val ksFile = file("floamini.jks")
+            if (ksFile.exists()) {
+                signingConfig = signingConfigs.getByName("floaminiSign")
+            }
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -38,10 +64,6 @@ dependencies {
     implementation("androidx.appcompat:appcompat:1.6.1")
     implementation("com.google.android.material:material:1.11.0")
     implementation("androidx.constraintlayout:constraintlayout:2.1.4")
-
-    // Coroutines untuk pemanggilan API Asynchronous
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
-
-    // OkHttp untuk koneksi langsung ke REST API Gemini
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
 }

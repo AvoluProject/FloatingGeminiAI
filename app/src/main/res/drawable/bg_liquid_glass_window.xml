@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Refraksi Tepi Liquid Glass -->
+    <item>
+        <shape android:shape="rectangle">
+            <gradient
+                android:angle="135"
+                android:startColor="#73FFFFFF"
+                android:centerColor="#407DD3FC"
+                android:endColor="#33FFFFFF" />
+            <corners android:radius="26dp" />
+        </shape>
+    </item>
+    <!-- Permukaan Kaca Transparan Bergradasi -->
+    <item
+        android:left="1.2dp"
+        android:top="1.2dp"
+        android:right="1.2dp"
+        android:bottom="1.2dp">
+        <shape android:shape="rectangle">
+            <gradient
+                android:angle="270"
+                android:startColor="#D9151F34"
+                android:centerColor="#CC0D1424"
+                android:endColor="#D9090E1A" />
+            <corners android:radius="25dp" />
+        </shape>
+    </item>
+</layer-list>

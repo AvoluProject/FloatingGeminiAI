@@ -24,6 +24,9 @@ import android.os.Build
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
+import android.os.VibrationEffect
+import android.os.Vibrator
+import android.os.VibratorManager
 import android.provider.Settings
 import android.util.Base64
 import android.util.DisplayMetrics
@@ -33,6 +36,7 @@ import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
 import android.view.animation.DecelerateInterpolator
+import android.view.animation.OvershootInterpolator
 import android.widget.Button
 import android.widget.EditText
 import android.widget.FrameLayout
@@ -55,6 +59,9 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.ByteArrayOutputStream
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import java.util.concurrent.TimeUnit
 import kotlin.math.abs
 import kotlin.system.exitProcess
@@ -75,37 +82,43 @@ class FloatingAssistantService : Service() {
     private val serviceScope = CoroutineScope(Dispatchers.Main + serviceJob)
 
     // Komponen UI Utama
+    private lateinit var dynamicIslandView: LinearLayout
+    private lateinit var tvIslandLabel: TextView
+    private lateinit var viewIslandPulseDot: View
     private lateinit var bubbleView: FrameLayout
     private lateinit var xiaomiEdgeView: FrameLayout
     private lateinit var popupChatView: LinearLayout
     private lateinit var btnScreenShare: ImageView
     private lateinit var tvScreenShareStatus: TextView
-    private lateinit var tvSessionSubtitle: TextView
     private lateinit var tvCurrentPersonaBadge: TextView
     private lateinit var tvCurrentModelBadge: TextView
-    private lateinit var chatContainerRef: LinearLayout
-    private lateinit var scrollChatRef: ScrollView
+    private lateinit var tvSessionCounterBadge: TextView
+    private lateinit var typingIndicatorRow: LinearLayout
+    private lateinit var scrollChat: ScrollView
+    private lateinit var chatContainer: LinearLayout
 
-    // State Posisi & Mode Xiaomi Edge
+    // State Posisi & Mode Overlay
     private val edgeHandler = Handler(Looper.getMainLooper())
-    private var isXiaomiEdgeModeActive = false
     private var snappedToRightEdge = false
-    private var isWindowExpanded = false
     private var fullScreenWidth = 1080
     private var fullScreenHeight = 2400
 
     // Pengaturan Dinamis
-    private var prefMagneticSnap = true
-    private var prefXiaomiEdge = true
-    private var prefEdgeDelayMs = 3000L
-    private var prefPopupAlpha = 0.85f
-    private var prefBubbleSizePx = 150
+    private var prefOverlayStyle = "dynamic_island"
+    private var prefTapOutsideClose = true
+    private var prefLiquidBlur = true
+    private var prefHapticFeedback = true
+    private var prefIslandWidthPx = 450
+    private var prefIslandPosYPx = 32
+    private var prefIslandOffsetXPx = 0
+    private var prefPopupAlpha = 0.86f
+    private var prefBubbleSizePx = 148
     private var prefPersona = "asik"
     private var prefModel = "gemini-3-flash-preview"
-    private var prefCustomPersonaNote = ""
 
-    // Memori Percakapan Sesi Berkelanjutan (Disimpan Permanen Hingga Reset Sesi)
-    private val chatHistory = mutableListOf<Pair<String, String>>()
+    // Data Model Pesan Sesi
+    data class SessionMessage(val role: String, val text: String, val timestamp: String)
+    private val chatHistory = mutableListOf<SessionMessage>()
     private var lastBotReply = ""
 
     // MediaProjection untuk Live Screen Share
@@ -119,11 +132,11 @@ class FloatingAssistantService : Service() {
 
     private val httpClient = OkHttpClient.Builder()
         .connectTimeout(30, TimeUnit.SECONDS)
-        .readTimeout(30, TimeUnit.SECONDS)
+        .readTimeout(35, TimeUnit.SECONDS)
         .build()
 
     private val transformToXiaomiEdgeRunnable = Runnable {
-        if (bubbleView.visibility == View.VISIBLE && prefXiaomiEdge) {
+        if (prefOverlayStyle == "xiaomi_edge" && bubbleView.visibility == View.VISIBLE) {
             enterXiaomiEdgeMode()
         }
     }
@@ -158,43 +171,63 @@ class FloatingAssistantService : Service() {
             ACTION_RELOAD_SETTINGS -> {
                 loadUserPreferences()
                 applyVisualPreferences()
+                if (popupChatView.visibility != View.VISIBLE) {
+                    showCollapsedTriggerState()
+                }
             }
             ACTION_RESET_SESSION -> {
-                if (::chatContainerRef.isInitialized && ::scrollChatRef.isInitialized) {
-                    resetConversationSession(chatContainerRef, scrollChatRef)
+                if (::chatContainer.isInitialized && ::scrollChat.isInitialized) {
+                    resetConversationSession()
                 }
             }
         }
         return START_STICKY
     }
 
-    private fun loadUserPreferences() {
-        val prefs = getSharedPreferences("gemini_prefs", Context.MODE_PRIVATE)
-        prefMagneticSnap = prefs.getBoolean("magnetic_snap", true)
-        prefXiaomiEdge = prefs.getBoolean("xiaomi_edge", true)
-        prefEdgeDelayMs = (prefs.getInt("edge_delay_sec", 3) * 1000L)
-        prefPopupAlpha = (prefs.getInt("popup_opacity", 84) / 100f).coerceIn(0.45f, 1.0f)
-        val sizeDp = prefs.getInt("bubble_size_dp", 56)
-        prefBubbleSizePx = (sizeDp * resources.displayMetrics.density).toInt()
-        prefPersona = prefs.getString("ai_persona", "asik") ?: "asik"
-        prefModel = prefs.getString("ai_model", "gemini-3-flash-preview") ?: "gemini-3-flash-preview"
-        prefCustomPersonaNote = prefs.getString("custom_persona_note", "") ?: ""
+    private fun triggerHaptic() {
+        if (!prefHapticFeedback) return
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                val vm = getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager
+                vm.defaultVibrator.vibrate(VibrationEffect.createPredefined(VibrationEffect.EFFECT_TICK))
+            } else {
+                @Suppress("DEPRECATION")
+                val vibrator = getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    vibrator.vibrate(VibrationEffect.createOneShot(16, VibrationEffect.DEFAULT_AMPLITUDE))
+                } else {
+                    @Suppress("DEPRECATION")
+                    vibrator.vibrate(16)
+                }
+            }
+        } catch (_: Exception) {}
     }
 
-    private fun getShortModelName(): String {
-        return when (prefModel) {
-            "gemini-2.5-flash" -> "2.5 Flash"
-            "gemini-2.5-pro" -> "2.5 Pro"
-            else -> "3 Flash"
-        }
+    private fun currentTimeLabel(): String {
+        return SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date())
+    }
+
+    private fun loadUserPreferences() {
+        val prefs = getSharedPreferences("gemini_prefs", Context.MODE_PRIVATE)
+        val density = resources.displayMetrics.density
+        prefOverlayStyle = prefs.getString("overlay_style", "dynamic_island") ?: "dynamic_island"
+        prefTapOutsideClose = prefs.getBoolean("tap_outside_close", true)
+        prefLiquidBlur = prefs.getBoolean("liquid_blur", true)
+        prefHapticFeedback = prefs.getBoolean("haptic_feedback", true)
+        prefIslandWidthPx = (prefs.getInt("island_width_dp", 168) * density).toInt()
+        prefIslandPosYPx = (prefs.getInt("island_pos_y_dp", 12) * density).toInt()
+        prefIslandOffsetXPx = (prefs.getInt("island_offset_x_dp", 0) * density).toInt()
+        prefPopupAlpha = (prefs.getInt("popup_opacity", 82) / 100f).coerceIn(0.45f, 1.0f)
+        prefBubbleSizePx = (54 * density).toInt()
+        prefPersona = prefs.getString("ai_persona", "asik") ?: "asik"
+        prefModel = prefs.getString("ai_model", "gemini-3-flash-preview") ?: "gemini-3-flash-preview"
     }
 
     private fun applyVisualPreferences() {
-        if (::bubbleView.isInitialized) {
-            val lp = bubbleView.layoutParams
-            lp.width = prefBubbleSizePx
-            lp.height = prefBubbleSizePx
-            bubbleView.layoutParams = lp
+        if (::dynamicIslandView.isInitialized) {
+            val lp = dynamicIslandView.layoutParams
+            lp.width = prefIslandWidthPx
+            dynamicIslandView.layoutParams = lp
         }
         if (::popupChatView.isInitialized) {
             popupChatView.alpha = prefPopupAlpha
@@ -203,38 +236,46 @@ class FloatingAssistantService : Service() {
             tvCurrentPersonaBadge.text = when (prefPersona) {
                 "ringkas" -> "Singkat"
                 "detail" -> "Detail"
-                "kreatif" -> "Kreatif"
+                "teknis" -> "Teknis"
                 else -> "Asik"
             }
         }
         if (::tvCurrentModelBadge.isInitialized) {
-            tvCurrentModelBadge.text = getShortModelName()
+            tvCurrentModelBadge.text = when (prefModel) {
+                "gemini-2.5-flash" -> "2.5 Flash"
+                "gemini-2.5-pro" -> "2.5 Pro"
+                else -> "3 Flash"
+            }
         }
-        if (::tvSessionSubtitle.isInitialized) {
-            val turns = chatHistory.size
-            tvSessionSubtitle.text = "${getShortModelName()} • $turns pesan diingat"
+        updateSessionCounterBadge()
+    }
+
+    private fun updateSessionCounterBadge() {
+        if (::tvSessionCounterBadge.isInitialized) {
+            tvSessionCounterBadge.text = chatHistory.size.toString()
         }
     }
 
     // ==========================================================================
-    // PENYIMPANAN & PEMULIHAN MEMORI SESI BERKELANJUTAN
+    // MEMORI SESI PERMANEN (ANTI-LUPA KONTEKS OBROLAN)
     // ==========================================================================
     private fun saveSessionHistory() {
         try {
             val prefs = getSharedPreferences("gemini_prefs", Context.MODE_PRIVATE)
             val jsonArray = JSONArray()
-            for ((role, text) in chatHistory) {
+            for (msg in chatHistory) {
                 jsonArray.put(JSONObject().apply {
-                    put("role", role)
-                    put("text", text)
+                    put("role", msg.role)
+                    put("text", msg.text)
+                    put("timestamp", msg.timestamp)
                 })
             }
             prefs.edit().putString(KEY_SESSION_HISTORY, jsonArray.toString()).apply()
-            applyVisualPreferences()
+            updateSessionCounterBadge()
         } catch (_: Exception) {}
     }
 
-    private fun restoreSessionHistory(chatContainer: LinearLayout, scrollView: ScrollView) {
+    private fun restoreSessionHistory() {
         chatHistory.clear()
         chatContainer.removeAllViews()
         try {
@@ -246,41 +287,43 @@ class FloatingAssistantService : Service() {
                     val obj = jsonArray.getJSONObject(i)
                     val role = obj.optString("role", "user")
                     val text = obj.optString("text", "")
+                    val time = obj.optString("timestamp", currentTimeLabel())
                     if (text.isNotEmpty()) {
-                        chatHistory.add(Pair(role, text))
+                        val msg = SessionMessage(role, text, time)
+                        chatHistory.add(msg)
                         val isUser = (role == "user")
                         if (!isUser) lastBotReply = text
-                        addChatMessage(chatContainer, scrollView, text, isUser = isUser)
+                        addChatMessage(text, time, isUser = isUser)
                     }
                 }
             }
         } catch (_: Exception) {}
 
+        updateSessionCounterBadge()
         if (chatHistory.isEmpty()) {
-            val greeting = "Hai! Sesi obrolan aktif dan aku bakal terus ingat semua topik yang kita bahas. Mau ngobrol atau tanya soal apa nih?"
+            val greeting = "Hai! Floamini sudah siap di Dynamic Island kamu. Sesi obrolan ini terus berjalan dan aku bakal ingat semua yang kita bahas!"
             lastBotReply = greeting
-            addChatMessage(chatContainer, scrollView, greeting, isUser = false)
+            addChatMessage(greeting, currentTimeLabel(), isUser = false)
         }
-        applyVisualPreferences()
     }
 
-    private fun resetConversationSession(chatContainer: LinearLayout, scrollView: ScrollView) {
+    private fun resetConversationSession() {
         chatHistory.clear()
         val prefs = getSharedPreferences("gemini_prefs", Context.MODE_PRIVATE)
         prefs.edit().remove(KEY_SESSION_HISTORY).apply()
         chatContainer.removeAllViews()
-        val resetMsg = "Sesi obrolan sudah di-reset bersih. Yuk mulai bahas topik baru!"
+        updateSessionCounterBadge()
+        val resetMsg = "Sesi obrolan Floamini sudah di-reset bersih. Yuk mulai bahasan baru!"
         lastBotReply = resetMsg
-        addChatMessage(chatContainer, scrollView, resetMsg, isUser = false)
-        applyVisualPreferences()
+        addChatMessage(resetMsg, currentTimeLabel(), isUser = false)
     }
 
     private fun startForegroundNotification(withMediaProjection: Boolean) {
-        val channelId = "floating_gemini_pro_channel"
+        val channelId = "floamini_dynamic_island_channel"
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
                 channelId,
-                "Gemini Floating Pro",
+                "Floamini AI Assistant",
                 NotificationManager.IMPORTANCE_LOW
             )
             val manager = getSystemService(NotificationManager::class.java)
@@ -288,8 +331,8 @@ class FloatingAssistantService : Service() {
         }
 
         val notification: Notification = NotificationCompat.Builder(this, channelId)
-            .setContentTitle("Gemini Floating Pro")
-            .setContentText(if (withMediaProjection) "Live Screen Share aktif" else "Sesi AI aktif di atas layar")
+            .setContentTitle("Floamini")
+            .setContentText(if (withMediaProjection) "Live Screen Vision aktif" else "Dynamic Island AI siap digunakan")
             .setSmallIcon(android.R.drawable.ic_dialog_info)
             .build()
 
@@ -332,25 +375,26 @@ class FloatingAssistantService : Service() {
             WindowManager.LayoutParams.WRAP_CONTENT,
             WindowManager.LayoutParams.WRAP_CONTENT,
             layoutFlag,
-            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
             PixelFormat.TRANSLUCENT
         ).apply {
             gravity = Gravity.TOP or Gravity.START
-            x = 0
-            y = fullScreenHeight / 3
+            x = ((fullScreenWidth - prefIslandWidthPx) / 2) + prefIslandOffsetXPx
+            y = prefIslandPosYPx
         }
 
         windowManager.addView(floatingView, params)
 
+        dynamicIslandView = floatingView.findViewById(R.id.dynamicIslandView)
+        tvIslandLabel = floatingView.findViewById(R.id.tvIslandLabel)
+        viewIslandPulseDot = floatingView.findViewById(R.id.viewIslandPulseDot)
         bubbleView = floatingView.findViewById(R.id.bubbleView)
         xiaomiEdgeView = floatingView.findViewById(R.id.xiaomiEdgeView)
         popupChatView = floatingView.findViewById(R.id.popupChatView)
 
-        val macTitleBar = floatingView.findViewById<LinearLayout>(R.id.macTitleBar)
-        val btnMacClose = floatingView.findViewById<View>(R.id.btnMacClose)
-        val btnMacMinimize = floatingView.findViewById<View>(R.id.btnMacMinimize)
-        val btnMacExpand = floatingView.findViewById<View>(R.id.btnMacExpand)
-        tvSessionSubtitle = floatingView.findViewById(R.id.tvSessionSubtitle)
+        val glassTitleBar = floatingView.findViewById<LinearLayout>(R.id.glassTitleBar)
+        val btnCloseWindowX = floatingView.findViewById<ImageView>(R.id.btnCloseWindowX)
+        tvSessionCounterBadge = floatingView.findViewById(R.id.tvSessionCounterBadge)
         btnScreenShare = floatingView.findViewById(R.id.btnScreenShare)
         val btnPlusMenu = floatingView.findViewById<ImageView>(R.id.btnPlusMenu)
         val plusMenuDrawer = floatingView.findViewById<LinearLayout>(R.id.plusMenuDrawer)
@@ -360,87 +404,146 @@ class FloatingAssistantService : Service() {
         val actionCyclePersona = floatingView.findViewById<LinearLayout>(R.id.actionCyclePersona)
         val actionCycleModel = floatingView.findViewById<LinearLayout>(R.id.actionCycleModel)
         val actionCopyLast = floatingView.findViewById<LinearLayout>(R.id.actionCopyLast)
+        val actionExportChat = floatingView.findViewById<LinearLayout>(R.id.actionExportChat)
         val actionResetChat = floatingView.findViewById<LinearLayout>(R.id.actionResetChat)
         val actionQuickForceStop = floatingView.findViewById<LinearLayout>(R.id.actionQuickForceStop)
         tvCurrentPersonaBadge = floatingView.findViewById(R.id.tvCurrentPersonaBadge)
         tvCurrentModelBadge = floatingView.findViewById(R.id.tvCurrentModelBadge)
 
+        val chipQuickScreenSummary = floatingView.findViewById<TextView>(R.id.chipQuickScreenSummary)
+        val chipQuickExplain = floatingView.findViewById<TextView>(R.id.chipQuickExplain)
+        val chipQuickTranslate = floatingView.findViewById<TextView>(R.id.chipQuickTranslate)
+        val chipQuickReply = floatingView.findViewById<TextView>(R.id.chipQuickReply)
+
         val tokenInputRow = floatingView.findViewById<LinearLayout>(R.id.tokenInputRow)
         val etPopupToken = floatingView.findViewById<EditText>(R.id.etPopupToken)
         val btnSavePopupToken = floatingView.findViewById<Button>(R.id.btnSavePopupToken)
 
-        val scrollChat = floatingView.findViewById<ScrollView>(R.id.scrollChat)
-        val chatContainer = floatingView.findViewById<LinearLayout>(R.id.chatContainer)
-        chatContainerRef = chatContainer
-        scrollChatRef = scrollChat
-
-        val chipScreenAnalyze = floatingView.findViewById<TextView>(R.id.chipScreenAnalyze)
-        val chipSummarize = floatingView.findViewById<TextView>(R.id.chipSummarize)
-        val chipTranslate = floatingView.findViewById<TextView>(R.id.chipTranslate)
-        val chipReplyHelp = floatingView.findViewById<TextView>(R.id.chipReplyHelp)
-
+        scrollChat = floatingView.findViewById(R.id.scrollChat)
+        chatContainer = floatingView.findViewById(R.id.chatContainer)
+        typingIndicatorRow = floatingView.findViewById(R.id.typingIndicatorRow)
         val etPrompt = floatingView.findViewById<EditText>(R.id.etPrompt)
         val btnSendPrompt = floatingView.findViewById<ImageButton>(R.id.btnSendPrompt)
-        val btnResizeCorner = floatingView.findViewById<ImageView>(R.id.btnResizeCorner)
+        val btnResizeHandle = floatingView.findViewById<ImageView>(R.id.btnResizeHandle)
 
         val prefs = getSharedPreferences("gemini_prefs", Context.MODE_PRIVATE)
         etPopupToken.setText(prefs.getString("api_key", ""))
         applyVisualPreferences()
-        restoreSessionHistory(chatContainer, scrollChat)
-        scheduleXiaomiEdgeTransform()
+        restoreSessionHistory()
+        showCollapsedTriggerState()
 
-        // Fungsi Helper Kirim Pesan
-        fun sendPromptMessage(userText: String) {
-            val prompt = userText.trim()
+        // ----------------------------------------------------------------------
+        // TAP DI LUAR JENDELA UNTUK MENUTUP KEMBALI KE DYNAMIC ISLAND / BUBBLE
+        // ----------------------------------------------------------------------
+        floatingView.setOnTouchListener { _, event ->
+            if (event.action == MotionEvent.ACTION_OUTSIDE &&
+                popupChatView.visibility == View.VISIBLE &&
+                prefTapOutsideClose
+            ) {
+                triggerHaptic()
+                closePopupChat()
+                true
+            } else {
+                false
+            }
+        }
+
+        fun sendUserPrompt(customPrompt: String) {
+            val prompt = customPrompt.trim()
             val apiKey = prefs.getString("api_key", "") ?: ""
 
             if (prompt.isEmpty()) return
             if (apiKey.isEmpty()) {
                 plusMenuDrawer.visibility = View.VISIBLE
                 tokenInputRow.visibility = View.VISIBLE
-                btnPlusMenu.animate().rotation(45f).setDuration(200).start()
-                Toast.makeText(this, "Isi Gemini API Token dulu ya", Toast.LENGTH_SHORT).show()
+                btnPlusMenu.animate().rotation(45f).setDuration(220).start()
+                Toast.makeText(this, "Tempel Gemini API Key dulu ya", Toast.LENGTH_SHORT).show()
                 return
             }
 
             if (plusMenuDrawer.visibility == View.VISIBLE) {
                 plusMenuDrawer.visibility = View.GONE
-                btnPlusMenu.animate().rotation(0f).setDuration(200).start()
+                btnPlusMenu.animate().rotation(0f).setDuration(220).start()
             }
 
-            addChatMessage(chatContainer, scrollChat, prompt, isUser = true)
+            triggerHaptic()
+            val userTime = currentTimeLabel()
+            addChatMessage(prompt, userTime, isUser = true)
             etPrompt.text.clear()
             btnSendPrompt.isEnabled = false
+            typingIndicatorRow.visibility = View.VISIBLE
+            tvIslandLabel.text = "Berpikir..."
 
             val screenBase64 = if (isScreenShareActive) captureCurrentScreenBase64() else null
-            val typingIndicator = addTypingIndicator(
-                chatContainer,
-                scrollChat,
-                if (screenBase64 != null) "Lagi ngelihat layar & mikir..." else "Gemini lagi ngetik..."
-            )
 
             serviceScope.launch {
                 val rawReply = callGeminiApi(apiKey, prompt, screenBase64)
-                chatContainer.removeView(typingIndicator)
-
                 val cleanReply = sanitizeMarkdown(rawReply)
+                val botTime = currentTimeLabel()
                 lastBotReply = cleanReply
 
-                chatHistory.add(Pair("user", prompt))
-                chatHistory.add(Pair("model", cleanReply))
-                if (chatHistory.size > 160) {
+                chatHistory.add(SessionMessage("user", prompt, userTime))
+                chatHistory.add(SessionMessage("model", cleanReply, botTime))
+                if (chatHistory.size > 200) {
                     chatHistory.removeAt(0)
                     chatHistory.removeAt(0)
                 }
                 saveSessionHistory()
 
-                addChatMessage(chatContainer, scrollChat, cleanReply, isUser = false)
+                typingIndicatorRow.visibility = View.GONE
+                tvIslandLabel.text = if (isScreenShareActive) "Live Vision" else "Floamini"
+                addChatMessage(cleanReply, botTime, isUser = false)
                 btnSendPrompt.isEnabled = true
+                triggerHaptic()
             }
         }
 
         // ----------------------------------------------------------------------
-        // INTERAKSI BUBBLE UTAMA (GESER BEBAS + MAGNETIC SNAP KE PINGGIR LAYAR)
+        // 1. INTERAKSI DYNAMIC ISLAND (TAP UNTUK EXPAND + GESER HALUS)
+        // ----------------------------------------------------------------------
+        dynamicIslandView.setOnTouchListener(object : View.OnTouchListener {
+            private var initialX = 0
+            private var initialY = 0
+            private var initialTouchX = 0f
+            private var initialTouchY = 0f
+
+            override fun onTouch(v: View, event: MotionEvent): Boolean {
+                when (event.action) {
+                    MotionEvent.ACTION_DOWN -> {
+                        initialX = params.x
+                        initialY = params.y
+                        initialTouchX = event.rawX
+                        initialTouchY = event.rawY
+                        dynamicIslandView.animate().scaleX(1.06f).scaleY(1.06f).setDuration(140).start()
+                        return true
+                    }
+                    MotionEvent.ACTION_MOVE -> {
+                        val dx = (event.rawX - initialTouchX).toInt()
+                        val dy = (event.rawY - initialTouchY).toInt()
+                        if (abs(dx) > 12 || abs(dy) > 12) {
+                            params.x = (initialX + dx).coerceIn(16, (fullScreenWidth - prefIslandWidthPx - 16).coerceAtLeast(16))
+                            params.y = (initialY + dy).coerceIn(0, fullScreenHeight / 2)
+                            windowManager.updateViewLayout(floatingView, params)
+                        }
+                        return true
+                    }
+                    MotionEvent.ACTION_UP -> {
+                        dynamicIslandView.animate().scaleX(1.0f).scaleY(1.0f).setDuration(140).start()
+                        val diffX = abs(event.rawX - initialTouchX)
+                        val diffY = abs(event.rawY - initialTouchY)
+                        if (diffX < 18 && diffY < 18) {
+                            triggerHaptic()
+                            openPopupChat()
+                        }
+                        return true
+                    }
+                }
+                return false
+            }
+        })
+
+        // ----------------------------------------------------------------------
+        // 2. INTERAKSI BUBBLE & XIAOMI EDGE PILL (JIKA DIPILIH DI PENGATURAN)
         // ----------------------------------------------------------------------
         bubbleView.setOnTouchListener(object : View.OnTouchListener {
             private var initialX = 0
@@ -468,13 +571,10 @@ class FloatingAssistantService : Service() {
                         val diffX = abs(event.rawX - initialTouchX)
                         val diffY = abs(event.rawY - initialTouchY)
                         if (diffX < 15 && diffY < 15) {
+                            triggerHaptic()
                             openPopupChat()
                         } else {
-                            if (prefMagneticSnap) {
-                                snapBubbleToNearestEdge()
-                            } else {
-                                scheduleXiaomiEdgeTransform()
-                            }
+                            snapBubbleToNearestEdge()
                         }
                         return true
                     }
@@ -483,9 +583,6 @@ class FloatingAssistantService : Service() {
             }
         })
 
-        // ----------------------------------------------------------------------
-        // INTERAKSI XIAOMI EDGE PILL (KETUK ATAU GESER KE DALAM UNTUK MEMBUKA)
-        // ----------------------------------------------------------------------
         xiaomiEdgeView.setOnTouchListener(object : View.OnTouchListener {
             private var initialY = 0
             private var initialTouchX = 0f
@@ -500,18 +597,17 @@ class FloatingAssistantService : Service() {
                         return true
                     }
                     MotionEvent.ACTION_MOVE -> {
-                        params.y = (initialY + (event.rawY - initialTouchY).toInt()).coerceIn(0, fullScreenHeight - 190)
+                        params.y = (initialY + (event.rawY - initialTouchY).toInt()).coerceIn(0, fullScreenHeight - 180)
                         windowManager.updateViewLayout(floatingView, params)
                         return true
                     }
                     MotionEvent.ACTION_UP -> {
                         val diffX = event.rawX - initialTouchX
-                        val absX = abs(diffX)
-                        val absY = abs(event.rawY - initialTouchY)
-                        val swipedInward = (!snappedToRightEdge && diffX > 35) || (snappedToRightEdge && diffX < -35)
+                        val swipedInward = (snappedToRightEdge && diffX < -45) || (!snappedToRightEdge && diffX > 45)
+                        triggerHaptic()
                         if (swipedInward) {
                             openPopupChat()
-                        } else if (absX < 25 && absY < 25) {
+                        } else {
                             exitXiaomiEdgeMode()
                         }
                         return true
@@ -522,9 +618,9 @@ class FloatingAssistantService : Service() {
         })
 
         // ----------------------------------------------------------------------
-        // GESER JENDELA POPUP MAC OS KE MANA SAJA DI LAYAR
+        // 3. GESER & RESIZE JENDELA LIQUID GLASS
         // ----------------------------------------------------------------------
-        macTitleBar.setOnTouchListener(object : View.OnTouchListener {
+        glassTitleBar.setOnTouchListener(object : View.OnTouchListener {
             private var initialX = 0
             private var initialY = 0
             private var initialTouchX = 0f
@@ -552,10 +648,7 @@ class FloatingAssistantService : Service() {
             }
         })
 
-        // ----------------------------------------------------------------------
-        // CORNER RESIZE HANDLE (UBAH UKURAN JENDELA BEBAS DARI POJOK KANAN BAWAH)
-        // ----------------------------------------------------------------------
-        btnResizeCorner.setOnTouchListener(object : View.OnTouchListener {
+        btnResizeHandle.setOnTouchListener(object : View.OnTouchListener {
             private var initialW = 0
             private var initialH = 0
             private var initialTouchX = 0f
@@ -563,10 +656,10 @@ class FloatingAssistantService : Service() {
 
             override fun onTouch(v: View, event: MotionEvent): Boolean {
                 val density = resources.displayMetrics.density
-                val minW = (270 * density).toInt()
-                val minH = (340 * density).toInt()
+                val minW = (280 * density).toInt()
+                val minH = (320 * density).toInt()
                 val maxW = (fullScreenWidth * 0.95f).toInt()
-                val maxH = (fullScreenHeight * 0.80f).toInt()
+                val maxH = (fullScreenHeight * 0.82f).toInt()
 
                 when (event.action) {
                     MotionEvent.ACTION_DOWN -> {
@@ -577,9 +670,11 @@ class FloatingAssistantService : Service() {
                         return true
                     }
                     MotionEvent.ACTION_MOVE -> {
+                        val newW = (initialW + (event.rawX - initialTouchX).toInt()).coerceIn(minW, maxW)
+                        val newH = (initialH + (event.rawY - initialTouchY).toInt()).coerceIn(minH, maxH)
                         val lp = popupChatView.layoutParams
-                        lp.width = (initialW + (event.rawX - initialTouchX).toInt()).coerceIn(minW, maxW)
-                        lp.height = (initialH + (event.rawY - initialTouchY).toInt()).coerceIn(minH, maxH)
+                        lp.width = newW
+                        lp.height = newH
                         popupChatView.layoutParams = lp
                         windowManager.updateViewLayout(floatingView, params)
                         return true
@@ -589,30 +684,14 @@ class FloatingAssistantService : Service() {
             }
         })
 
-        btnMacClose.setOnClickListener {
-            stopSelf()
-        }
-
-        btnMacMinimize.setOnClickListener {
+        // Tombol X untuk Close kembali ke Dynamic Island / Bubble
+        btnCloseWindowX.setOnClickListener {
+            triggerHaptic()
             closePopupChat()
         }
 
-        btnMacExpand.setOnClickListener {
-            isWindowExpanded = !isWindowExpanded
-            val lp = popupChatView.layoutParams
-            val density = resources.displayMetrics.density
-            if (isWindowExpanded) {
-                lp.width = (fullScreenWidth * 0.92f).toInt()
-                lp.height = (fullScreenHeight * 0.68f).toInt()
-            } else {
-                lp.width = (338 * density).toInt()
-                lp.height = (470 * density).toInt()
-            }
-            popupChatView.layoutParams = lp
-            windowManager.updateViewLayout(floatingView, params)
-        }
-
         btnScreenShare.setOnClickListener {
+            triggerHaptic()
             if (!isScreenShareActive) {
                 val permIntent = Intent(this, ScreenCapturePermissionActivity::class.java).apply {
                     addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
@@ -620,14 +699,15 @@ class FloatingAssistantService : Service() {
                 startActivity(permIntent)
             } else {
                 stopMediaProjection()
-                Toast.makeText(this, "Live Screen Share dihentikan", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, "Live Screen Vision dihentikan", Toast.LENGTH_SHORT).show()
             }
         }
 
         btnPlusMenu.setOnClickListener {
+            triggerHaptic()
             val isVisible = plusMenuDrawer.visibility == View.VISIBLE
             plusMenuDrawer.visibility = if (isVisible) View.GONE else View.VISIBLE
-            btnPlusMenu.animate().rotation(if (isVisible) 0f else 45f).setDuration(200).start()
+            btnPlusMenu.animate().rotation(if (isVisible) 0f else 45f).setDuration(220).start()
         }
 
         actionToggleToken.setOnClickListener {
@@ -644,24 +724,20 @@ class FloatingAssistantService : Service() {
         }
 
         actionCyclePersona.setOnClickListener {
+            triggerHaptic()
             prefPersona = when (prefPersona) {
                 "asik" -> "ringkas"
                 "ringkas" -> "detail"
-                "detail" -> "kreatif"
+                "detail" -> "teknis"
                 else -> "asik"
             }
             prefs.edit().putString("ai_persona", prefPersona).apply()
             applyVisualPreferences()
-            val label = when (prefPersona) {
-                "ringkas" -> "Gaya: Singkat & Padat"
-                "detail" -> "Gaya: Penjelasan Lengkap"
-                "kreatif" -> "Gaya: Kreatif & Ekspresif"
-                else -> "Gaya: Asik & Santai"
-            }
-            Toast.makeText(this, label, Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "Gaya: ${tvCurrentPersonaBadge.text}", Toast.LENGTH_SHORT).show()
         }
 
         actionCycleModel.setOnClickListener {
+            triggerHaptic()
             prefModel = when (prefModel) {
                 "gemini-3-flash-preview" -> "gemini-2.5-flash"
                 "gemini-2.5-flash" -> "gemini-2.5-pro"
@@ -669,56 +745,172 @@ class FloatingAssistantService : Service() {
             }
             prefs.edit().putString("ai_model", prefModel).apply()
             applyVisualPreferences()
-            Toast.makeText(this, "Model: ${getShortModelName()}", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "Model: ${tvCurrentModelBadge.text}", Toast.LENGTH_SHORT).show()
         }
 
         actionCopyLast.setOnClickListener {
             if (lastBotReply.isNotEmpty()) {
                 val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                clipboard.setPrimaryClip(ClipData.newPlainText("Gemini Reply", lastBotReply))
-                Toast.makeText(this, "Jawaban AI terakhir disalin", Toast.LENGTH_SHORT).show()
+                clipboard.setPrimaryClip(ClipData.newPlainText("Floamini Reply", lastBotReply))
+                Toast.makeText(this, "Jawaban disalin", Toast.LENGTH_SHORT).show()
             }
         }
 
+        actionExportChat.setOnClickListener {
+            if (chatHistory.isEmpty()) {
+                Toast.makeText(this, "Belum ada percakapan di sesi ini", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+            val sb = StringBuilder()
+            for (msg in chatHistory) {
+                val sender = if (msg.role == "user") "Kamu" else "Floamini"
+                sb.append("[$sender - ${msg.timestamp}]\n${msg.text}\n\n")
+            }
+            val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+            clipboard.setPrimaryClip(ClipData.newPlainText("Sesi Floamini", sb.toString().trim()))
+            Toast.makeText(this, "Seluruh sesi disalin ke clipboard", Toast.LENGTH_SHORT).show()
+        }
+
         actionResetChat.setOnClickListener {
-            resetConversationSession(chatContainer, scrollChat)
+            triggerHaptic()
+            resetConversationSession()
             plusMenuDrawer.visibility = View.GONE
             btnPlusMenu.animate().rotation(0f).setDuration(200).start()
         }
 
         actionQuickForceStop.setOnClickListener {
+            triggerHaptic()
             performQuickForceStop()
         }
 
-        // Quick Prompt Chips
-        chipScreenAnalyze.setOnClickListener {
-            if (!isScreenShareActive) {
-                Toast.makeText(this, "Aktifkan ikon Screen Share di pojok kanan atas dulu ya", Toast.LENGTH_SHORT).show()
-            } else {
-                sendPromptMessage("Coba lihat dan jelasin inti dari apa yang lagi tampil di layar aku sekarang.")
-            }
+        chipQuickScreenSummary.setOnClickListener {
+            sendUserPrompt("Tolong ringkas isi layar yang lagi tampil sekarang secara singkat dan jelas.")
         }
-
-        chipSummarize.setOnClickListener {
-            sendPromptMessage("Tolong ringkas inti pembahasan kita barusan jadi lebih gampang dipahami.")
+        chipQuickExplain.setOnClickListener {
+            sendUserPrompt("Jelasin maksud dari apa yang sedang kita bahas atau tampil di layar dengan bahasa gampang.")
         }
-
-        chipTranslate.setOnClickListener {
-            sendPromptMessage("Terjemahin teks atau pembahasan terakhir tadi ke bahasa Indonesia yang santai.")
+        chipQuickTranslate.setOnClickListener {
+            sendUserPrompt("Terjemahkan teks utama yang tampil di layar atau yang barusan kita bahas ke bahasa Indonesia yang natural.")
         }
-
-        chipReplyHelp.setOnClickListener {
-            sendPromptMessage("Kasih saran balasan yang asik dan natural buat konteks obrolan atau layar ini.")
+        chipQuickReply.setOnClickListener {
+            sendUserPrompt("Buatin ide balasan yang asik, sopan, dan nyambung buat konteks ini.")
         }
 
         btnSendPrompt.setOnClickListener {
-            sendPromptMessage(etPrompt.text.toString())
+            sendUserPrompt(etPrompt.text.toString())
         }
     }
 
     // ==========================================================================
-    // LOGIKA MAGNETIC EDGE SNAP & XIAOMI HALF-CIRCLE EDGE PILL
+    // FLUID SPRING ANIMATIONS: DYNAMIC ISLAND <-> LIQUID GLASS WINDOW
     // ==========================================================================
+    private fun showCollapsedTriggerState() {
+        edgeHandler.removeCallbacks(transformToXiaomiEdgeRunnable)
+        popupChatView.visibility = View.GONE
+        dynamicIslandView.visibility = View.GONE
+        bubbleView.visibility = View.GONE
+        xiaomiEdgeView.visibility = View.GONE
+
+        params.flags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN
+        applyWindowBlur(enabled = false)
+
+        when (prefOverlayStyle) {
+            "xiaomi_edge" -> {
+                bubbleView.visibility = View.VISIBLE
+                bubbleView.alpha = 1.0f
+                params.x = if (snappedToRightEdge) (fullScreenWidth - prefBubbleSizePx) else 0
+                params.y = fullScreenHeight / 3
+                windowManager.updateViewLayout(floatingView, params)
+                edgeHandler.postDelayed(transformToXiaomiEdgeRunnable, 2500L)
+            }
+            "classic_bubble" -> {
+                bubbleView.visibility = View.VISIBLE
+                bubbleView.alpha = 1.0f
+                params.x = if (snappedToRightEdge) (fullScreenWidth - prefBubbleSizePx) else 0
+                params.y = fullScreenHeight / 3
+                windowManager.updateViewLayout(floatingView, params)
+            }
+            else -> {
+                dynamicIslandView.visibility = View.VISIBLE
+                dynamicIslandView.scaleX = 0.7f
+                dynamicIslandView.scaleY = 0.7f
+                dynamicIslandView.alpha = 0f
+                params.x = (((fullScreenWidth - prefIslandWidthPx) / 2) + prefIslandOffsetXPx)
+                    .coerceIn(12, (fullScreenWidth - prefIslandWidthPx - 12).coerceAtLeast(12))
+                params.y = prefIslandPosYPx
+                windowManager.updateViewLayout(floatingView, params)
+
+                dynamicIslandView.animate()
+                    .scaleX(1.0f)
+                    .scaleY(1.0f)
+                    .alpha(1.0f)
+                    .setDuration(300)
+                    .setInterpolator(OvershootInterpolator(1.1f))
+                    .start()
+            }
+        }
+    }
+
+    private fun openPopupChat() {
+        edgeHandler.removeCallbacks(transformToXiaomiEdgeRunnable)
+        dynamicIslandView.visibility = View.GONE
+        xiaomiEdgeView.visibility = View.GONE
+        bubbleView.visibility = View.GONE
+
+        popupChatView.visibility = View.VISIBLE
+        popupChatView.pivotX = popupChatView.layoutParams.width / 2f
+        popupChatView.pivotY = 0f
+        popupChatView.scaleX = 0.45f
+        popupChatView.scaleY = 0.22f
+        popupChatView.alpha = 0f
+
+        val popupW = popupChatView.layoutParams.width
+        params.x = ((fullScreenWidth - popupW) / 2).coerceIn(16, (fullScreenWidth - popupW - 16).coerceAtLeast(16))
+        params.y = (prefIslandPosYPx + (14 * resources.displayMetrics.density).toInt()).coerceIn(24, fullScreenHeight / 4)
+        params.flags = WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
+                WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH or
+                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN
+
+        applyWindowBlur(enabled = prefLiquidBlur)
+        windowManager.updateViewLayout(floatingView, params)
+
+        popupChatView.animate()
+            .scaleX(1.0f)
+            .scaleY(1.0f)
+            .alpha(prefPopupAlpha)
+            .setDuration(340)
+            .setInterpolator(OvershootInterpolator(0.85f))
+            .start()
+    }
+
+    private fun closePopupChat() {
+        popupChatView.animate()
+            .scaleX(0.42f)
+            .scaleY(0.18f)
+            .alpha(0f)
+            .setDuration(210)
+            .setInterpolator(DecelerateInterpolator())
+            .withEndAction {
+                showCollapsedTriggerState()
+            }
+            .start()
+    }
+
+    private fun applyWindowBlur(enabled: Boolean) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            try {
+                if (enabled) {
+                    params.flags = params.flags or WindowManager.LayoutParams.FLAG_BLUR_BEHIND
+                    params.blurBehindRadius = 26
+                } else {
+                    params.flags = params.flags and WindowManager.LayoutParams.FLAG_BLUR_BEHIND.inv()
+                    params.blurBehindRadius = 0
+                }
+            } catch (_: Exception) {}
+        }
+    }
+
     private fun snapBubbleToNearestEdge() {
         val centerX = params.x + (prefBubbleSizePx / 2)
         snappedToRightEdge = centerX >= (fullScreenWidth / 2)
@@ -735,86 +927,39 @@ class FloatingAssistantService : Service() {
             }
         }
         animator.start()
-        scheduleXiaomiEdgeTransform()
-    }
-
-    private fun scheduleXiaomiEdgeTransform() {
-        edgeHandler.removeCallbacks(transformToXiaomiEdgeRunnable)
-        if (prefXiaomiEdge) {
-            edgeHandler.postDelayed(transformToXiaomiEdgeRunnable, prefEdgeDelayMs)
+        if (prefOverlayStyle == "xiaomi_edge") {
+            edgeHandler.removeCallbacks(transformToXiaomiEdgeRunnable)
+            edgeHandler.postDelayed(transformToXiaomiEdgeRunnable, 2500L)
         }
     }
 
     private fun enterXiaomiEdgeMode() {
-        isXiaomiEdgeModeActive = true
         snappedToRightEdge = (params.x + prefBubbleSizePx / 2) >= (fullScreenWidth / 2)
-
         xiaomiEdgeView.setBackgroundResource(
             if (snappedToRightEdge) R.drawable.bg_xiaomi_edge_right else R.drawable.bg_xiaomi_edge_left
         )
-
         bubbleView.visibility = View.GONE
         xiaomiEdgeView.visibility = View.VISIBLE
-        xiaomiEdgeView.alpha = 0.88f
+        xiaomiEdgeView.alpha = 0.85f
 
         val pillWidthPx = (18 * resources.displayMetrics.density).toInt()
         params.x = if (snappedToRightEdge) (fullScreenWidth - pillWidthPx) else 0
         windowManager.updateViewLayout(floatingView, params)
-
-        xiaomiEdgeView.animate()
-            .alpha(0.48f)
-            .setDuration(420)
-            .start()
+        xiaomiEdgeView.animate().alpha(0.45f).setDuration(400).start()
     }
 
     private fun exitXiaomiEdgeMode() {
         edgeHandler.removeCallbacks(transformToXiaomiEdgeRunnable)
-        isXiaomiEdgeModeActive = false
         xiaomiEdgeView.visibility = View.GONE
         bubbleView.visibility = View.VISIBLE
         bubbleView.alpha = 1.0f
-
         params.x = if (snappedToRightEdge) (fullScreenWidth - prefBubbleSizePx) else 0
         windowManager.updateViewLayout(floatingView, params)
-        scheduleXiaomiEdgeTransform()
-    }
-
-    private fun openPopupChat() {
-        edgeHandler.removeCallbacks(transformToXiaomiEdgeRunnable)
-        isXiaomiEdgeModeActive = false
-        xiaomiEdgeView.visibility = View.GONE
-        bubbleView.visibility = View.GONE
-        popupChatView.visibility = View.VISIBLE
-        popupChatView.alpha = prefPopupAlpha
-
-        val popupW = (338 * resources.displayMetrics.density).toInt()
-        val popupH = (470 * resources.displayMetrics.density).toInt()
-        params.x = params.x.coerceIn(16, (fullScreenWidth - popupW - 16).coerceAtLeast(16))
-        params.y = params.y.coerceIn(48, (fullScreenHeight - popupH - 48).coerceAtLeast(48))
-        params.flags = WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL
-        windowManager.updateViewLayout(floatingView, params)
-    }
-
-    private fun closePopupChat() {
-        popupChatView.visibility = View.GONE
-        xiaomiEdgeView.visibility = View.GONE
-        bubbleView.visibility = View.VISIBLE
-        bubbleView.alpha = 1.0f
-        isXiaomiEdgeModeActive = false
-
-        params.flags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
-        params.x = if (snappedToRightEdge) (fullScreenWidth - prefBubbleSizePx) else 0
-        windowManager.updateViewLayout(floatingView, params)
-
-        if (prefMagneticSnap) {
-            snapBubbleToNearestEdge()
-        } else {
-            scheduleXiaomiEdgeTransform()
-        }
+        edgeHandler.postDelayed(transformToXiaomiEdgeRunnable, 2500L)
     }
 
     private fun performQuickForceStop() {
-        Toast.makeText(this, "Menghentikan paksa layanan...", Toast.LENGTH_SHORT).show()
+        Toast.makeText(this, "Menghentikan paksa Floamini...", Toast.LENGTH_SHORT).show()
         stopMediaProjection()
         val appInfoIntent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
             data = Uri.parse("package:$packageName")
@@ -826,9 +971,9 @@ class FloatingAssistantService : Service() {
     }
 
     // ==========================================================================
-    // TAMPILAN CHAT KIRI-KANAN (TEKAN LAMA UNTUK SALIN) & PEMBERSIH MARKDOWN
+    // GELEMBUNG CHAT KIRI-KANAN + TIMESTAMP + TAP TO COPY
     // ==========================================================================
-    private fun addChatMessage(container: LinearLayout, scrollView: ScrollView, text: String, isUser: Boolean) {
+    private fun addChatMessage(text: String, timeLabel: String, isUser: Boolean) {
         val wrapper = LinearLayout(this).apply {
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
@@ -836,6 +981,7 @@ class FloatingAssistantService : Service() {
             ).apply {
                 setMargins(0, 6, 0, 6)
             }
+            orientation = LinearLayout.VERTICAL
             gravity = if (isUser) Gravity.END else Gravity.START
         }
 
@@ -845,45 +991,27 @@ class FloatingAssistantService : Service() {
             lineHeight = (19 * resources.displayMetrics.density).toInt()
             setTextColor(Color.parseColor("#F8FAFC"))
             setPadding(28, 18, 28, 18)
-            maxWidth = (248 * resources.displayMetrics.density).toInt()
+            maxWidth = (250 * resources.displayMetrics.density).toInt()
             setBackgroundResource(if (isUser) R.drawable.bg_chat_user else R.drawable.bg_chat_bot)
 
-            setOnLongClickListener {
+            setOnClickListener {
                 val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                clipboard.setPrimaryClip(ClipData.newPlainText("Chat Message", text))
-                Toast.makeText(this@FloatingAssistantService, "Teks pesan disalin", Toast.LENGTH_SHORT).show()
-                true
+                clipboard.setPrimaryClip(ClipData.newPlainText("Floamini Message", text))
+                Toast.makeText(this@FloatingAssistantService, "Pesan disalin", Toast.LENGTH_SHORT).show()
             }
+        }
+
+        val tvTime = TextView(this).apply {
+            this.text = if (isUser) "Kamu • $timeLabel" else "Floamini • $timeLabel"
+            textSize = 9.5f
+            setTextColor(Color.parseColor("#64748B"))
+            setPadding(8, 3, 8, 0)
         }
 
         wrapper.addView(tvMessage)
-        container.addView(wrapper)
-        scrollView.post { scrollView.fullScroll(View.FOCUS_DOWN) }
-    }
-
-    private fun addTypingIndicator(container: LinearLayout, scrollView: ScrollView, statusText: String): View {
-        val wrapper = LinearLayout(this).apply {
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT
-            ).apply {
-                setMargins(0, 6, 0, 6)
-            }
-            gravity = Gravity.START
-        }
-
-        val tvTyping = TextView(this).apply {
-            this.text = statusText
-            textSize = 12f
-            setTextColor(Color.parseColor("#94A3B8"))
-            setPadding(28, 16, 28, 16)
-            setBackgroundResource(R.drawable.bg_chat_bot)
-        }
-
-        wrapper.addView(tvTyping)
-        container.addView(wrapper)
-        scrollView.post { scrollView.fullScroll(View.FOCUS_DOWN) }
-        return wrapper
+        wrapper.addView(tvTime)
+        chatContainer.addView(wrapper)
+        scrollChat.post { scrollChat.fullScroll(View.FOCUS_DOWN) }
     }
 
     private fun sanitizeMarkdown(text: String): String {
@@ -898,16 +1026,24 @@ class FloatingAssistantService : Service() {
     }
 
     // ==========================================================================
-    // LIVE SCREEN SHARE (MEDIA PROJECTION + IMAGE READER)
+    // LIVE SCREEN SHARE (MEDIA PROJECTION + ANDROID 14 CALLBACK SAFE)
     // ==========================================================================
     private fun startMediaProjection(resultCode: Int, data: Intent) {
         startForegroundNotification(withMediaProjection = true)
         val projectionManager = getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
         mediaProjection = projectionManager.getMediaProjection(resultCode, data)
 
+        mediaProjection?.registerCallback(object : MediaProjection.Callback() {
+            override fun onStop() {
+                Handler(Looper.getMainLooper()).post {
+                    stopMediaProjection()
+                }
+            }
+        }, Handler(Looper.getMainLooper()))
+
         imageReader = ImageReader.newInstance(captureWidth, captureHeight, PixelFormat.RGBA_8888, 2)
         virtualDisplay = mediaProjection?.createVirtualDisplay(
-            "GeminiScreenShare",
+            "FloaminiScreenShare",
             captureWidth,
             captureHeight,
             screenDensity,
@@ -920,14 +1056,16 @@ class FloatingAssistantService : Service() {
         isScreenShareActive = true
         btnScreenShare.setColorFilter(Color.parseColor("#38BDF8"))
         tvScreenShareStatus.visibility = View.VISIBLE
-        Toast.makeText(this, "Live Screen Share aktif", Toast.LENGTH_SHORT).show()
+        tvIslandLabel.text = "Live Vision"
+        popupChatView.setBackgroundResource(R.drawable.bg_liquid_glass_window_share)
+        Toast.makeText(this, "Live Screen Vision aktif", Toast.LENGTH_SHORT).show()
     }
 
     private fun stopMediaProjection() {
         isScreenShareActive = false
-        virtualDisplay?.release()
-        imageReader?.close()
-        mediaProjection?.stop()
+        try { virtualDisplay?.release() } catch (_: Exception) {}
+        try { imageReader?.close() } catch (_: Exception) {}
+        try { mediaProjection?.stop() } catch (_: Exception) {}
         virtualDisplay = null
         imageReader = null
         mediaProjection = null
@@ -936,6 +1074,12 @@ class FloatingAssistantService : Service() {
         }
         if (::tvScreenShareStatus.isInitialized) {
             tvScreenShareStatus.visibility = View.GONE
+        }
+        if (::tvIslandLabel.isInitialized) {
+            tvIslandLabel.text = "Floamini"
+        }
+        if (::popupChatView.isInitialized) {
+            popupChatView.setBackgroundResource(R.drawable.bg_liquid_glass_window)
         }
         startForegroundNotification(withMediaProjection = false)
     }
@@ -970,36 +1114,29 @@ class FloatingAssistantService : Service() {
     }
 
     // ==========================================================================
-    // KONEKSI GEMINI API (INGAT KONTEKS SESI, GAYA ASIK, MINIMAL 1-3 KALIMAT)
+    // KONEKSI GEMINI API (MEMORI SESI + GAYA ASIK + TANPA SIMBOL MARKDOWN)
     // ==========================================================================
     private fun buildSystemInstructionText(): String {
-        val customNote = if (prefCustomPersonaNote.isNotEmpty()) {
-            "Catatan tambahan dari pengguna tentang dirinya atau preferensinya: $prefCustomPersonaNote. "
-        } else ""
-
-        val memoryRule = "Penting: Selalu ingat dan hubungkan seluruh konteks percakapan sebelumnya dalam sesi ini agar obrolan terus nyambung dan tidak pernah lupa apa yang sedang dibahas."
+        val memoryRule = "Penting: Selalu ingat dan hubungkan seluruh konteks percakapan sebelumnya dalam sesi ini agar obrolan tetap nyambung dan tidak pernah lupa apa yang sedang dibahas."
         val formatRule = "Aturan format wajib: Jangan pernah gunakan simbol markdown seperti tanda bintang (* atau **), tanda pagar (#), atau backtick (`). Tulis dalam teks polos yang bersih dan rapi."
-
         return when (prefPersona) {
-            "ringkas" -> "Kamu adalah asisten AI yang sigap dan langsung ke inti masalah. Jawab singkat dan padat dalam 1 sampai 2 kalimat utuh tanpa basa-basi. $customNote$memoryRule $formatRule"
-            "detail" -> "Kamu adalah asisten AI yang ramah dan informatif. Jelaskan jawaban secara runtut dan jelas dalam beberapa kalimat yang mudah dipahami. $customNote$memoryRule $formatRule"
-            "kreatif" -> "Kamu adalah asisten AI yang kreatif, ekspresif, dan seru diajak brainstorming. Berikan jawaban yang segar dalam 2 sampai 4 kalimat utuh. $customNote$memoryRule $formatRule"
-            else -> "Kamu adalah asisten AI yang asik, santai, ramah, dan tidak kaku seperti teman ngobrol yang pintar. Gunakan bahasa Indonesia yang natural dan enak dibaca. Jawab cukup pendek tapi tetap jelas dan berisi, minimal 1 sampai 3 kalimat utuh yang langsung menjawab inti pertanyaan pengguna tanpa bertele-tele. $customNote$memoryRule $formatRule"
+            "ringkas" -> "Kamu adalah Floamini, asisten AI yang sigap dan langsung ke inti masalah. Jawab singkat dan padat dalam 1 sampai 2 kalimat utuh tanpa basa-basi. $memoryRule $formatRule"
+            "detail" -> "Kamu adalah Floamini, asisten AI yang ramah dan informatif. Jelaskan jawaban secara runtut dan jelas dalam beberapa kalimat yang mudah dipahami. $memoryRule $formatRule"
+            "teknis" -> "Kamu adalah Floamini, asisten teknis dan programmer yang cerdas. Berikan solusi langsung ke intinya dengan penjelasan logis dan ringkas. $memoryRule $formatRule"
+            else -> "Kamu adalah Floamini, asisten AI yang asik, santai, ramah, dan tidak kaku seperti teman ngobrol yang pintar. Gunakan bahasa Indonesia yang natural dan enak dibaca. Jawab cukup pendek tapi tetap jelas dan berisi, minimal 1 sampai 3 kalimat utuh yang langsung menjawab inti pertanyaan pengguna tanpa bertele-tele. $memoryRule $formatRule"
         }
     }
 
     private suspend fun callGeminiApi(apiKey: String, prompt: String, screenBase64: String?): String = withContext(Dispatchers.IO) {
         try {
             val url = "https://generativelanguage.googleapis.com/v1beta/models/$prefModel:generateContent?key=$apiKey"
-
             val contentsArray = JSONArray()
 
-            // Kirim seluruh riwayat percakapan sesi aktif agar Gemini tidak pernah lupa konteks
-            for ((role, text) in chatHistory) {
+            for (msg in chatHistory) {
                 contentsArray.put(JSONObject().apply {
-                    put("role", role)
+                    put("role", msg.role)
                     put("parts", JSONArray().apply {
-                        put(JSONObject().apply { put("text", text) })
+                        put(JSONObject().apply { put("text", msg.text) })
                     })
                 })
             }

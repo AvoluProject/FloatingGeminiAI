@@ -1,23 +1,28 @@
 import os
 
 # ==============================================================================
-# GENERATOR PROYEK ANDROID: GEMINI FLOATING PRO (MAJOR UPDATE EDITION)
+# SKRIP PEMBANGKIT PROYEK ANDROID: FLOAMINI v4.0 (iOS 26 LIQUID GLASS EDITION)
 # ==============================================================================
 # Fitur Utama:
-# 1. Xiaomi HyperOS Edge Pill + Magnetic Snap + Swipe/Tap Gesture & Vertical Drag
-# 2. Jendela Mengambang Gaya macOS Translucent Glass + Corner Resize Handle
-# 3. Persistent Multi-Turn Session Memory (Sesi Terus Jalan & Anti-Lupa Konteks)
-# 4. Tombol Plus (+) Drawer: Ganti Model AI, Gaya Bicara, Token, Salin Sesi, Reset, & Quick Force Stop
-# 5. Live Screen Share Real-Time (MediaProjection + ImageReader) + Quick Prompt Chips
-# 6. Dashboard Pengaturan Pro + Tes Koneksi API Token + Custom Instruksi Pribadi
-# 7. 100% Custom SVG Vector Icons (Tanpa Emoji) & Zero-Markdown Clean Output
+# 1. Dynamic Island Mode (iOS Style): Pil hitam elegan di bagian atas layar,
+#    tap untuk expand dengan fluid spring animation, tap di luar jendela atau
+#    tombol X untuk menutup kembali ke Dynamic Island.
+# 2. Kustomisasi Overlay Lengkap: Pilih Dynamic Island, Xiaomi Edge Pill, atau
+#    Classic Bubble; atur lebar pil, posisi vertikal/horizontal kamera, & transparansi.
+# 3. Tema iOS 26 Liquid Glass: Lapisan kaca berlapis specular highlight, efek
+#    background blur real-time (Android 12+), dan pengaturan ala iOS Settings.
+# 4. Halaman First Welcome + Panduan & Tes Token: Langkah mendapatkan API Key,
+#    tautan langsung Google AI Studio, tes koneksi token, hint, & ketentuan.
+# 5. Direct In-Place Update: Keystore permanen + auto-increment versionCode di
+#    GitHub Actions agar update berikutnya langsung menimpa APK tanpa uninstall.
+# 6. Persistent Multi-Turn Session + Live Screen Share + Menu Plus (+) + Force Stop.
 # ==============================================================================
 
 PROJECT_FILES = {
     # --------------------------------------------------------------------------
-    # 1. GITHUB ACTIONS WORKFLOW (Gradle 8.5 + JDK 17)
+    # 1. GITHUB ACTIONS WORKFLOW (Gradle 8.5 + Permanent Keystore + Auto Version)
     # --------------------------------------------------------------------------
-    ".github/workflows/build_apk.yml": r"""name: Build Android Debug APK
+    ".github/workflows/build_apk.yml": r"""name: Build Floamini APK
 
 on:
   push:
@@ -40,18 +45,30 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
+      - name: Restore Permanent Signing Keystore
+        uses: actions/cache@v4
+        with:
+          path: app/floamini.jks
+          key: floamini-permanent-keystore-v1
+
+      - name: Ensure Permanent Signing Keystore Exists
+        run: |
+          if [ ! -f app/floamini.jks ]; then
+            keytool -genkeypair -v -keystore app/floamini.jks -alias floamini_key -keyalg RSA -keysize 2048 -validity 10000 -storepass floamini_keystore_pass_2026 -keypass floamini_keystore_pass_2026 -dname "CN=Floamini, OU=Mobile, O=AvoluProject, L=Yogyakarta, ST=DIY, C=ID"
+          fi
+
       - name: Setup Gradle 8.5
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.5'
 
-      - name: Build Debug APK
+      - name: Build Update-Ready APK
         run: gradle assembleDebug
 
-      - name: Upload APK Artifact
+      - name: Upload Floamini APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: FloatingGeminiAI-debug
+          name: Floamini-v4.0-update-ready
           path: app/build/outputs/apk/debug/app-debug.apk
 """,
 
@@ -72,7 +89,7 @@ dependencyResolutionManagement {
         mavenCentral()
     }
 }
-rootProject.name = "FloatingGeminiAI"
+rootProject.name = "Floamini"
 include(":app")
 """,
 
@@ -89,12 +106,16 @@ android.nonTransitiveRClass=true
 """,
 
     # --------------------------------------------------------------------------
-    # 3. KONFIGURASI GRADLE MODULE (:app)
+    # 3. KONFIGURASI GRADLE MODULE (:app) - DIRECT UPDATE READY
     # --------------------------------------------------------------------------
     "app/build.gradle.kts": r"""plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
 }
+
+val ciRunNumber = System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull() ?: 0
+val appVersionCode = 5 + ciRunNumber
+val appVersionName = "4.0.$ciRunNumber"
 
 android {
     namespace = "com.example.floatinggeminiai"
@@ -104,13 +125,35 @@ android {
         applicationId = "com.example.floatinggeminiai"
         minSdk = 26
         targetSdk = 34
-        versionCode = 4
-        versionName = "3.0-Pro"
+        versionCode = appVersionCode
+        versionName = appVersionName
+    }
+
+    signingConfigs {
+        create("floaminiSign") {
+            val ksFile = file("floamini.jks")
+            if (ksFile.exists()) {
+                storeFile = ksFile
+                storePassword = "floamini_keystore_pass_2026"
+                keyAlias = "floamini_key"
+                keyPassword = "floamini_keystore_pass_2026"
+            }
+        }
     }
 
     buildTypes {
+        debug {
+            val ksFile = file("floamini.jks")
+            if (ksFile.exists()) {
+                signingConfig = signingConfigs.getByName("floaminiSign")
+            }
+        }
         release {
             isMinifyEnabled = false
+            val ksFile = file("floamini.jks")
+            if (ksFile.exists()) {
+                signingConfig = signingConfigs.getByName("floaminiSign")
+            }
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -131,11 +174,7 @@ dependencies {
     implementation("androidx.appcompat:appcompat:1.6.1")
     implementation("com.google.android.material:material:1.11.0")
     implementation("androidx.constraintlayout:constraintlayout:2.1.4")
-
-    // Coroutines untuk pemanggilan API Asynchronous
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
-
-    // OkHttp untuk koneksi langsung ke REST API Gemini
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
 }
 """,
@@ -147,6 +186,7 @@ dependencies {
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.VIBRATE" />
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
@@ -155,7 +195,7 @@ dependencies {
 
     <application
         android:allowBackup="true"
-        android:label="Gemini Floating Pro"
+        android:label="Floamini"
         android:supportsRtl="true"
         android:theme="@style/Theme.Material3.Dark.NoActionBar">
 
@@ -169,6 +209,10 @@ dependencies {
         </activity>
 
         <activity
+            android:name=".WelcomeActivity"
+            android:exported="false" />
+
+        <activity
             android:name=".ScreenCapturePermissionActivity"
             android:exported="false"
             android:theme="@android:style/Theme.Translucent.NoTitleBar" />
@@ -180,7 +224,7 @@ dependencies {
             android:foregroundServiceType="specialUse|mediaProjection">
             <property
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
-                android:value="Floating AI Assistant Overlay" />
+                android:value="Floamini Dynamic Island AI Assistant" />
         </service>
 
     </application>
@@ -188,14 +232,14 @@ dependencies {
 """,
 
     # --------------------------------------------------------------------------
-    # 5. LAYOUT HALAMAN UTAMA (DASHBOARD PENGATURAN PRO)
+    # 5. LAYOUT FIRST WELCOME SCREEN (iOS 26 LIQUID GLASS ONBOARDING)
     # --------------------------------------------------------------------------
-    "app/src/main/res/layout/activity_main.xml": r"""<?xml version="1.0" encoding="utf-8"?>
+    "app/src/main/res/layout/activity_welcome.xml": r"""<?xml version="1.0" encoding="utf-8"?>
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#060A12"
+    android:background="#050810"
     android:fillViewport="true">
 
     <LinearLayout
@@ -204,23 +248,316 @@ dependencies {
         android:orientation="vertical"
         android:padding="20dp">
 
-        <!-- HEADER APLIKASI -->
+        <!-- HERO WELCOME HEADER -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:gravity="center"
+            android:paddingVertical="18dp">
+
+            <FrameLayout
+                android:layout_width="68dp"
+                android:layout_height="68dp"
+                android:background="@drawable/bg_dynamic_island">
+
+                <ImageView
+                    android:layout_width="32dp"
+                    android:layout_height="32dp"
+                    android:layout_gravity="center"
+                    android:src="@drawable/ic_sparkle"
+                    app:tint="#38BDF8" />
+            </FrameLayout>
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="14dp"
+                android:paddingHorizontal="12dp"
+                android:paddingVertical="4dp"
+                android:background="@drawable/bg_badge_pill"
+                android:text="FLOAMINI v4.0 • iOS 26 LIQUID GLASS"
+                android:textSize="10sp"
+                android:textStyle="bold"
+                android:textColor="#38BDF8" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:text="Selamat Datang di Floamini"
+                android:textSize="24sp"
+                android:textStyle="bold"
+                android:textColor="#F8FAFC"
+                android:gravity="center" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:text="Asisten AI melayang bergaya Dynamic Island dengan kaca transparan Liquid Glass, memori sesi permanen, dan kemampuan melihat layar secara langsung."
+                android:textSize="13sp"
+                android:lineHeight="19dp"
+                android:textColor="#94A3B8"
+                android:gravity="center" />
+        </LinearLayout>
+
+        <!-- KARTU 1: PANDUAN & LINK MENDAPATKAN GEMINI API KEY -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:background="@drawable/bg_liquid_glass_card"
+            android:padding="18dp"
+            android:layout_marginBottom="16dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
+
+                <FrameLayout
+                    android:layout_width="32dp"
+                    android:layout_height="32dp"
+                    android:background="@drawable/bg_ios_icon_blue">
+
+                    <ImageView
+                        android:layout_width="17dp"
+                        android:layout_height="17dp"
+                        android:layout_gravity="center"
+                        android:src="@drawable/ic_key"
+                        app:tint="#FFFFFF" />
+                </FrameLayout>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="10dp"
+                    android:text="Cara Mendapatkan Gemini API Key"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    android:textColor="#F8FAFC" />
+            </LinearLayout>
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:text="1. Ketuk tombol Buka Google AI Studio di bawah ini.\n2. Masuk menggunakan akun Google Anda.\n3. Pilih tombol Create API Key lalu salin kode yang diawali huruf AIzaSy...\n4. Tempelkan API Key pada kolom di bawah dan tekan Tes Token."
+                android:textSize="12.5sp"
+                android:lineHeight="19dp"
+                android:textColor="#CBD5E1" />
+
+            <Button
+                android:id="@+id/btnOpenAiStudio"
+                android:layout_width="match_parent"
+                android:layout_height="46dp"
+                android:layout_marginTop="14dp"
+                android:text="Buka Google AI Studio (aistudio.google.com)"
+                android:textSize="12.5sp"
+                android:textStyle="bold"
+                app:icon="@drawable/ic_external_link"
+                app:iconSize="16dp"
+                app:iconGravity="textStart"
+                app:iconTint="#38BDF8"
+                android:backgroundTint="#1E293B"
+                android:textColor="#38BDF8" />
+
+            <com.google.android.material.textfield.TextInputLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:hint="Tempel Gemini API Key Anda di sini"
+                app:boxBackgroundColor="#0B111E"
+                app:boxStrokeColor="#38BDF8"
+                app:hintTextColor="#38BDF8"
+                app:endIconMode="password_toggle"
+                style="@style/Widget.Material3.TextInputLayout.OutlinedBox">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/etWelcomeApiKey"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textColor="#F8FAFC"
+                    android:textSize="13sp"
+                    android:inputType="textPassword" />
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginTop="10dp">
+
+                <Button
+                    android:id="@+id/btnTestTokenWelcome"
+                    android:layout_width="wrap_content"
+                    android:layout_height="40dp"
+                    android:text="Tes Token"
+                    android:textSize="12sp"
+                    android:textStyle="bold"
+                    android:backgroundTint="#0284C7"
+                    android:textColor="#FFFFFF" />
+
+                <TextView
+                    android:id="@+id/tvTokenTestResult"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_marginStart="12dp"
+                    android:text="Belum diuji"
+                    android:textSize="12sp"
+                    android:textColor="#94A3B8" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- KARTU 2: HINT & TIPS PENGGUNAAN FLOAMINI -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:background="@drawable/bg_liquid_glass_card"
+            android:padding="18dp"
+            android:layout_marginBottom="16dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
+
+                <FrameLayout
+                    android:layout_width="32dp"
+                    android:layout_height="32dp"
+                    android:background="@drawable/bg_ios_icon_purple">
+
+                    <ImageView
+                        android:layout_width="17dp"
+                        android:layout_height="17dp"
+                        android:layout_gravity="center"
+                        android:src="@drawable/ic_bolt"
+                        app:tint="#FFFFFF" />
+                </FrameLayout>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="10dp"
+                    android:text="Hint &amp; Panduan Fitur Utama"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    android:textColor="#F8FAFC" />
+            </LinearLayout>
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:text="• Dynamic Island Interaktif: Ketuk pil hitam di atas layar untuk membuka jendela chat Liquid Glass. Ketuk area luar jendela atau tombol X untuk menutupnya kembali ke pil atas.\n\n• Selaraskan Kamera Depan: Gunakan slider Posisi Vertikal &amp; Horizontal di Pengaturan agar posisi Dynamic Island pas menyatu dengan kamera punch-hole HP Anda.\n\n• Live Screen Share: Ketuk ikon layar di bilah atas jendela chat agar Floamini bisa melihat dan menjawab soal, chat, atau artikel di layar secara real-time.\n\n• Memori Sesi Berkelanjutan: Sekali sesi berjalan, Floamini terus mengingat konteks obrolan meski jendela ditutup. Tekan tombol + lalu Reset jika ingin memulai topik baru.\n\n• Update Langsung Tanpa Uninstall: Setiap versi terbaru Floamini dapat langsung diinstal menimpa aplikasi lama tanpa menghapus data dan token Anda."
+                android:textSize="12.5sp"
+                android:lineHeight="18.5dp"
+                android:textColor="#CBD5E1" />
+        </LinearLayout>
+
+        <!-- KARTU 3: KETENTUAN PENGGUNAAN & PRIVASI -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:background="@drawable/bg_liquid_glass_card"
+            android:padding="18dp"
+            android:layout_marginBottom="20dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
+
+                <FrameLayout
+                    android:layout_width="32dp"
+                    android:layout_height="32dp"
+                    android:background="@drawable/bg_ios_icon_green">
+
+                    <ImageView
+                        android:layout_width="17dp"
+                        android:layout_height="17dp"
+                        android:layout_gravity="center"
+                        android:src="@drawable/ic_info_shield"
+                        app:tint="#FFFFFF" />
+                </FrameLayout>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="10dp"
+                    android:text="Ketentuan &amp; Keamanan Privasi"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    android:textColor="#F8FAFC" />
+            </LinearLayout>
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:text="1. Penyimpanan 100% Lokal: API Key dan riwayat percakapan hanya disimpan di penyimpanan privat perangkat Anda dan tidak pernah dikirim ke server pihak ketiga selain Google Gemini API.\n2. Izin Overlay &amp; Layar: Tangkapan layar hanya diambil ketika Anda menyalakan fitur Live Screen Share secara manual.\n3. Kuota API: Gunakan API Key pribadi sesuai ketentuan layanan gratis maupun berbayar dari Google AI Studio."
+                android:textSize="12sp"
+                android:lineHeight="18dp"
+                android:textColor="#94A3B8" />
+        </LinearLayout>
+
+        <Button
+            android:id="@+id/btnContinueToFloamini"
+            android:layout_width="match_parent"
+            android:layout_height="54dp"
+            android:text="Mulai Gunakan Floamini"
+            android:textStyle="bold"
+            android:textSize="15sp"
+            android:backgroundTint="#38BDF8"
+            android:textColor="#050810"
+            android:layout_marginBottom="24dp" />
+
+    </LinearLayout>
+</ScrollView>
+""",
+
+    # --------------------------------------------------------------------------
+    # 6. LAYOUT HALAMAN UTAMA (iOS 26 SETTINGS & CONTROL CENTER)
+    # --------------------------------------------------------------------------
+    "app/src/main/res/layout/activity_main.xml": r"""<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#050810"
+    android:fillViewport="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="18dp">
+
+        <!-- iOS LARGE TITLE NAVIGATION HEADER -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
             android:gravity="center_vertical"
-            android:layout_marginTop="6dp"
-            android:layout_marginBottom="18dp">
+            android:layout_marginTop="4dp"
+            android:layout_marginBottom="16dp">
 
             <FrameLayout
-                android:layout_width="48dp"
-                android:layout_height="48dp"
-                android:background="@drawable/bg_bubble">
+                android:layout_width="46dp"
+                android:layout_height="46dp"
+                android:background="@drawable/bg_dynamic_island">
 
                 <ImageView
-                    android:layout_width="24dp"
-                    android:layout_height="24dp"
+                    android:layout_width="22dp"
+                    android:layout_height="22dp"
                     android:layout_gravity="center"
                     android:src="@drawable/ic_sparkle"
                     app:tint="#38BDF8" />
@@ -230,48 +567,69 @@ dependencies {
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:layout_marginStart="14dp"
+                android:layout_marginStart="12dp"
                 android:orientation="vertical">
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Gemini Floating Pro"
-                    android:textSize="21sp"
+                    android:text="Floamini"
+                    android:textSize="24sp"
                     android:textStyle="bold"
                     android:textColor="#F8FAFC" />
 
                 <TextView
-                    android:id="@+id/tvDashboardSessionStatus"
+                    android:id="@+id/tvAppVersionInfo"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Sesi Memori Aktif • Siap Digunakan"
-                    android:textSize="12sp"
-                    android:textColor="#38BDF8" />
+                    android:text="iOS 26 Liquid Glass • Dynamic Island AI"
+                    android:textSize="11.5sp"
+                    android:textColor="#94A3B8" />
             </LinearLayout>
+
+            <Button
+                android:id="@+id/btnOpenWelcomeGuide"
+                android:layout_width="wrap_content"
+                android:layout_height="38dp"
+                android:text="Panduan"
+                android:textSize="12sp"
+                android:textColor="#38BDF8"
+                app:strokeColor="#334155"
+                style="@style/Widget.Material3.Button.OutlinedButton" />
         </LinearLayout>
 
-        <!-- KARTU KONTROL UTAMA & QUICK FORCE STOP -->
+        <!-- SECTION 1: KONTROL LAYANAN & SESI AKTIF -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="KONTROL FLOAMINI"
+            android:textSize="11sp"
+            android:textStyle="bold"
+            android:letterSpacing="0.06"
+            android:textColor="#64748B"
+            android:layout_marginStart="6dp"
+            android:layout_marginBottom="6dp" />
+
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:background="@drawable/bg_card_dark"
+            android:background="@drawable/bg_liquid_glass_card"
             android:padding="16dp"
-            android:layout_marginBottom="16dp">
+            android:layout_marginBottom="18dp">
 
             <Button
                 android:id="@+id/btnStartOverlay"
                 android:layout_width="match_parent"
-                android:layout_height="54dp"
-                android:text="Aktifkan Floating Assistant"
+                android:layout_height="52dp"
+                android:text="Aktifkan Dynamic Island AI"
                 android:textStyle="bold"
                 android:textSize="14sp"
-                app:icon="@drawable/ic_sparkle"
+                app:icon="@drawable/ic_dynamic_island"
                 app:iconGravity="textStart"
-                app:iconTint="#060A12"
+                app:iconTint="#050810"
                 android:backgroundTint="#38BDF8"
-                android:textColor="#060A12" />
+                android:textColor="#050810" />
 
             <LinearLayout
                 android:layout_width="match_parent"
@@ -282,7 +640,7 @@ dependencies {
                 <Button
                     android:id="@+id/btnStopOverlay"
                     android:layout_width="0dp"
-                    android:layout_height="46dp"
+                    android:layout_height="44dp"
                     android:layout_weight="1"
                     android:text="Hentikan"
                     android:textSize="12sp"
@@ -293,7 +651,7 @@ dependencies {
                 <Button
                     android:id="@+id/btnQuickForceStopMain"
                     android:layout_width="0dp"
-                    android:layout_height="46dp"
+                    android:layout_height="44dp"
                     android:layout_weight="1.15"
                     android:layout_marginStart="10dp"
                     android:text="Quick Force Stop"
@@ -306,68 +664,295 @@ dependencies {
                     android:textColor="#FCA5A5" />
             </LinearLayout>
 
-            <Button
-                android:id="@+id/btnClearSessionMain"
+            <View
                 android:layout_width="match_parent"
-                android:layout_height="40dp"
-                android:layout_marginTop="8dp"
-                android:text="Reset Memori Sesi Obrolan"
-                android:textSize="12sp"
-                android:textColor="#94A3B8"
-                app:icon="@drawable/ic_trash"
-                app:iconSize="15dp"
-                app:iconTint="#94A3B8"
-                style="@style/Widget.Material3.Button.TextButton" />
+                android:layout_height="1dp"
+                android:background="#1E293B"
+                android:layout_marginVertical="12dp" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
+
+                <TextView
+                    android:id="@+id/tvSessionStatusMain"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Memori Sesi: 0 pesan tersimpan"
+                    android:textSize="12.5sp"
+                    android:textColor="#CBD5E1" />
+
+                <Button
+                    android:id="@+id/btnResetSessionMain"
+                    android:layout_width="wrap_content"
+                    android:layout_height="34dp"
+                    android:text="Reset Sesi"
+                    android:textSize="11sp"
+                    android:textColor="#FBBF24"
+                    app:strokeColor="#475569"
+                    style="@style/Widget.Material3.Button.OutlinedButton" />
+            </LinearLayout>
         </LinearLayout>
 
-        <!-- KARTU PENGATURAN TOKEN, TES KONEKSI, MODEL, & KEPRIBADIAN AI -->
+        <!-- SECTION 2: KUSTOMISASI DYNAMIC ISLAND & LIQUID GLASS (iOS STYLE) -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="DYNAMIC ISLAND &amp; LIQUID GLASS"
+            android:textSize="11sp"
+            android:textStyle="bold"
+            android:letterSpacing="0.06"
+            android:textColor="#64748B"
+            android:layout_marginStart="6dp"
+            android:layout_marginBottom="6dp" />
+
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:background="@drawable/bg_card_dark"
+            android:background="@drawable/bg_liquid_glass_card"
             android:padding="16dp"
-            android:layout_marginBottom="16dp">
+            android:layout_marginBottom="18dp">
 
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
                 android:gravity="center_vertical"
-                android:layout_marginBottom="12dp">
+                android:layout_marginBottom="10dp">
 
-                <ImageView
-                    android:layout_width="18dp"
-                    android:layout_height="18dp"
-                    android:src="@drawable/ic_key"
-                    app:tint="#38BDF8" />
+                <FrameLayout
+                    android:layout_width="28dp"
+                    android:layout_height="28dp"
+                    android:background="@drawable/bg_ios_icon_blue">
+
+                    <ImageView
+                        android:layout_width="16dp"
+                        android:layout_height="16dp"
+                        android:layout_gravity="center"
+                        android:src="@drawable/ic_dynamic_island"
+                        app:tint="#FFFFFF" />
+                </FrameLayout>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="10dp"
+                    android:text="Gaya Tampilan Overlay"
+                    android:textSize="14sp"
+                    android:textStyle="bold"
+                    android:textColor="#F8FAFC" />
+            </LinearLayout>
+
+            <RadioGroup
+                android:id="@+id/rgOverlayStyle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginBottom="10dp">
+
+                <RadioButton
+                    android:id="@+id/rbStyleDynamicIsland"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1.2"
+                    android:text="Dynamic Island"
+                    android:textSize="12sp"
+                    android:textColor="#F8FAFC"
+                    android:checked="true" />
+
+                <RadioButton
+                    android:id="@+id/rbStyleXiaomiEdge"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Xiaomi Edge"
+                    android:textSize="12sp"
+                    android:textColor="#F8FAFC" />
+
+                <RadioButton
+                    android:id="@+id/rbStyleClassicBubble"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="0.9"
+                    android:text="Bubble"
+                    android:textSize="12sp"
+                    android:textColor="#F8FAFC" />
+            </RadioGroup>
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:background="#1E293B"
+                android:layout_marginVertical="8dp" />
+
+            <com.google.android.material.switchmaterial.SwitchMaterial
+                android:id="@+id/swTapOutsideClose"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Ketuk di Luar Jendela untuk Menutup (iOS Gesture)"
+                android:textColor="#E2E8F0"
+                android:textSize="13sp"
+                android:checked="true" />
+
+            <com.google.android.material.switchmaterial.SwitchMaterial
+                android:id="@+id/swLiquidBlur"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:text="Efek Refraksi &amp; Blur Kaca Liquid Glass"
+                android:textColor="#E2E8F0"
+                android:textSize="13sp"
+                android:checked="true" />
+
+            <com.google.android.material.switchmaterial.SwitchMaterial
+                android:id="@+id/swHapticFeedback"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:text="Getaran Taktil iOS (Haptic Engine)"
+                android:textColor="#E2E8F0"
+                android:textSize="13sp"
+                android:checked="true" />
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:background="#1E293B"
+                android:layout_marginVertical="10dp" />
+
+            <TextView
+                android:id="@+id/tvIslandWidthLabel"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Lebar Pil Dynamic Island: 168dp"
+                android:textSize="12sp"
+                android:textColor="#CBD5E1" />
+
+            <SeekBar
+                android:id="@+id/sbIslandWidth"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:max="120"
+                android:progress="48"
+                android:layout_marginBottom="10dp" />
+
+            <TextView
+                android:id="@+id/tvIslandPosYLabel"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Posisi Vertikal Atas (Y): 12dp"
+                android:textSize="12sp"
+                android:textColor="#CBD5E1" />
+
+            <SeekBar
+                android:id="@+id/sbIslandPosY"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:max="70"
+                android:progress="12"
+                android:layout_marginBottom="10dp" />
+
+            <TextView
+                android:id="@+id/tvIslandOffsetXLabel"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Geser Horizontal Kamera (X): 0dp"
+                android:textSize="12sp"
+                android:textColor="#CBD5E1" />
+
+            <SeekBar
+                android:id="@+id/sbIslandOffsetX"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:max="160"
+                android:progress="80"
+                android:layout_marginBottom="10dp" />
+
+            <TextView
+                android:id="@+id/tvOpacityLabel"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Transparansi Liquid Glass: 82%"
+                android:textSize="12sp"
+                android:textColor="#CBD5E1" />
+
+            <SeekBar
+                android:id="@+id/sbOpacity"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:max="55"
+                android:progress="37" />
+        </LinearLayout>
+
+        <!-- SECTION 3: GEMINI API KEY & KECERDASAN AI -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="GEMINI API &amp; KARAKTER AI"
+            android:textSize="11sp"
+            android:textStyle="bold"
+            android:letterSpacing="0.06"
+            android:textColor="#64748B"
+            android:layout_marginStart="6dp"
+            android:layout_marginBottom="6dp" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:background="@drawable/bg_liquid_glass_card"
+            android:padding="16dp"
+            android:layout_marginBottom="18dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginBottom="10dp">
+
+                <FrameLayout
+                    android:layout_width="28dp"
+                    android:layout_height="28dp"
+                    android:background="@drawable/bg_ios_icon_orange">
+
+                    <ImageView
+                        android:layout_width="16dp"
+                        android:layout_height="16dp"
+                        android:layout_gravity="center"
+                        android:src="@drawable/ic_key"
+                        app:tint="#FFFFFF" />
+                </FrameLayout>
 
                 <TextView
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:layout_marginStart="8dp"
-                    android:text="Koneksi &amp; Kepribadian AI"
-                    android:textSize="15sp"
+                    android:layout_marginStart="10dp"
+                    android:text="Gemini API Token"
+                    android:textSize="14sp"
                     android:textStyle="bold"
                     android:textColor="#F8FAFC" />
 
-                <Button
-                    android:id="@+id/btnTestToken"
+                <TextView
+                    android:id="@+id/tvGetKeyShortcut"
                     android:layout_width="wrap_content"
-                    android:layout_height="34dp"
-                    android:text="Tes Token"
-                    android:textSize="11sp"
-                    android:textColor="#38BDF8"
-                    app:strokeColor="#1E3A8A"
-                    style="@style/Widget.Material3.Button.OutlinedButton" />
+                    android:layout_height="wrap_content"
+                    android:text="Ambil API Key ↗"
+                    android:textSize="12sp"
+                    android:textStyle="bold"
+                    android:textColor="#38BDF8" />
             </LinearLayout>
 
             <com.google.android.material.textfield.TextInputLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:hint="Gemini API Token"
-                app:boxBackgroundColor="#0F172A"
+                android:hint="Tempel Gemini API Key (AIzaSy...)"
+                app:boxBackgroundColor="#0B111E"
                 app:boxStrokeColor="#38BDF8"
                 app:hintTextColor="#38BDF8"
                 app:endIconMode="password_toggle"
@@ -382,30 +967,11 @@ dependencies {
                     android:inputType="textPassword" />
             </com.google.android.material.textfield.TextInputLayout>
 
-            <com.google.android.material.textfield.TextInputLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="10dp"
-                android:hint="Catatan Pribadi / Panggilan (Opsional)"
-                app:boxBackgroundColor="#0F172A"
-                app:boxStrokeColor="#334155"
-                app:hintTextColor="#94A3B8"
-                style="@style/Widget.Material3.TextInputLayout.OutlinedBox">
-
-                <com.google.android.material.textfield.TextInputEditText
-                    android:id="@+id/etCustomPersonaNote"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:textColor="#F8FAFC"
-                    android:textSize="12sp"
-                    android:maxLines="2" />
-            </com.google.android.material.textfield.TextInputLayout>
-
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="14dp"
-                android:text="Gaya Bicara Gemini"
+                android:text="Gaya Bicara Floamini"
                 android:textSize="12sp"
                 android:textColor="#94A3B8" />
 
@@ -414,7 +980,7 @@ dependencies {
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
-                android:layout_marginTop="6dp">
+                android:layout_marginTop="4dp">
 
                 <RadioButton
                     android:id="@+id/rbAsik"
@@ -445,11 +1011,11 @@ dependencies {
                     android:textColor="#E2E8F0" />
 
                 <RadioButton
-                    android:id="@+id/rbKreatif"
+                    android:id="@+id/rbTeknis"
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="Kreatif"
+                    android:text="Teknis"
                     android:textSize="12sp"
                     android:textColor="#E2E8F0" />
             </RadioGroup>
@@ -458,7 +1024,7 @@ dependencies {
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="10dp"
-                android:text="Model Mesin Gemini"
+                android:text="Model Gemini"
                 android:textSize="12sp"
                 android:textColor="#94A3B8" />
 
@@ -467,7 +1033,7 @@ dependencies {
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
-                android:layout_marginTop="6dp">
+                android:layout_marginTop="4dp">
 
                 <RadioButton
                     android:id="@+id/rbModel3Flash"
@@ -499,118 +1065,11 @@ dependencies {
             </RadioGroup>
         </LinearLayout>
 
-        <!-- KARTU PENGATURAN XIAOMI EDGE PILL & MAC OS GLASS -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:background="@drawable/bg_card_dark"
-            android:padding="16dp"
-            android:layout_marginBottom="16dp">
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:gravity="center_vertical"
-                android:layout_marginBottom="12dp">
-
-                <ImageView
-                    android:layout_width="18dp"
-                    android:layout_height="18dp"
-                    android:src="@drawable/ic_edge_pill"
-                    app:tint="#38BDF8" />
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="8dp"
-                    android:text="Xiaomi Edge Pill &amp; Jendela macOS"
-                    android:textSize="15sp"
-                    android:textStyle="bold"
-                    android:textColor="#F8FAFC" />
-            </LinearLayout>
-
-            <com.google.android.material.switchmaterial.SwitchMaterial
-                android:id="@+id/swMagneticSnap"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="Tempel Otomatis ke Pinggir Layar (Magnetic Snap)"
-                android:textColor="#E2E8F0"
-                android:textSize="13sp"
-                android:checked="true" />
-
-            <com.google.android.material.switchmaterial.SwitchMaterial
-                android:id="@+id/swXiaomiEdge"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"
-                android:text="Garis Setengah Lingkaran Xiaomi (Edge Pill)"
-                android:textColor="#E2E8F0"
-                android:textSize="13sp"
-                android:checked="true" />
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Saat dilepas ke tepi layar, bubble mengecil menjadi garis setengah lingkaran ala Xiaomi Sidebar. Ketuk atau geser ke dalam untuk membuka."
-                android:textSize="11sp"
-                android:textColor="#64748B"
-                android:layout_marginBottom="12dp" />
-
-            <TextView
-                android:id="@+id/tvEdgeDelayLabel"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Jeda Berubah ke Garis Xiaomi: 3 Detik"
-                android:textSize="12sp"
-                android:textColor="#CBD5E1" />
-
-            <SeekBar
-                android:id="@+id/sbEdgeDelay"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:max="9"
-                android:progress="2"
-                android:layout_marginBottom="12dp" />
-
-            <TextView
-                android:id="@+id/tvOpacityLabel"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Transparansi Jendela Chat: 84%"
-                android:textSize="12sp"
-                android:textColor="#CBD5E1" />
-
-            <SeekBar
-                android:id="@+id/sbOpacity"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:max="55"
-                android:progress="39"
-                android:layout_marginBottom="12dp" />
-
-            <TextView
-                android:id="@+id/tvBubbleSizeLabel"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Ukuran Bubble Utama: 56dp"
-                android:textSize="12sp"
-                android:textColor="#CBD5E1" />
-
-            <SeekBar
-                android:id="@+id/sbBubbleSize"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:max="28"
-                android:progress="12" />
-        </LinearLayout>
-
         <Button
             android:id="@+id/btnSaveAllSettings"
             android:layout_width="match_parent"
             android:layout_height="52dp"
-            android:text="Simpan &amp; Terapkan Pengaturan"
+            android:text="Simpan &amp; Terapkan ke Floamini"
             android:textStyle="bold"
             android:backgroundTint="#2563EB"
             android:textColor="#FFFFFF"
@@ -621,7 +1080,7 @@ dependencies {
 """,
 
     # --------------------------------------------------------------------------
-    # 6. LAYOUT OVERLAY: BUBBLE + XIAOMI EDGE PILL + MAC OS POPUP + PLUS DRAWER
+    # 7. LAYOUT OVERLAY: DYNAMIC ISLAND + XIAOMI EDGE + LIQUID GLASS WINDOW
     # --------------------------------------------------------------------------
     "app/src/main/res/layout/layout_floating_assistant.xml": r"""<?xml version="1.0" encoding="utf-8"?>
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
@@ -629,29 +1088,67 @@ dependencies {
     android:layout_width="wrap_content"
     android:layout_height="wrap_content">
 
-    <!-- 1A. BUBBLE UTAMA (LINGKARAN PENUH) -->
-    <FrameLayout
-        android:id="@+id/bubbleView"
-        android:layout_width="56dp"
-        android:layout_height="56dp"
-        android:background="@drawable/bg_bubble"
-        android:elevation="12dp">
+    <!-- 1A. DYNAMIC ISLAND PILL (PIL HITAM PANJANG DI BAGIAN ATAS LAYAR) -->
+    <LinearLayout
+        android:id="@+id/dynamicIslandView"
+        android:layout_width="168dp"
+        android:layout_height="34dp"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingHorizontal="12dp"
+        android:background="@drawable/bg_dynamic_island"
+        android:elevation="16dp">
 
         <ImageView
-            android:layout_width="26dp"
-            android:layout_height="26dp"
+            android:id="@+id/ivIslandSparkle"
+            android:layout_width="15dp"
+            android:layout_height="15dp"
+            android:src="@drawable/ic_sparkle"
+            app:tint="#38BDF8" />
+
+        <TextView
+            android:id="@+id/tvIslandLabel"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:gravity="center"
+            android:text="Floamini"
+            android:textSize="11.5sp"
+            android:textStyle="bold"
+            android:textColor="#F8FAFC"
+            android:singleLine="true" />
+
+        <View
+            android:id="@+id/viewIslandPulseDot"
+            android:layout_width="7dp"
+            android:layout_height="7dp"
+            android:background="@drawable/bg_island_pulse_dot" />
+    </LinearLayout>
+
+    <!-- 1B. CLASSIC FLOATING BUBBLE -->
+    <FrameLayout
+        android:id="@+id/bubbleView"
+        android:layout_width="54dp"
+        android:layout_height="54dp"
+        android:background="@drawable/bg_bubble"
+        android:elevation="14dp"
+        android:visibility="gone">
+
+        <ImageView
+            android:layout_width="25dp"
+            android:layout_height="25dp"
             android:layout_gravity="center"
             android:src="@drawable/ic_sparkle"
             app:tint="#38BDF8" />
     </FrameLayout>
 
-    <!-- 1B. XIAOMI EDGE PILL (GARIS SETENGAH LINGKARAN DI PINGGIR LAYAR) -->
+    <!-- 1C. XIAOMI EDGE PILL (GARIS SETENGAH LINGKARAN DI PINGGIR LAYAR) -->
     <FrameLayout
         android:id="@+id/xiaomiEdgeView"
         android:layout_width="18dp"
         android:layout_height="72dp"
         android:background="@drawable/bg_xiaomi_edge_left"
-        android:elevation="12dp"
+        android:elevation="14dp"
         android:visibility="gone">
 
         <View
@@ -661,89 +1158,90 @@ dependencies {
             android:background="@drawable/bg_xiaomi_inner_line" />
     </FrameLayout>
 
-    <!-- 2. POPUP CHAT GAYA MAC OS WINDOW (TRANSLUCENT GLASS + RESIZABLE) -->
+    <!-- 2. JENDELA CHAT iOS 26 LIQUID GLASS (EXPANDED DARI DYNAMIC ISLAND) -->
     <LinearLayout
         android:id="@+id/popupChatView"
-        android:layout_width="338dp"
-        android:layout_height="470dp"
+        android:layout_width="344dp"
+        android:layout_height="475dp"
         android:orientation="vertical"
-        android:background="@drawable/bg_popup_glass"
-        android:elevation="18dp"
+        android:background="@drawable/bg_liquid_glass_window"
+        android:elevation="20dp"
         android:visibility="gone">
 
-        <!-- MAC OS TOP ACCESSORY BAR -->
+        <!-- LIQUID GLASS TOP HEADER BAR -->
         <LinearLayout
-            android:id="@+id/macTitleBar"
+            android:id="@+id/glassTitleBar"
             android:layout_width="match_parent"
-            android:layout_height="40dp"
+            android:layout_height="44dp"
             android:orientation="horizontal"
             android:gravity="center_vertical"
             android:paddingHorizontal="12dp"
-            android:background="@drawable/bg_mac_header">
+            android:background="@drawable/bg_liquid_glass_header">
 
-            <!-- Tombol Kontrol Ala macOS: Merah (Tutup), Kuning (Minimize ke Edge), Hijau (Expand) -->
-            <View
-                android:id="@+id/btnMacClose"
-                android:layout_width="13dp"
-                android:layout_height="13dp"
-                android:background="@drawable/dot_mac_red" />
-
-            <View
-                android:id="@+id/btnMacMinimize"
-                android:layout_width="13dp"
-                android:layout_height="13dp"
-                android:layout_marginStart="8dp"
-                android:background="@drawable/dot_mac_yellow" />
-
-            <View
-                android:id="@+id/btnMacExpand"
-                android:layout_width="13dp"
-                android:layout_height="13dp"
-                android:layout_marginStart="8dp"
-                android:background="@drawable/dot_mac_green" />
+            <!-- Tombol X untuk Close kembali ke Dynamic Island / Bubble -->
+            <ImageView
+                android:id="@+id/btnCloseWindowX"
+                android:layout_width="28dp"
+                android:layout_height="28dp"
+                android:padding="6dp"
+                android:background="@drawable/bg_close_x_btn"
+                android:src="@drawable/ic_close_x"
+                app:tint="#F8FAFC"
+                android:contentDescription="Tutup ke Dynamic Island" />
 
             <LinearLayout
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:orientation="vertical"
-                android:gravity="center">
+                android:gravity="center"
+                android:orientation="horizontal">
+
+                <ImageView
+                    android:layout_width="14dp"
+                    android:layout_height="14dp"
+                    android:src="@drawable/ic_sparkle"
+                    app:tint="#38BDF8" />
 
                 <TextView
-                    android:id="@+id/tvMacWindowTitle"
+                    android:id="@+id/tvWindowTitle"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Gemini AI"
-                    android:textSize="12sp"
+                    android:layout_marginStart="6dp"
+                    android:text="Floamini"
+                    android:textSize="13sp"
                     android:textStyle="bold"
                     android:textColor="#F8FAFC" />
 
                 <TextView
-                    android:id="@+id/tvSessionSubtitle"
+                    android:id="@+id/tvSessionCounterBadge"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="3 Flash • Sesi Aktif"
-                    android:textSize="9sp"
-                    android:textColor="#94A3B8" />
+                    android:layout_marginStart="6dp"
+                    android:paddingHorizontal="6dp"
+                    android:paddingVertical="1dp"
+                    android:background="@drawable/bg_badge_pill"
+                    android:text="0"
+                    android:textSize="9.5sp"
+                    android:textColor="#38BDF8" />
             </LinearLayout>
 
-            <!-- Toggle Live Screen Share Langsung di Header -->
+            <!-- Toggle Live Screen Share -->
             <ImageView
                 android:id="@+id/btnScreenShare"
-                android:layout_width="26dp"
-                android:layout_height="26dp"
-                android:padding="4dp"
+                android:layout_width="28dp"
+                android:layout_height="28dp"
+                android:padding="5dp"
                 android:src="@drawable/ic_screen_share"
                 app:tint="#94A3B8"
                 android:contentDescription="Live Screen Share" />
 
-            <!-- TOMBOL PLUS (+) UNTUK MENU AKSI CEPAT & FORCE STOP -->
+            <!-- Tombol Plus (+) Ultra Quick Menu -->
             <ImageView
                 android:id="@+id/btnPlusMenu"
-                android:layout_width="26dp"
-                android:layout_height="26dp"
+                android:layout_width="28dp"
+                android:layout_height="28dp"
                 android:layout_marginStart="6dp"
-                android:padding="4dp"
+                android:padding="5dp"
                 android:background="@drawable/bg_plus_btn"
                 android:src="@drawable/ic_plus"
                 app:tint="#38BDF8"
@@ -758,19 +1256,19 @@ dependencies {
             android:background="#330EA5E9"
             android:paddingVertical="3dp"
             android:paddingHorizontal="12dp"
-            android:text="Live Screen Share Aktif • AI Melihat Layar"
+            android:text="Live Screen Vision Aktif • Floamini Melihat Layar"
             android:textSize="10sp"
-            android:textColor="#38BDF8"
+            android:textColor="#7DD3FC"
             android:gravity="center"
             android:visibility="gone" />
 
-        <!-- DRAWER MENU PLUS (+): TOKEN, GAYA AI, MODEL, COPY, RESET, & QUICK FORCE STOP -->
+        <!-- DRAWER MENU PLUS (+) -->
         <LinearLayout
             android:id="@+id/plusMenuDrawer"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:background="#EB1E293B"
+            android:background="#EB131B2E"
             android:padding="10dp"
             android:visibility="gone">
 
@@ -810,7 +1308,7 @@ dependencies {
                     android:layout_width="0dp"
                     android:layout_height="34dp"
                     android:layout_weight="1"
-                    android:layout_marginStart="6dp"
+                    android:layout_marginStart="5dp"
                     android:gravity="center"
                     android:background="@drawable/bg_chip_action"
                     android:orientation="horizontal">
@@ -835,8 +1333,8 @@ dependencies {
                     android:id="@+id/actionCycleModel"
                     android:layout_width="0dp"
                     android:layout_height="34dp"
-                    android:layout_weight="1.1"
-                    android:layout_marginStart="6dp"
+                    android:layout_weight="1.15"
+                    android:layout_marginStart="5dp"
                     android:gravity="center"
                     android:background="@drawable/bg_chip_action"
                     android:orientation="horizontal">
@@ -844,7 +1342,7 @@ dependencies {
                     <ImageView
                         android:layout_width="13dp"
                         android:layout_height="13dp"
-                        android:src="@drawable/ic_sparkle"
+                        android:src="@drawable/ic_model_cpu"
                         app:tint="#34D399" />
 
                     <TextView
@@ -858,7 +1356,7 @@ dependencies {
                 </LinearLayout>
             </LinearLayout>
 
-            <!-- Baris 2: Salin Terakhir, Reset Sesi, Quick Force Stop -->
+            <!-- Baris 2: Salin, Export, Reset, & Quick Force Stop -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -870,7 +1368,7 @@ dependencies {
                     android:id="@+id/actionCopyLast"
                     android:layout_width="0dp"
                     android:layout_height="34dp"
-                    android:layout_weight="0.9"
+                    android:layout_weight="0.85"
                     android:gravity="center"
                     android:background="@drawable/bg_chip_action"
                     android:orientation="horizontal">
@@ -891,11 +1389,36 @@ dependencies {
                 </LinearLayout>
 
                 <LinearLayout
+                    android:id="@+id/actionExportChat"
+                    android:layout_width="0dp"
+                    android:layout_height="34dp"
+                    android:layout_weight="0.95"
+                    android:layout_marginStart="5dp"
+                    android:gravity="center"
+                    android:background="@drawable/bg_chip_action"
+                    android:orientation="horizontal">
+
+                    <ImageView
+                        android:layout_width="13dp"
+                        android:layout_height="13dp"
+                        android:src="@drawable/ic_bolt"
+                        app:tint="#38BDF8" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="4dp"
+                        android:text="Export"
+                        android:textSize="11sp"
+                        android:textColor="#F8FAFC" />
+                </LinearLayout>
+
+                <LinearLayout
                     android:id="@+id/actionResetChat"
                     android:layout_width="0dp"
                     android:layout_height="34dp"
-                    android:layout_weight="1"
-                    android:layout_marginStart="6dp"
+                    android:layout_weight="0.9"
+                    android:layout_marginStart="5dp"
                     android:gravity="center"
                     android:background="@drawable/bg_chip_action"
                     android:orientation="horizontal">
@@ -910,7 +1433,7 @@ dependencies {
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginStart="4dp"
-                        android:text="Reset Sesi"
+                        android:text="Reset"
                         android:textSize="11sp"
                         android:textColor="#F8FAFC" />
                 </LinearLayout>
@@ -919,8 +1442,8 @@ dependencies {
                     android:id="@+id/actionQuickForceStop"
                     android:layout_width="0dp"
                     android:layout_height="34dp"
-                    android:layout_weight="1.2"
-                    android:layout_marginStart="6dp"
+                    android:layout_weight="1.15"
+                    android:layout_marginStart="5dp"
                     android:gravity="center"
                     android:background="@drawable/bg_chip_danger"
                     android:orientation="horizontal">
@@ -941,6 +1464,67 @@ dependencies {
                         android:textColor="#FCA5A5" />
                 </LinearLayout>
             </LinearLayout>
+
+            <!-- Baris 3: Smart Quick Prompt Chips -->
+            <HorizontalScrollView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="7dp"
+                android:scrollbars="none">
+
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:id="@+id/chipQuickScreenSummary"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:paddingHorizontal="10dp"
+                        android:paddingVertical="5dp"
+                        android:background="@drawable/bg_chip_prompt"
+                        android:text="Ringkas layar ini"
+                        android:textSize="10sp"
+                        android:textColor="#38BDF8" />
+
+                    <TextView
+                        android:id="@+id/chipQuickExplain"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="6dp"
+                        android:paddingHorizontal="10dp"
+                        android:paddingVertical="5dp"
+                        android:background="@drawable/bg_chip_prompt"
+                        android:text="Jelasin maksudnya"
+                        android:textSize="10sp"
+                        android:textColor="#E2E8F0" />
+
+                    <TextView
+                        android:id="@+id/chipQuickTranslate"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="6dp"
+                        android:paddingHorizontal="10dp"
+                        android:paddingVertical="5dp"
+                        android:background="@drawable/bg_chip_prompt"
+                        android:text="Terjemahin ke Indo"
+                        android:textSize="10sp"
+                        android:textColor="#E2E8F0" />
+
+                    <TextView
+                        android:id="@+id/chipQuickReply"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="6dp"
+                        android:paddingHorizontal="10dp"
+                        android:paddingVertical="5dp"
+                        android:background="@drawable/bg_chip_prompt"
+                        android:text="Buatin balasan asik"
+                        android:textSize="10sp"
+                        android:textColor="#E2E8F0" />
+                </LinearLayout>
+            </HorizontalScrollView>
 
             <!-- Input Token Gemini di dalam Drawer -->
             <LinearLayout
@@ -985,8 +1569,7 @@ dependencies {
             android:layout_width="match_parent"
             android:layout_height="0dp"
             android:layout_weight="1"
-            android:paddingHorizontal="10dp"
-            android:paddingTop="8dp">
+            android:padding="10dp">
 
             <LinearLayout
                 android:id="@+id/chatContainer"
@@ -995,84 +1578,49 @@ dependencies {
                 android:orientation="vertical" />
         </ScrollView>
 
-        <!-- QUICK PROMPT CHIPS BAR -->
-        <HorizontalScrollView
+        <!-- INDIKATOR MENGETIK (TYPING STATUS) -->
+        <LinearLayout
+            android:id="@+id/typingIndicatorRow"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:scrollbars="none"
-            android:paddingHorizontal="10dp"
-            android:paddingTop="4dp">
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:paddingHorizontal="14dp"
+            android:paddingVertical="3dp"
+            android:visibility="gone">
 
-            <LinearLayout
+            <ImageView
+                android:layout_width="12dp"
+                android:layout_height="12dp"
+                android:src="@drawable/ic_sparkle"
+                app:tint="#38BDF8" />
+
+            <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal">
+                android:layout_marginStart="6dp"
+                android:text="Floamini lagi mikir..."
+                android:textSize="11sp"
+                android:textColor="#7DD3FC" />
+        </LinearLayout>
 
-                <TextView
-                    android:id="@+id/chipScreenAnalyze"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Baca layar ini"
-                    android:textSize="10sp"
-                    android:textColor="#38BDF8"
-                    android:background="@drawable/bg_quick_chip"
-                    android:paddingHorizontal="10dp"
-                    android:paddingVertical="5dp" />
-
-                <TextView
-                    android:id="@+id/chipSummarize"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="6dp"
-                    android:text="Ringkas"
-                    android:textSize="10sp"
-                    android:textColor="#CBD5E1"
-                    android:background="@drawable/bg_quick_chip"
-                    android:paddingHorizontal="10dp"
-                    android:paddingVertical="5dp" />
-
-                <TextView
-                    android:id="@+id/chipTranslate"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="6dp"
-                    android:text="Terjemahin"
-                    android:textSize="10sp"
-                    android:textColor="#CBD5E1"
-                    android:background="@drawable/bg_quick_chip"
-                    android:paddingHorizontal="10dp"
-                    android:paddingVertical="5dp" />
-
-                <TextView
-                    android:id="@+id/chipReplyHelp"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="6dp"
-                    android:text="Bantu bales chat"
-                    android:textSize="10sp"
-                    android:textColor="#CBD5E1"
-                    android:background="@drawable/bg_quick_chip"
-                    android:paddingHorizontal="10dp"
-                    android:paddingVertical="5dp" />
-            </LinearLayout>
-        </HorizontalScrollView>
-
-        <!-- INPUT PESAN, TOMBOL KIRIM, & CORNER RESIZE GRIP -->
+        <!-- INPUT PESAN, TOMBOL KIRIM, & CORNER RESIZE HANDLE -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
             android:gravity="center_vertical"
             android:paddingStart="10dp"
-            android:paddingEnd="4dp"
-            android:paddingVertical="8dp">
+            android:paddingEnd="6dp"
+            android:paddingTop="6dp"
+            android:paddingBottom="8dp">
 
             <EditText
                 android:id="@+id/etPrompt"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:hint="Lanjut ngobrol atau tanya..."
+                android:hint="Tanya atau ngobrol..."
                 android:textColorHint="#94A3B8"
                 android:textColor="#F8FAFC"
                 android:textSize="13sp"
@@ -1091,14 +1639,13 @@ dependencies {
                 app:tint="#FFFFFF"
                 android:contentDescription="Kirim" />
 
-            <!-- Corner Resize Handle -->
             <ImageView
-                android:id="@+id/btnResizeCorner"
-                android:layout_width="18dp"
-                android:layout_height="18dp"
-                android:layout_gravity="bottom"
-                android:layout_marginStart="2dp"
-                android:src="@drawable/ic_resize_corner"
+                android:id="@+id/btnResizeHandle"
+                android:layout_width="22dp"
+                android:layout_height="28dp"
+                android:layout_marginStart="4dp"
+                android:padding="3dp"
+                android:src="@drawable/ic_resize_handle"
                 app:tint="#64748B"
                 android:contentDescription="Ubah Ukuran Jendela" />
         </LinearLayout>
@@ -1108,48 +1655,210 @@ dependencies {
 """,
 
     # --------------------------------------------------------------------------
-    # 7. DRAWABLE RESOURCES (XIAOMI EDGE PILL, MAC OS GLASS, & CUSTOM SVG)
+    # 8. DRAWABLES: iOS 26 LIQUID GLASS, DYNAMIC ISLAND, & CUSTOM SVG VECTORS
     # --------------------------------------------------------------------------
-    "app/src/main/res/drawable/bg_card_dark.xml": r"""<?xml version="1.0" encoding="utf-8"?>
+    "app/src/main/res/drawable/bg_dynamic_island.xml": r"""<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Specular Outer Liquid Glass Rim -->
+    <item>
+        <shape android:shape="rectangle">
+            <gradient
+                android:angle="135"
+                android:startColor="#66FFFFFF"
+                android:centerColor="#3338BDF8"
+                android:endColor="#26FFFFFF" />
+            <corners android:radius="100dp" />
+        </shape>
+    </item>
+    <!-- Pure Obsidian Dynamic Island Core -->
+    <item
+        android:left="1dp"
+        android:top="1dp"
+        android:right="1dp"
+        android:bottom="1dp">
+        <shape android:shape="rectangle">
+            <solid android:color="#F7030508" />
+            <corners android:radius="100dp" />
+        </shape>
+    </item>
+</layer-list>
+""",
+
+    "app/src/main/res/drawable/bg_island_pulse_dot.xml": r"""<?xml version="1.0" encoding="utf-8"?>
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="oval">
+    <solid android:color="#34D399" />
+</shape>
+""",
+
+    "app/src/main/res/drawable/bg_liquid_glass_card.xml": r"""<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Lapisan Pantulan Cahaya Kaca (Specular Border) -->
+    <item>
+        <shape android:shape="rectangle">
+            <gradient
+                android:angle="135"
+                android:startColor="#40FFFFFF"
+                android:centerColor="#1A38BDF8"
+                android:endColor="#1AFFFFFF" />
+            <corners android:radius="22dp" />
+        </shape>
+    </item>
+    <!-- Lapisan Inti Kaca Gelap Translucent -->
+    <item
+        android:left="1dp"
+        android:top="1dp"
+        android:right="1dp"
+        android:bottom="1dp">
+        <shape android:shape="rectangle">
+            <gradient
+                android:angle="270"
+                android:startColor="#E6141C2E"
+                android:endColor="#E60B101D" />
+            <corners android:radius="21dp" />
+        </shape>
+    </item>
+</layer-list>
+""",
+
+    "app/src/main/res/drawable/bg_liquid_glass_window.xml": r"""<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Refraksi Tepi Liquid Glass -->
+    <item>
+        <shape android:shape="rectangle">
+            <gradient
+                android:angle="135"
+                android:startColor="#73FFFFFF"
+                android:centerColor="#407DD3FC"
+                android:endColor="#33FFFFFF" />
+            <corners android:radius="26dp" />
+        </shape>
+    </item>
+    <!-- Permukaan Kaca Transparan Bergradasi -->
+    <item
+        android:left="1.2dp"
+        android:top="1.2dp"
+        android:right="1.2dp"
+        android:bottom="1.2dp">
+        <shape android:shape="rectangle">
+            <gradient
+                android:angle="270"
+                android:startColor="#D9151F34"
+                android:centerColor="#CC0D1424"
+                android:endColor="#D9090E1A" />
+            <corners android:radius="25dp" />
+        </shape>
+    </item>
+</layer-list>
+""",
+
+    "app/src/main/res/drawable/bg_liquid_glass_window_share.xml": r"""<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item>
+        <shape android:shape="rectangle">
+            <gradient
+                android:angle="135"
+                android:startColor="#CC38BDF8"
+                android:centerColor="#80818CF8"
+                android:endColor="#CC38BDF8" />
+            <corners android:radius="26dp" />
+        </shape>
+    </item>
+    <item
+        android:left="1.6dp"
+        android:top="1.6dp"
+        android:right="1.6dp"
+        android:bottom="1.6dp">
+        <shape android:shape="rectangle">
+            <gradient
+                android:angle="270"
+                android:startColor="#D9151F34"
+                android:centerColor="#CC0D1424"
+                android:endColor="#D9090E1A" />
+            <corners android:radius="24.5dp" />
+        </shape>
+    </item>
+</layer-list>
+""",
+
+    "app/src/main/res/drawable/bg_liquid_glass_header.xml": r"""<?xml version="1.0" encoding="utf-8"?>
 <shape xmlns:android="http://schemas.android.com/apk/res/android"
     android:shape="rectangle">
-    <solid android:color="#111827" />
-    <corners android:radius="16dp" />
-    <stroke android:width="1dp" android:color="#1E293B" />
+    <gradient
+        android:angle="270"
+        android:startColor="#40FFFFFF"
+        android:endColor="#12FFFFFF" />
+    <corners android:topLeftRadius="25dp" android:topRightRadius="25dp" />
+</shape>
+""",
+
+    "app/src/main/res/drawable/bg_close_x_btn.xml": r"""<?xml version="1.0" encoding="utf-8"?>
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="oval">
+    <solid android:color="#26FFFFFF" />
+    <stroke android:width="0.8dp" android:color="#40FFFFFF" />
+</shape>
+""",
+
+    "app/src/main/res/drawable/bg_ios_icon_blue.xml": r"""<?xml version="1.0" encoding="utf-8"?>
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <solid android:color="#0284C7" />
+    <corners android:radius="8dp" />
+</shape>
+""",
+
+    "app/src/main/res/drawable/bg_ios_icon_purple.xml": r"""<?xml version="1.0" encoding="utf-8"?>
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <solid android:color="#7C3AED" />
+    <corners android:radius="8dp" />
+</shape>
+""",
+
+    "app/src/main/res/drawable/bg_ios_icon_green.xml": r"""<?xml version="1.0" encoding="utf-8"?>
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <solid android:color="#059669" />
+    <corners android:radius="8dp" />
+</shape>
+""",
+
+    "app/src/main/res/drawable/bg_ios_icon_orange.xml": r"""<?xml version="1.0" encoding="utf-8"?>
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <solid android:color="#D97706" />
+    <corners android:radius="8dp" />
 </shape>
 """,
 
     "app/src/main/res/drawable/bg_bubble.xml": r"""<?xml version="1.0" encoding="utf-8"?>
 <shape xmlns:android="http://schemas.android.com/apk/res/android"
     android:shape="oval">
-    <solid android:color="#EB0F172A" />
-    <stroke android:width="1.5dp" android:color="#38BDF8" />
+    <solid android:color="#EB0B111E" />
+    <stroke android:width="1.5dp" android:color="#66FFFFFF" />
 </shape>
 """,
 
     "app/src/main/res/drawable/bg_xiaomi_edge_left.xml": r"""<?xml version="1.0" encoding="utf-8"?>
 <shape xmlns:android="http://schemas.android.com/apk/res/android"
     android:shape="rectangle">
-    <solid android:color="#D90F172A" />
+    <solid android:color="#D90B111E" />
     <corners
         android:topLeftRadius="0dp"
         android:bottomLeftRadius="0dp"
         android:topRightRadius="36dp"
         android:bottomRightRadius="36dp" />
-    <stroke android:width="1.2dp" android:color="#9938BDF8" />
+    <stroke android:width="1.2dp" android:color="#80FFFFFF" />
 </shape>
 """,
 
     "app/src/main/res/drawable/bg_xiaomi_edge_right.xml": r"""<?xml version="1.0" encoding="utf-8"?>
 <shape xmlns:android="http://schemas.android.com/apk/res/android"
     android:shape="rectangle">
-    <solid android:color="#D90F172A" />
+    <solid android:color="#D90B111E" />
     <corners
         android:topLeftRadius="36dp"
         android:bottomLeftRadius="36dp"
         android:topRightRadius="0dp"
         android:bottomRightRadius="0dp" />
-    <stroke android:width="1.2dp" android:color="#9938BDF8" />
+    <stroke android:width="1.2dp" android:color="#80FFFFFF" />
 </shape>
 """,
 
@@ -1161,63 +1870,37 @@ dependencies {
 </shape>
 """,
 
-    "app/src/main/res/drawable/bg_popup_glass.xml": r"""<?xml version="1.0" encoding="utf-8"?>
-<shape xmlns:android="http://schemas.android.com/apk/res/android"
-    android:shape="rectangle">
-    <solid android:color="#D60F172A" />
-    <corners android:radius="18dp" />
-    <stroke android:width="1dp" android:color="#475569" />
-</shape>
-""",
-
-    "app/src/main/res/drawable/bg_mac_header.xml": r"""<?xml version="1.0" encoding="utf-8"?>
-<shape xmlns:android="http://schemas.android.com/apk/res/android"
-    android:shape="rectangle">
-    <solid android:color="#F01E293B" />
-    <corners android:topLeftRadius="18dp" android:topRightRadius="18dp" />
-</shape>
-""",
-
-    "app/src/main/res/drawable/dot_mac_red.xml": r"""<?xml version="1.0" encoding="utf-8"?>
-<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="oval">
-    <solid android:color="#FF5F56" />
-</shape>
-""",
-
-    "app/src/main/res/drawable/dot_mac_yellow.xml": r"""<?xml version="1.0" encoding="utf-8"?>
-<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="oval">
-    <solid android:color="#FFBD2E" />
-</shape>
-""",
-
-    "app/src/main/res/drawable/dot_mac_green.xml": r"""<?xml version="1.0" encoding="utf-8"?>
-<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="oval">
-    <solid android:color="#27C93F" />
-</shape>
-""",
-
     "app/src/main/res/drawable/bg_plus_btn.xml": r"""<?xml version="1.0" encoding="utf-8"?>
 <shape xmlns:android="http://schemas.android.com/apk/res/android"
     android:shape="oval">
-    <solid android:color="#3338BDF8" />
+    <solid android:color="#2E38BDF8" />
+    <stroke android:width="0.8dp" android:color="#4D7DD3FC" />
+</shape>
+""",
+
+    "app/src/main/res/drawable/bg_badge_pill.xml": r"""<?xml version="1.0" encoding="utf-8"?>
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="#2638BDF8" />
+    <corners android:radius="10dp" />
 </shape>
 """,
 
     "app/src/main/res/drawable/bg_chip_action.xml": r"""<?xml version="1.0" encoding="utf-8"?>
 <shape xmlns:android="http://schemas.android.com/apk/res/android"
     android:shape="rectangle">
-    <solid android:color="#0F172A" />
-    <corners android:radius="10dp" />
-    <stroke android:width="1dp" android:color="#334155" />
+    <solid android:color="#B30B111E" />
+    <corners android:radius="11dp" />
+    <stroke android:width="1dp" android:color="#33FFFFFF" />
 </shape>
 """,
 
-    "app/src/main/res/drawable/bg_quick_chip.xml": r"""<?xml version="1.0" encoding="utf-8"?>
+    "app/src/main/res/drawable/bg_chip_prompt.xml": r"""<?xml version="1.0" encoding="utf-8"?>
 <shape xmlns:android="http://schemas.android.com/apk/res/android"
     android:shape="rectangle">
-    <solid android:color="#B31E293B" />
-    <corners android:radius="12dp" />
-    <stroke android:width="1dp" android:color="#334155" />
+    <solid android:color="#CC17223B" />
+    <corners android:radius="13dp" />
+    <stroke android:width="1dp" android:color="#4D38BDF8" />
 </shape>
 """,
 
@@ -1225,7 +1908,7 @@ dependencies {
 <shape xmlns:android="http://schemas.android.com/apk/res/android"
     android:shape="rectangle">
     <solid android:color="#450A0A" />
-    <corners android:radius="10dp" />
+    <corners android:radius="11dp" />
     <stroke android:width="1dp" android:color="#991B1B" />
 </shape>
 """,
@@ -1233,33 +1916,38 @@ dependencies {
     "app/src/main/res/drawable/bg_input_glass.xml": r"""<?xml version="1.0" encoding="utf-8"?>
 <shape xmlns:android="http://schemas.android.com/apk/res/android"
     android:shape="rectangle">
-    <solid android:color="#A61E293B" />
-    <corners android:radius="14dp" />
-    <stroke android:width="1dp" android:color="#334155" />
+    <solid android:color="#801E293B" />
+    <corners android:radius="16dp" />
+    <stroke android:width="1dp" android:color="#40FFFFFF" />
 </shape>
 """,
 
     "app/src/main/res/drawable/bg_send_btn.xml": r"""<?xml version="1.0" encoding="utf-8"?>
 <shape xmlns:android="http://schemas.android.com/apk/res/android"
     android:shape="oval">
-    <solid android:color="#2563EB" />
+    <solid android:color="#0284C7" />
+    <stroke android:width="0.8dp" android:color="#66FFFFFF" />
 </shape>
 """,
 
     "app/src/main/res/drawable/bg_chat_user.xml": r"""<?xml version="1.0" encoding="utf-8"?>
 <shape xmlns:android="http://schemas.android.com/apk/res/android"
     android:shape="rectangle">
-    <solid android:color="#EB2563EB" />
-    <corners android:topLeftRadius="14dp" android:topRightRadius="14dp" android:bottomLeftRadius="14dp" android:bottomRightRadius="4dp" />
+    <gradient
+        android:angle="135"
+        android:startColor="#E60284C7"
+        android:endColor="#E62563EB" />
+    <corners android:topLeftRadius="16dp" android:topRightRadius="16dp" android:bottomLeftRadius="16dp" android:bottomRightRadius="4dp" />
+    <stroke android:width="0.8dp" android:color="#4DFFFFFF" />
 </shape>
 """,
 
     "app/src/main/res/drawable/bg_chat_bot.xml": r"""<?xml version="1.0" encoding="utf-8"?>
 <shape xmlns:android="http://schemas.android.com/apk/res/android"
     android:shape="rectangle">
-    <solid android:color="#E01E293B" />
-    <corners android:topLeftRadius="14dp" android:topRightRadius="14dp" android:bottomRightRadius="14dp" android:bottomLeftRadius="4dp" />
-    <stroke android:width="1dp" android:color="#334155" />
+    <solid android:color="#CC1A2438" />
+    <corners android:topLeftRadius="16dp" android:topRightRadius="16dp" android:bottomRightRadius="16dp" android:bottomLeftRadius="4dp" />
+    <stroke android:width="0.8dp" android:color="#33FFFFFF" />
 </shape>
 """,
 
@@ -1272,6 +1960,54 @@ dependencies {
     <path
         android:fillColor="#FFFFFF"
         android:pathData="M12,2L14.4,9.6L22,12L14.4,14.4L12,22L9.6,14.4L2,12L9.6,9.6L12,2Z" />
+</vector>
+""",
+
+    "app/src/main/res/drawable/ic_close_x.xml": r"""<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z" />
+</vector>
+""",
+
+    "app/src/main/res/drawable/ic_dynamic_island.xml": r"""<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M6,8H18C20.21,8 22,9.79 22,12C22,14.21 20.21,16 18,16H6C3.79,16 2,14.21 2,12C2,9.79 3.79,8 6,8ZM17.5,10.5C16.67,10.5 16,11.17 16,12C16,12.83 16.67,13.5 17.5,13.5C18.33,13.5 19,12.83 19,12C19,11.17 18.33,10.5 17.5,10.5Z" />
+</vector>
+""",
+
+    "app/src/main/res/drawable/ic_info_shield.xml": r"""<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M12,1L3,5V11C3,16.55 6.84,21.74 12,23C17.16,21.74 21,16.55 21,11V5L12,1ZM11,7H13V9H11V7ZM11,11H13V17H11V11Z" />
+</vector>
+""",
+
+    "app/src/main/res/drawable/ic_external_link.xml": r"""<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M19,19H5V5H12V3H5C3.89,3 3,3.9 3,5V19C3,20.1 3.89,21 5,21H19C20.1,21 21,20.1 21,19V12H19V19ZM14,3V5H17.59L7.76,14.83L9.17,16.24L19,6.41V10H21V3H14Z" />
 </vector>
 """,
 
@@ -1371,7 +2107,7 @@ dependencies {
 </vector>
 """,
 
-    "app/src/main/res/drawable/ic_edge_pill.xml": r"""<?xml version="1.0" encoding="utf-8"?>
+    "app/src/main/res/drawable/ic_model_cpu.xml": r"""<?xml version="1.0" encoding="utf-8"?>
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp"
     android:height="24dp"
@@ -1379,14 +2115,14 @@ dependencies {
     android:viewportHeight="24">
     <path
         android:fillColor="#FFFFFF"
-        android:pathData="M4,4H10C14.42,4 18,7.58 18,12C18,16.42 14.42,20 10,20H4V4ZM8,8V16H10C12.21,16 14,14.21 14,12C14,9.79 12.21,8 10,8H8Z" />
+        android:pathData="M9,3V5H7C5.9,5 5,5.9 5,7V9H3V11H5V13H3V15H5V17C5,18.1 5.9,19 7,19H9V21H11V19H13V21H15V19H17C18.1,19 19,18.1 19,17V15H21V13H19V11H21V9H19V7C19,5.9 18.1,5 17,5H15V3H13V5H11V3H9ZM7,7H17V17H7V7ZM9,9V15H15V9H9Z" />
 </vector>
 """,
 
-    "app/src/main/res/drawable/ic_resize_corner.xml": r"""<?xml version="1.0" encoding="utf-8"?>
+    "app/src/main/res/drawable/ic_resize_handle.xml": r"""<?xml version="1.0" encoding="utf-8"?>
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
-    android:width="18dp"
-    android:height="18dp"
+    android:width="24dp"
+    android:height="24dp"
     android:viewportWidth="24"
     android:viewportHeight="24">
     <path
@@ -1395,8 +2131,141 @@ dependencies {
 </vector>
 """,
 
+    "app/src/main/res/drawable/ic_bolt.xml": r"""<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M11,21H10L11,14H6.5C5.92,14 5.93,13.68 6.12,13.34C6.31,13 6.17,13.26 6.19,13.22C7.48,10.94 9.42,7.5 12,3H13L12,10H16.5C16.99,10 17.06,10.33 16.97,10.51L16.9,10.66C12.96,17.55 11,21 11,21Z" />
+</vector>
+""",
+
     # --------------------------------------------------------------------------
-    # 8. KODE KOTLIN: MAIN ACTIVITY (DASHBOARD PENGATURAN PRO + TES TOKEN)
+    # 9. KODE KOTLIN: WELCOME ACTIVITY (FIRST WELCOME + API KEY GUIDE & TESTER)
+    # --------------------------------------------------------------------------
+    "app/src/main/java/com/example/floatinggeminiai/WelcomeActivity.kt": r"""package com.example.floatinggeminiai
+
+import android.content.Context
+import android.content.Intent
+import android.graphics.Color
+import android.net.Uri
+import android.os.Bundle
+import android.widget.Button
+import android.widget.TextView
+import android.widget.Toast
+import androidx.appcompat.app.AppCompatActivity
+import com.google.android.material.textfield.TextInputEditText
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import java.util.concurrent.TimeUnit
+
+class WelcomeActivity : AppCompatActivity() {
+
+    private val activityJob = Job()
+    private val uiScope = CoroutineScope(Dispatchers.Main + activityJob)
+
+    private val httpClient = OkHttpClient.Builder()
+        .connectTimeout(15, TimeUnit.SECONDS)
+        .readTimeout(15, TimeUnit.SECONDS)
+        .build()
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_welcome)
+
+        val prefs = getSharedPreferences("gemini_prefs", Context.MODE_PRIVATE)
+        val fromSettings = intent.getBooleanExtra("from_settings", false)
+
+        val btnOpenAiStudio = findViewById<Button>(R.id.btnOpenAiStudio)
+        val etWelcomeApiKey = findViewById<TextInputEditText>(R.id.etWelcomeApiKey)
+        val btnTestTokenWelcome = findViewById<Button>(R.id.btnTestTokenWelcome)
+        val tvTokenTestResult = findViewById<TextView>(R.id.tvTokenTestResult)
+        val btnContinueToFloamini = findViewById<Button>(R.id.btnContinueToFloamini)
+
+        etWelcomeApiKey.setText(prefs.getString("api_key", ""))
+        if (fromSettings) {
+            btnContinueToFloamini.text = "Kembali ke Pengaturan Floamini"
+        }
+
+        btnOpenAiStudio.setOnClickListener {
+            try {
+                val browserIntent = Intent(Intent.ACTION_VIEW, Uri.parse("https://aistudio.google.com/apikey"))
+                startActivity(browserIntent)
+            } catch (e: Exception) {
+                Toast.makeText(this, "Buka browser dan kunjungi aistudio.google.com/apikey", Toast.LENGTH_LONG).show()
+            }
+        }
+
+        btnTestTokenWelcome.setOnClickListener {
+            val token = etWelcomeApiKey.text.toString().trim()
+            if (token.isEmpty()) {
+                tvTokenTestResult.text = "Masukkan API Key terlebih dahulu"
+                tvTokenTestResult.setTextColor(Color.parseColor("#FBBF24"))
+                return@setOnClickListener
+            }
+
+            btnTestTokenWelcome.isEnabled = false
+            tvTokenTestResult.text = "Menguji koneksi ke Gemini..."
+            tvTokenTestResult.setTextColor(Color.parseColor("#38BDF8"))
+
+            uiScope.launch {
+                val isValid = verifyGeminiApiKey(token)
+                btnTestTokenWelcome.isEnabled = true
+                if (isValid) {
+                    prefs.edit().putString("api_key", token).apply()
+                    tvTokenTestResult.text = "Token Valid & Tersimpan!"
+                    tvTokenTestResult.setTextColor(Color.parseColor("#34D399"))
+                } else {
+                    tvTokenTestResult.text = "Token tidak valid atau jaringan bermasalah"
+                    tvTokenTestResult.setTextColor(Color.parseColor("#FCA5A5"))
+                }
+            }
+        }
+
+        btnContinueToFloamini.setOnClickListener {
+            val enteredKey = etWelcomeApiKey.text.toString().trim()
+            val editor = prefs.edit().putBoolean("has_seen_welcome", true)
+            if (enteredKey.isNotEmpty()) {
+                editor.putString("api_key", enteredKey)
+            }
+            editor.apply()
+
+            if (!fromSettings) {
+                startActivity(Intent(this, MainActivity::class.java))
+            }
+            finish()
+        }
+    }
+
+    private suspend fun verifyGeminiApiKey(apiKey: String): Boolean = withContext(Dispatchers.IO) {
+        try {
+            val url = "https://generativelanguage.googleapis.com/v1beta/models?key=$apiKey"
+            val request = Request.Builder().url(url).get().build()
+            httpClient.newCall(request).execute().use { response ->
+                response.isSuccessful
+            }
+        } catch (_: Exception) {
+            false
+        }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        activityJob.cancel()
+    }
+}
+""",
+
+    # --------------------------------------------------------------------------
+    # 10. KODE KOTLIN: MAIN ACTIVITY (iOS 26 SETTINGS & CONTROL CENTER)
     # --------------------------------------------------------------------------
     "app/src/main/java/com/example/floatinggeminiai/MainActivity.kt": r"""package com.example.floatinggeminiai
 
@@ -1415,82 +2284,103 @@ import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import com.google.android.material.switchmaterial.SwitchMaterial
 import com.google.android.material.textfield.TextInputEditText
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import okhttp3.MediaType.Companion.toMediaType
-import okhttp3.OkHttpClient
-import okhttp3.Request
-import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONArray
-import org.json.JSONObject
-import java.util.concurrent.TimeUnit
 import kotlin.system.exitProcess
 
 class MainActivity : AppCompatActivity() {
 
-    private val testHttpClient = OkHttpClient.Builder()
-        .connectTimeout(15, TimeUnit.SECONDS)
-        .readTimeout(15, TimeUnit.SECONDS)
-        .build()
+    private lateinit var tvSessionStatusMain: TextView
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_main)
 
         val prefs = getSharedPreferences("gemini_prefs", Context.MODE_PRIVATE)
+        if (!prefs.getBoolean("has_seen_welcome", false)) {
+            startActivity(Intent(this, WelcomeActivity::class.java))
+            finish()
+            return
+        }
 
-        val tvDashboardSessionStatus = findViewById<TextView>(R.id.tvDashboardSessionStatus)
-        val etApiKey = findViewById<TextInputEditText>(R.id.etApiKey)
-        val etCustomPersonaNote = findViewById<TextInputEditText>(R.id.etCustomPersonaNote)
-        val btnTestToken = findViewById<Button>(R.id.btnTestToken)
+        setContentView(R.layout.activity_main)
+
+        val tvAppVersionInfo = findViewById<TextView>(R.id.tvAppVersionInfo)
+        val btnOpenWelcomeGuide = findViewById<Button>(R.id.btnOpenWelcomeGuide)
         val btnStartOverlay = findViewById<Button>(R.id.btnStartOverlay)
         val btnStopOverlay = findViewById<Button>(R.id.btnStopOverlay)
         val btnQuickForceStopMain = findViewById<Button>(R.id.btnQuickForceStopMain)
-        val btnClearSessionMain = findViewById<Button>(R.id.btnClearSessionMain)
-        val btnSaveAllSettings = findViewById<Button>(R.id.btnSaveAllSettings)
+        tvSessionStatusMain = findViewById(R.id.tvSessionStatusMain)
+        val btnResetSessionMain = findViewById<Button>(R.id.btnResetSessionMain)
 
+        val rgOverlayStyle = findViewById<RadioGroup>(R.id.rgOverlayStyle)
+        val rbStyleDynamicIsland = findViewById<RadioButton>(R.id.rbStyleDynamicIsland)
+        val rbStyleXiaomiEdge = findViewById<RadioButton>(R.id.rbStyleXiaomiEdge)
+        val rbStyleClassicBubble = findViewById<RadioButton>(R.id.rbStyleClassicBubble)
+
+        val swTapOutsideClose = findViewById<SwitchMaterial>(R.id.swTapOutsideClose)
+        val swLiquidBlur = findViewById<SwitchMaterial>(R.id.swLiquidBlur)
+        val swHapticFeedback = findViewById<SwitchMaterial>(R.id.swHapticFeedback)
+
+        val tvIslandWidthLabel = findViewById<TextView>(R.id.tvIslandWidthLabel)
+        val sbIslandWidth = findViewById<SeekBar>(R.id.sbIslandWidth)
+        val tvIslandPosYLabel = findViewById<TextView>(R.id.tvIslandPosYLabel)
+        val sbIslandPosY = findViewById<SeekBar>(R.id.sbIslandPosY)
+        val tvIslandOffsetXLabel = findViewById<TextView>(R.id.tvIslandOffsetXLabel)
+        val sbIslandOffsetX = findViewById<SeekBar>(R.id.sbIslandOffsetX)
+        val tvOpacityLabel = findViewById<TextView>(R.id.tvOpacityLabel)
+        val sbOpacity = findViewById<SeekBar>(R.id.sbOpacity)
+
+        val tvGetKeyShortcut = findViewById<TextView>(R.id.tvGetKeyShortcut)
+        val etApiKey = findViewById<TextInputEditText>(R.id.etApiKey)
         val rgPersona = findViewById<RadioGroup>(R.id.rgPersona)
         val rbAsik = findViewById<RadioButton>(R.id.rbAsik)
         val rbRingkas = findViewById<RadioButton>(R.id.rbRingkas)
         val rbDetail = findViewById<RadioButton>(R.id.rbDetail)
-        val rbKreatif = findViewById<RadioButton>(R.id.rbKreatif)
+        val rbTeknis = findViewById<RadioButton>(R.id.rbTeknis)
 
         val rgModel = findViewById<RadioGroup>(R.id.rgModel)
         val rbModel3Flash = findViewById<RadioButton>(R.id.rbModel3Flash)
         val rbModel25Flash = findViewById<RadioButton>(R.id.rbModel25Flash)
         val rbModel25Pro = findViewById<RadioButton>(R.id.rbModel25Pro)
+        val btnSaveAllSettings = findViewById<Button>(R.id.btnSaveAllSettings)
 
-        val swMagneticSnap = findViewById<SwitchMaterial>(R.id.swMagneticSnap)
-        val swXiaomiEdge = findViewById<SwitchMaterial>(R.id.swXiaomiEdge)
-        val tvEdgeDelayLabel = findViewById<TextView>(R.id.tvEdgeDelayLabel)
-        val sbEdgeDelay = findViewById<SeekBar>(R.id.sbEdgeDelay)
-        val tvOpacityLabel = findViewById<TextView>(R.id.tvOpacityLabel)
-        val sbOpacity = findViewById<SeekBar>(R.id.sbOpacity)
-        val tvBubbleSizeLabel = findViewById<TextView>(R.id.tvBubbleSizeLabel)
-        val sbBubbleSize = findViewById<SeekBar>(R.id.sbBubbleSize)
+        try {
+            val pInfo = packageManager.getPackageInfo(packageName, 0)
+            tvAppVersionInfo.text = "v${pInfo.versionName} • iOS 26 Liquid Glass & Dynamic Island"
+        } catch (_: Exception) {}
 
-        fun updateSessionBadge() {
-            val raw = prefs.getString("session_history_json", null)
-            val count = try {
-                if (raw.isNullOrEmpty()) 0 else JSONArray(raw).length()
-            } catch (_: Exception) { 0 }
-            tvDashboardSessionStatus.text = if (count > 0) {
-                "Sesi Memori Aktif • $count pesan tersimpan"
-            } else {
-                "Sesi Memori Baru • Siap Digunakan"
-            }
+        etApiKey.setText(prefs.getString("api_key", ""))
+        updateSessionStatsLabel()
+
+        when (prefs.getString("overlay_style", "dynamic_island")) {
+            "xiaomi_edge" -> rbStyleXiaomiEdge.isChecked = true
+            "classic_bubble" -> rbStyleClassicBubble.isChecked = true
+            else -> rbStyleDynamicIsland.isChecked = true
         }
 
-        updateSessionBadge()
-        etApiKey.setText(prefs.getString("api_key", ""))
-        etCustomPersonaNote.setText(prefs.getString("custom_persona_note", ""))
+        swTapOutsideClose.isChecked = prefs.getBoolean("tap_outside_close", true)
+        swLiquidBlur.isChecked = prefs.getBoolean("liquid_blur", true)
+        swHapticFeedback.isChecked = prefs.getBoolean("haptic_feedback", true)
+
+        val savedIslandW = prefs.getInt("island_width_dp", 168)
+        sbIslandWidth.progress = (savedIslandW - 120).coerceIn(0, 120)
+        tvIslandWidthLabel.text = "Lebar Pil Dynamic Island: ${savedIslandW}dp"
+
+        val savedIslandY = prefs.getInt("island_pos_y_dp", 12)
+        sbIslandPosY.progress = savedIslandY.coerceIn(0, 70)
+        tvIslandPosYLabel.text = "Posisi Vertikal Atas (Y): ${savedIslandY}dp"
+
+        val savedIslandX = prefs.getInt("island_offset_x_dp", 0)
+        sbIslandOffsetX.progress = (savedIslandX + 80).coerceIn(0, 160)
+        tvIslandOffsetXLabel.text = "Geser Horizontal Kamera (X): ${savedIslandX}dp"
+
+        val savedOpacity = prefs.getInt("popup_opacity", 82)
+        sbOpacity.progress = (savedOpacity - 45).coerceIn(0, 55)
+        tvOpacityLabel.text = "Transparansi Liquid Glass: ${savedOpacity}%"
 
         when (prefs.getString("ai_persona", "asik")) {
             "ringkas" -> rbRingkas.isChecked = true
             "detail" -> rbDetail.isChecked = true
-            "kreatif" -> rbKreatif.isChecked = true
+            "teknis" -> rbTeknis.isChecked = true
             else -> rbAsik.isChecked = true
         }
 
@@ -1500,24 +2390,25 @@ class MainActivity : AppCompatActivity() {
             else -> rbModel3Flash.isChecked = true
         }
 
-        swMagneticSnap.isChecked = prefs.getBoolean("magnetic_snap", true)
-        swXiaomiEdge.isChecked = prefs.getBoolean("xiaomi_edge", true)
-
-        val savedDelaySec = prefs.getInt("edge_delay_sec", 3)
-        sbEdgeDelay.progress = (savedDelaySec - 1).coerceIn(0, 9)
-        tvEdgeDelayLabel.text = "Jeda Berubah ke Garis Xiaomi: ${savedDelaySec} Detik"
-
-        val savedOpacity = prefs.getInt("popup_opacity", 84)
-        sbOpacity.progress = (savedOpacity - 45).coerceIn(0, 55)
-        tvOpacityLabel.text = "Transparansi Jendela Chat: ${savedOpacity}%"
-
-        val savedBubbleSize = prefs.getInt("bubble_size_dp", 56)
-        sbBubbleSize.progress = (savedBubbleSize - 44).coerceIn(0, 28)
-        tvBubbleSizeLabel.text = "Ukuran Bubble Utama: ${savedBubbleSize}dp"
-
-        sbEdgeDelay.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+        sbIslandWidth.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
-                tvEdgeDelayLabel.text = "Jeda Berubah ke Garis Xiaomi: ${progress + 1} Detik"
+                tvIslandWidthLabel.text = "Lebar Pil Dynamic Island: ${progress + 120}dp"
+            }
+            override fun onStartTrackingTouch(seekBar: SeekBar?) {}
+            override fun onStopTrackingTouch(seekBar: SeekBar?) {}
+        })
+
+        sbIslandPosY.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
+                tvIslandPosYLabel.text = "Posisi Vertikal Atas (Y): ${progress}dp"
+            }
+            override fun onStartTrackingTouch(seekBar: SeekBar?) {}
+            override fun onStopTrackingTouch(seekBar: SeekBar?) {}
+        })
+
+        sbIslandOffsetX.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
+                tvIslandOffsetXLabel.text = "Geser Horizontal Kamera (X): ${progress - 80}dp"
             }
             override fun onStartTrackingTouch(seekBar: SeekBar?) {}
             override fun onStopTrackingTouch(seekBar: SeekBar?) {}
@@ -1525,25 +2416,22 @@ class MainActivity : AppCompatActivity() {
 
         sbOpacity.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
-                tvOpacityLabel.text = "Transparansi Jendela Chat: ${progress + 45}%"
-            }
-            override fun onStartTrackingTouch(seekBar: SeekBar?) {}
-            override fun onStopTrackingTouch(seekBar: SeekBar?) {}
-        })
-
-        sbBubbleSize.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-            override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
-                tvBubbleSizeLabel.text = "Ukuran Bubble Utama: ${progress + 44}dp"
+                tvOpacityLabel.text = "Transparansi Liquid Glass: ${progress + 45}%"
             }
             override fun onStartTrackingTouch(seekBar: SeekBar?) {}
             override fun onStopTrackingTouch(seekBar: SeekBar?) {}
         })
 
         fun saveAllPreferences() {
+            val style = when (rgOverlayStyle.checkedRadioButtonId) {
+                R.id.rbStyleXiaomiEdge -> "xiaomi_edge"
+                R.id.rbStyleClassicBubble -> "classic_bubble"
+                else -> "dynamic_island"
+            }
             val persona = when (rgPersona.checkedRadioButtonId) {
                 R.id.rbRingkas -> "ringkas"
                 R.id.rbDetail -> "detail"
-                R.id.rbKreatif -> "kreatif"
+                R.id.rbTeknis -> "teknis"
                 else -> "asik"
             }
             val model = when (rgModel.checkedRadioButtonId) {
@@ -1553,82 +2441,64 @@ class MainActivity : AppCompatActivity() {
             }
             prefs.edit()
                 .putString("api_key", etApiKey.text.toString().trim())
-                .putString("custom_persona_note", etCustomPersonaNote.text.toString().trim())
+                .putString("overlay_style", style)
+                .putBoolean("tap_outside_close", swTapOutsideClose.isChecked)
+                .putBoolean("liquid_blur", swLiquidBlur.isChecked)
+                .putBoolean("haptic_feedback", swHapticFeedback.isChecked)
+                .putInt("island_width_dp", sbIslandWidth.progress + 120)
+                .putInt("island_pos_y_dp", sbIslandPosY.progress)
+                .putInt("island_offset_x_dp", sbIslandOffsetX.progress - 80)
+                .putInt("popup_opacity", sbOpacity.progress + 45)
                 .putString("ai_persona", persona)
                 .putString("ai_model", model)
-                .putBoolean("magnetic_snap", swMagneticSnap.isChecked)
-                .putBoolean("xiaomi_edge", swXiaomiEdge.isChecked)
-                .putInt("edge_delay_sec", sbEdgeDelay.progress + 1)
-                .putInt("popup_opacity", sbOpacity.progress + 45)
-                .putInt("bubble_size_dp", sbBubbleSize.progress + 44)
                 .apply()
 
-            try {
+            if (Settings.canDrawOverlays(this)) {
                 val refreshIntent = Intent(this, FloatingAssistantService::class.java).apply {
                     action = FloatingAssistantService.ACTION_RELOAD_SETTINGS
                 }
-                startService(refreshIntent)
-            } catch (_: Exception) {}
+                try {
+                    startService(refreshIntent)
+                } catch (_: Exception) {}
+            }
         }
 
-        btnTestToken.setOnClickListener {
-            val token = etApiKey.text.toString().trim()
-            if (token.isEmpty()) {
-                Toast.makeText(this, "Masukkan API Token terlebih dahulu", Toast.LENGTH_SHORT).show()
-                return@setOnClickListener
+        btnOpenWelcomeGuide.setOnClickListener {
+            val welcomeIntent = Intent(this, WelcomeActivity::class.java).apply {
+                putExtra("from_settings", true)
             }
-            btnTestToken.isEnabled = false
-            btnTestToken.text = "Menguji..."
-            CoroutineScope(Dispatchers.IO).launch {
-                val isValid = try {
-                    val url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=$token"
-                    val body = JSONObject().apply {
-                        put("contents", JSONArray().apply {
-                            put(JSONObject().apply {
-                                put("parts", JSONArray().apply {
-                                    put(JSONObject().apply { put("text", "Halo") })
-                                })
-                            })
-                        })
-                    }.toString().toRequestBody("application/json; charset=utf-8".toMediaType())
-                    val req = Request.Builder().url(url).post(body).build()
-                    testHttpClient.newCall(req).execute().use { it.isSuccessful }
-                } catch (_: Exception) { false }
+            startActivity(welcomeIntent)
+        }
 
-                withContext(Dispatchers.Main) {
-                    btnTestToken.isEnabled = true
-                    btnTestToken.text = "Tes Token"
-                    if (isValid) {
-                        saveAllPreferences()
-                        Toast.makeText(this@MainActivity, "Koneksi Berhasil! Token Gemini Valid", Toast.LENGTH_SHORT).show()
-                    } else {
-                        Toast.makeText(this@MainActivity, "Token tidak valid atau koneksi gagal", Toast.LENGTH_LONG).show()
-                    }
-                }
+        tvGetKeyShortcut.setOnClickListener {
+            try {
+                startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://aistudio.google.com/apikey")))
+            } catch (_: Exception) {
+                Toast.makeText(this, "Kunjungi aistudio.google.com/apikey", Toast.LENGTH_LONG).show()
             }
+        }
+
+        btnResetSessionMain.setOnClickListener {
+            prefs.edit().remove("session_history_json").apply()
+            updateSessionStatsLabel()
+            val resetIntent = Intent(this, FloatingAssistantService::class.java).apply {
+                action = FloatingAssistantService.ACTION_RESET_SESSION
+            }
+            try {
+                startService(resetIntent)
+            } catch (_: Exception) {}
+            Toast.makeText(this, "Memori sesi Floamini di-reset", Toast.LENGTH_SHORT).show()
         }
 
         btnSaveAllSettings.setOnClickListener {
             saveAllPreferences()
-            Toast.makeText(this, "Semua pengaturan berhasil disimpan", Toast.LENGTH_SHORT).show()
-        }
-
-        btnClearSessionMain.setOnClickListener {
-            prefs.edit().remove("session_history_json").apply()
-            updateSessionBadge()
-            try {
-                val resetIntent = Intent(this, FloatingAssistantService::class.java).apply {
-                    action = FloatingAssistantService.ACTION_RESET_SESSION
-                }
-                startService(resetIntent)
-            } catch (_: Exception) {}
-            Toast.makeText(this, "Memori sesi obrolan dibersihkan", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "Pengaturan Floamini diterapkan", Toast.LENGTH_SHORT).show()
         }
 
         btnStartOverlay.setOnClickListener {
             saveAllPreferences()
             if (!Settings.canDrawOverlays(this)) {
-                Toast.makeText(this, "Izinkan tampil di atas aplikasi lain terlebih dahulu", Toast.LENGTH_LONG).show()
+                Toast.makeText(this, "Izinkan Floamini tampil di atas aplikasi lain", Toast.LENGTH_LONG).show()
                 val intent = Intent(
                     Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
                     Uri.parse("package:$packageName")
@@ -1643,12 +2513,12 @@ class MainActivity : AppCompatActivity() {
             } else {
                 startService(serviceIntent)
             }
-            Toast.makeText(this, "Floating Assistant aktif di layar", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "Floamini aktif di layar", Toast.LENGTH_SHORT).show()
         }
 
         btnStopOverlay.setOnClickListener {
             stopService(Intent(this, FloatingAssistantService::class.java))
-            Toast.makeText(this, "Floating Assistant dihentikan", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "Floamini dihentikan", Toast.LENGTH_SHORT).show()
         }
 
         btnQuickForceStopMain.setOnClickListener {
@@ -1662,11 +2532,27 @@ class MainActivity : AppCompatActivity() {
             exitProcess(0)
         }
     }
+
+    override fun onResume() {
+        super.onResume()
+        val prefs = getSharedPreferences("gemini_prefs", Context.MODE_PRIVATE)
+        findViewById<TextInputEditText>(R.id.etApiKey)?.setText(prefs.getString("api_key", ""))
+        updateSessionStatsLabel()
+    }
+
+    private fun updateSessionStatsLabel() {
+        val prefs = getSharedPreferences("gemini_prefs", Context.MODE_PRIVATE)
+        val raw = prefs.getString("session_history_json", null)
+        val count = try {
+            if (!raw.isNullOrEmpty()) JSONArray(raw).length() else 0
+        } catch (_: Exception) { 0 }
+        tvSessionStatusMain.text = "Memori Sesi: $count pesan tersimpan"
+    }
 }
 """,
 
     # --------------------------------------------------------------------------
-    # 9. ACTIVITY IZIN LIVE SCREEN SHARE (MEDIA PROJECTION)
+    # 11. ACTIVITY IZIN LIVE SCREEN SHARE (MEDIA PROJECTION)
     # --------------------------------------------------------------------------
     "app/src/main/java/com/example/floatinggeminiai/ScreenCapturePermissionActivity.kt": r"""package com.example.floatinggeminiai
 
@@ -1703,7 +2589,7 @@ class ScreenCapturePermissionActivity : Activity() {
 """,
 
     # --------------------------------------------------------------------------
-    # 10. FLOATING ASSISTANT SERVICE (FULL FEATURE OVERLAY ENGINE)
+    # 12. FLOATING ASSISTANT SERVICE (FLOAMINI: DYNAMIC ISLAND + LIQUID GLASS)
     # --------------------------------------------------------------------------
     "app/src/main/java/com/example/floatinggeminiai/FloatingAssistantService.kt": r"""package com.example.floatinggeminiai
 
@@ -1731,6 +2617,9 @@ import android.os.Build
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
+import android.os.VibrationEffect
+import android.os.Vibrator
+import android.os.VibratorManager
 import android.provider.Settings
 import android.util.Base64
 import android.util.DisplayMetrics
@@ -1740,6 +2629,7 @@ import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
 import android.view.animation.DecelerateInterpolator
+import android.view.animation.OvershootInterpolator
 import android.widget.Button
 import android.widget.EditText
 import android.widget.FrameLayout
@@ -1762,6 +2652,9 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.ByteArrayOutputStream
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import java.util.concurrent.TimeUnit
 import kotlin.math.abs
 import kotlin.system.exitProcess
@@ -1782,37 +2675,43 @@ class FloatingAssistantService : Service() {
     private val serviceScope = CoroutineScope(Dispatchers.Main + serviceJob)
 
     // Komponen UI Utama
+    private lateinit var dynamicIslandView: LinearLayout
+    private lateinit var tvIslandLabel: TextView
+    private lateinit var viewIslandPulseDot: View
     private lateinit var bubbleView: FrameLayout
     private lateinit var xiaomiEdgeView: FrameLayout
     private lateinit var popupChatView: LinearLayout
     private lateinit var btnScreenShare: ImageView
     private lateinit var tvScreenShareStatus: TextView
-    private lateinit var tvSessionSubtitle: TextView
     private lateinit var tvCurrentPersonaBadge: TextView
     private lateinit var tvCurrentModelBadge: TextView
-    private lateinit var chatContainerRef: LinearLayout
-    private lateinit var scrollChatRef: ScrollView
+    private lateinit var tvSessionCounterBadge: TextView
+    private lateinit var typingIndicatorRow: LinearLayout
+    private lateinit var scrollChat: ScrollView
+    private lateinit var chatContainer: LinearLayout
 
-    // State Posisi & Mode Xiaomi Edge
+    // State Posisi & Mode Overlay
     private val edgeHandler = Handler(Looper.getMainLooper())
-    private var isXiaomiEdgeModeActive = false
     private var snappedToRightEdge = false
-    private var isWindowExpanded = false
     private var fullScreenWidth = 1080
     private var fullScreenHeight = 2400
 
     // Pengaturan Dinamis
-    private var prefMagneticSnap = true
-    private var prefXiaomiEdge = true
-    private var prefEdgeDelayMs = 3000L
-    private var prefPopupAlpha = 0.85f
-    private var prefBubbleSizePx = 150
+    private var prefOverlayStyle = "dynamic_island"
+    private var prefTapOutsideClose = true
+    private var prefLiquidBlur = true
+    private var prefHapticFeedback = true
+    private var prefIslandWidthPx = 450
+    private var prefIslandPosYPx = 32
+    private var prefIslandOffsetXPx = 0
+    private var prefPopupAlpha = 0.86f
+    private var prefBubbleSizePx = 148
     private var prefPersona = "asik"
     private var prefModel = "gemini-3-flash-preview"
-    private var prefCustomPersonaNote = ""
 
-    // Memori Percakapan Sesi Berkelanjutan (Disimpan Permanen Hingga Reset Sesi)
-    private val chatHistory = mutableListOf<Pair<String, String>>()
+    // Data Model Pesan Sesi
+    data class SessionMessage(val role: String, val text: String, val timestamp: String)
+    private val chatHistory = mutableListOf<SessionMessage>()
     private var lastBotReply = ""
 
     // MediaProjection untuk Live Screen Share
@@ -1826,11 +2725,11 @@ class FloatingAssistantService : Service() {
 
     private val httpClient = OkHttpClient.Builder()
         .connectTimeout(30, TimeUnit.SECONDS)
-        .readTimeout(30, TimeUnit.SECONDS)
+        .readTimeout(35, TimeUnit.SECONDS)
         .build()
 
     private val transformToXiaomiEdgeRunnable = Runnable {
-        if (bubbleView.visibility == View.VISIBLE && prefXiaomiEdge) {
+        if (prefOverlayStyle == "xiaomi_edge" && bubbleView.visibility == View.VISIBLE) {
             enterXiaomiEdgeMode()
         }
     }
@@ -1865,43 +2764,63 @@ class FloatingAssistantService : Service() {
             ACTION_RELOAD_SETTINGS -> {
                 loadUserPreferences()
                 applyVisualPreferences()
+                if (popupChatView.visibility != View.VISIBLE) {
+                    showCollapsedTriggerState()
+                }
             }
             ACTION_RESET_SESSION -> {
-                if (::chatContainerRef.isInitialized && ::scrollChatRef.isInitialized) {
-                    resetConversationSession(chatContainerRef, scrollChatRef)
+                if (::chatContainer.isInitialized && ::scrollChat.isInitialized) {
+                    resetConversationSession()
                 }
             }
         }
         return START_STICKY
     }
 
-    private fun loadUserPreferences() {
-        val prefs = getSharedPreferences("gemini_prefs", Context.MODE_PRIVATE)
-        prefMagneticSnap = prefs.getBoolean("magnetic_snap", true)
-        prefXiaomiEdge = prefs.getBoolean("xiaomi_edge", true)
-        prefEdgeDelayMs = (prefs.getInt("edge_delay_sec", 3) * 1000L)
-        prefPopupAlpha = (prefs.getInt("popup_opacity", 84) / 100f).coerceIn(0.45f, 1.0f)
-        val sizeDp = prefs.getInt("bubble_size_dp", 56)
-        prefBubbleSizePx = (sizeDp * resources.displayMetrics.density).toInt()
-        prefPersona = prefs.getString("ai_persona", "asik") ?: "asik"
-        prefModel = prefs.getString("ai_model", "gemini-3-flash-preview") ?: "gemini-3-flash-preview"
-        prefCustomPersonaNote = prefs.getString("custom_persona_note", "") ?: ""
+    private fun triggerHaptic() {
+        if (!prefHapticFeedback) return
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                val vm = getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager
+                vm.defaultVibrator.vibrate(VibrationEffect.createPredefined(VibrationEffect.EFFECT_TICK))
+            } else {
+                @Suppress("DEPRECATION")
+                val vibrator = getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    vibrator.vibrate(VibrationEffect.createOneShot(16, VibrationEffect.DEFAULT_AMPLITUDE))
+                } else {
+                    @Suppress("DEPRECATION")
+                    vibrator.vibrate(16)
+                }
+            }
+        } catch (_: Exception) {}
     }
 
-    private fun getShortModelName(): String {
-        return when (prefModel) {
-            "gemini-2.5-flash" -> "2.5 Flash"
-            "gemini-2.5-pro" -> "2.5 Pro"
-            else -> "3 Flash"
-        }
+    private fun currentTimeLabel(): String {
+        return SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date())
+    }
+
+    private fun loadUserPreferences() {
+        val prefs = getSharedPreferences("gemini_prefs", Context.MODE_PRIVATE)
+        val density = resources.displayMetrics.density
+        prefOverlayStyle = prefs.getString("overlay_style", "dynamic_island") ?: "dynamic_island"
+        prefTapOutsideClose = prefs.getBoolean("tap_outside_close", true)
+        prefLiquidBlur = prefs.getBoolean("liquid_blur", true)
+        prefHapticFeedback = prefs.getBoolean("haptic_feedback", true)
+        prefIslandWidthPx = (prefs.getInt("island_width_dp", 168) * density).toInt()
+        prefIslandPosYPx = (prefs.getInt("island_pos_y_dp", 12) * density).toInt()
+        prefIslandOffsetXPx = (prefs.getInt("island_offset_x_dp", 0) * density).toInt()
+        prefPopupAlpha = (prefs.getInt("popup_opacity", 82) / 100f).coerceIn(0.45f, 1.0f)
+        prefBubbleSizePx = (54 * density).toInt()
+        prefPersona = prefs.getString("ai_persona", "asik") ?: "asik"
+        prefModel = prefs.getString("ai_model", "gemini-3-flash-preview") ?: "gemini-3-flash-preview"
     }
 
     private fun applyVisualPreferences() {
-        if (::bubbleView.isInitialized) {
-            val lp = bubbleView.layoutParams
-            lp.width = prefBubbleSizePx
-            lp.height = prefBubbleSizePx
-            bubbleView.layoutParams = lp
+        if (::dynamicIslandView.isInitialized) {
+            val lp = dynamicIslandView.layoutParams
+            lp.width = prefIslandWidthPx
+            dynamicIslandView.layoutParams = lp
         }
         if (::popupChatView.isInitialized) {
             popupChatView.alpha = prefPopupAlpha
@@ -1910,38 +2829,46 @@ class FloatingAssistantService : Service() {
             tvCurrentPersonaBadge.text = when (prefPersona) {
                 "ringkas" -> "Singkat"
                 "detail" -> "Detail"
-                "kreatif" -> "Kreatif"
+                "teknis" -> "Teknis"
                 else -> "Asik"
             }
         }
         if (::tvCurrentModelBadge.isInitialized) {
-            tvCurrentModelBadge.text = getShortModelName()
+            tvCurrentModelBadge.text = when (prefModel) {
+                "gemini-2.5-flash" -> "2.5 Flash"
+                "gemini-2.5-pro" -> "2.5 Pro"
+                else -> "3 Flash"
+            }
         }
-        if (::tvSessionSubtitle.isInitialized) {
-            val turns = chatHistory.size
-            tvSessionSubtitle.text = "${getShortModelName()} • $turns pesan diingat"
+        updateSessionCounterBadge()
+    }
+
+    private fun updateSessionCounterBadge() {
+        if (::tvSessionCounterBadge.isInitialized) {
+            tvSessionCounterBadge.text = chatHistory.size.toString()
         }
     }
 
     // ==========================================================================
-    // PENYIMPANAN & PEMULIHAN MEMORI SESI BERKELANJUTAN
+    // MEMORI SESI PERMANEN (ANTI-LUPA KONTEKS OBROLAN)
     // ==========================================================================
     private fun saveSessionHistory() {
         try {
             val prefs = getSharedPreferences("gemini_prefs", Context.MODE_PRIVATE)
             val jsonArray = JSONArray()
-            for ((role, text) in chatHistory) {
+            for (msg in chatHistory) {
                 jsonArray.put(JSONObject().apply {
-                    put("role", role)
-                    put("text", text)
+                    put("role", msg.role)
+                    put("text", msg.text)
+                    put("timestamp", msg.timestamp)
                 })
             }
             prefs.edit().putString(KEY_SESSION_HISTORY, jsonArray.toString()).apply()
-            applyVisualPreferences()
+            updateSessionCounterBadge()
         } catch (_: Exception) {}
     }
 
-    private fun restoreSessionHistory(chatContainer: LinearLayout, scrollView: ScrollView) {
+    private fun restoreSessionHistory() {
         chatHistory.clear()
         chatContainer.removeAllViews()
         try {
@@ -1953,41 +2880,43 @@ class FloatingAssistantService : Service() {
                     val obj = jsonArray.getJSONObject(i)
                     val role = obj.optString("role", "user")
                     val text = obj.optString("text", "")
+                    val time = obj.optString("timestamp", currentTimeLabel())
                     if (text.isNotEmpty()) {
-                        chatHistory.add(Pair(role, text))
+                        val msg = SessionMessage(role, text, time)
+                        chatHistory.add(msg)
                         val isUser = (role == "user")
                         if (!isUser) lastBotReply = text
-                        addChatMessage(chatContainer, scrollView, text, isUser = isUser)
+                        addChatMessage(text, time, isUser = isUser)
                     }
                 }
             }
         } catch (_: Exception) {}
 
+        updateSessionCounterBadge()
         if (chatHistory.isEmpty()) {
-            val greeting = "Hai! Sesi obrolan aktif dan aku bakal terus ingat semua topik yang kita bahas. Mau ngobrol atau tanya soal apa nih?"
+            val greeting = "Hai! Floamini sudah siap di Dynamic Island kamu. Sesi obrolan ini terus berjalan dan aku bakal ingat semua yang kita bahas!"
             lastBotReply = greeting
-            addChatMessage(chatContainer, scrollView, greeting, isUser = false)
+            addChatMessage(greeting, currentTimeLabel(), isUser = false)
         }
-        applyVisualPreferences()
     }
 
-    private fun resetConversationSession(chatContainer: LinearLayout, scrollView: ScrollView) {
+    private fun resetConversationSession() {
         chatHistory.clear()
         val prefs = getSharedPreferences("gemini_prefs", Context.MODE_PRIVATE)
         prefs.edit().remove(KEY_SESSION_HISTORY).apply()
         chatContainer.removeAllViews()
-        val resetMsg = "Sesi obrolan sudah di-reset bersih. Yuk mulai bahas topik baru!"
+        updateSessionCounterBadge()
+        val resetMsg = "Sesi obrolan Floamini sudah di-reset bersih. Yuk mulai bahasan baru!"
         lastBotReply = resetMsg
-        addChatMessage(chatContainer, scrollView, resetMsg, isUser = false)
-        applyVisualPreferences()
+        addChatMessage(resetMsg, currentTimeLabel(), isUser = false)
     }
 
     private fun startForegroundNotification(withMediaProjection: Boolean) {
-        val channelId = "floating_gemini_pro_channel"
+        val channelId = "floamini_dynamic_island_channel"
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
                 channelId,
-                "Gemini Floating Pro",
+                "Floamini AI Assistant",
                 NotificationManager.IMPORTANCE_LOW
             )
             val manager = getSystemService(NotificationManager::class.java)
@@ -1995,8 +2924,8 @@ class FloatingAssistantService : Service() {
         }
 
         val notification: Notification = NotificationCompat.Builder(this, channelId)
-            .setContentTitle("Gemini Floating Pro")
-            .setContentText(if (withMediaProjection) "Live Screen Share aktif" else "Sesi AI aktif di atas layar")
+            .setContentTitle("Floamini")
+            .setContentText(if (withMediaProjection) "Live Screen Vision aktif" else "Dynamic Island AI siap digunakan")
             .setSmallIcon(android.R.drawable.ic_dialog_info)
             .build()
 
@@ -2039,25 +2968,26 @@ class FloatingAssistantService : Service() {
             WindowManager.LayoutParams.WRAP_CONTENT,
             WindowManager.LayoutParams.WRAP_CONTENT,
             layoutFlag,
-            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
             PixelFormat.TRANSLUCENT
         ).apply {
             gravity = Gravity.TOP or Gravity.START
-            x = 0
-            y = fullScreenHeight / 3
+            x = ((fullScreenWidth - prefIslandWidthPx) / 2) + prefIslandOffsetXPx
+            y = prefIslandPosYPx
         }
 
         windowManager.addView(floatingView, params)
 
+        dynamicIslandView = floatingView.findViewById(R.id.dynamicIslandView)
+        tvIslandLabel = floatingView.findViewById(R.id.tvIslandLabel)
+        viewIslandPulseDot = floatingView.findViewById(R.id.viewIslandPulseDot)
         bubbleView = floatingView.findViewById(R.id.bubbleView)
         xiaomiEdgeView = floatingView.findViewById(R.id.xiaomiEdgeView)
         popupChatView = floatingView.findViewById(R.id.popupChatView)
 
-        val macTitleBar = floatingView.findViewById<LinearLayout>(R.id.macTitleBar)
-        val btnMacClose = floatingView.findViewById<View>(R.id.btnMacClose)
-        val btnMacMinimize = floatingView.findViewById<View>(R.id.btnMacMinimize)
-        val btnMacExpand = floatingView.findViewById<View>(R.id.btnMacExpand)
-        tvSessionSubtitle = floatingView.findViewById(R.id.tvSessionSubtitle)
+        val glassTitleBar = floatingView.findViewById<LinearLayout>(R.id.glassTitleBar)
+        val btnCloseWindowX = floatingView.findViewById<ImageView>(R.id.btnCloseWindowX)
+        tvSessionCounterBadge = floatingView.findViewById(R.id.tvSessionCounterBadge)
         btnScreenShare = floatingView.findViewById(R.id.btnScreenShare)
         val btnPlusMenu = floatingView.findViewById<ImageView>(R.id.btnPlusMenu)
         val plusMenuDrawer = floatingView.findViewById<LinearLayout>(R.id.plusMenuDrawer)
@@ -2067,87 +2997,146 @@ class FloatingAssistantService : Service() {
         val actionCyclePersona = floatingView.findViewById<LinearLayout>(R.id.actionCyclePersona)
         val actionCycleModel = floatingView.findViewById<LinearLayout>(R.id.actionCycleModel)
         val actionCopyLast = floatingView.findViewById<LinearLayout>(R.id.actionCopyLast)
+        val actionExportChat = floatingView.findViewById<LinearLayout>(R.id.actionExportChat)
         val actionResetChat = floatingView.findViewById<LinearLayout>(R.id.actionResetChat)
         val actionQuickForceStop = floatingView.findViewById<LinearLayout>(R.id.actionQuickForceStop)
         tvCurrentPersonaBadge = floatingView.findViewById(R.id.tvCurrentPersonaBadge)
         tvCurrentModelBadge = floatingView.findViewById(R.id.tvCurrentModelBadge)
 
+        val chipQuickScreenSummary = floatingView.findViewById<TextView>(R.id.chipQuickScreenSummary)
+        val chipQuickExplain = floatingView.findViewById<TextView>(R.id.chipQuickExplain)
+        val chipQuickTranslate = floatingView.findViewById<TextView>(R.id.chipQuickTranslate)
+        val chipQuickReply = floatingView.findViewById<TextView>(R.id.chipQuickReply)
+
         val tokenInputRow = floatingView.findViewById<LinearLayout>(R.id.tokenInputRow)
         val etPopupToken = floatingView.findViewById<EditText>(R.id.etPopupToken)
         val btnSavePopupToken = floatingView.findViewById<Button>(R.id.btnSavePopupToken)
 
-        val scrollChat = floatingView.findViewById<ScrollView>(R.id.scrollChat)
-        val chatContainer = floatingView.findViewById<LinearLayout>(R.id.chatContainer)
-        chatContainerRef = chatContainer
-        scrollChatRef = scrollChat
-
-        val chipScreenAnalyze = floatingView.findViewById<TextView>(R.id.chipScreenAnalyze)
-        val chipSummarize = floatingView.findViewById<TextView>(R.id.chipSummarize)
-        val chipTranslate = floatingView.findViewById<TextView>(R.id.chipTranslate)
-        val chipReplyHelp = floatingView.findViewById<TextView>(R.id.chipReplyHelp)
-
+        scrollChat = floatingView.findViewById(R.id.scrollChat)
+        chatContainer = floatingView.findViewById(R.id.chatContainer)
+        typingIndicatorRow = floatingView.findViewById(R.id.typingIndicatorRow)
         val etPrompt = floatingView.findViewById<EditText>(R.id.etPrompt)
         val btnSendPrompt = floatingView.findViewById<ImageButton>(R.id.btnSendPrompt)
-        val btnResizeCorner = floatingView.findViewById<ImageView>(R.id.btnResizeCorner)
+        val btnResizeHandle = floatingView.findViewById<ImageView>(R.id.btnResizeHandle)
 
         val prefs = getSharedPreferences("gemini_prefs", Context.MODE_PRIVATE)
         etPopupToken.setText(prefs.getString("api_key", ""))
         applyVisualPreferences()
-        restoreSessionHistory(chatContainer, scrollChat)
-        scheduleXiaomiEdgeTransform()
+        restoreSessionHistory()
+        showCollapsedTriggerState()
 
-        // Fungsi Helper Kirim Pesan
-        fun sendPromptMessage(userText: String) {
-            val prompt = userText.trim()
+        // ----------------------------------------------------------------------
+        // TAP DI LUAR JENDELA UNTUK MENUTUP KEMBALI KE DYNAMIC ISLAND / BUBBLE
+        // ----------------------------------------------------------------------
+        floatingView.setOnTouchListener { _, event ->
+            if (event.action == MotionEvent.ACTION_OUTSIDE &&
+                popupChatView.visibility == View.VISIBLE &&
+                prefTapOutsideClose
+            ) {
+                triggerHaptic()
+                closePopupChat()
+                true
+            } else {
+                false
+            }
+        }
+
+        fun sendUserPrompt(customPrompt: String) {
+            val prompt = customPrompt.trim()
             val apiKey = prefs.getString("api_key", "") ?: ""
 
             if (prompt.isEmpty()) return
             if (apiKey.isEmpty()) {
                 plusMenuDrawer.visibility = View.VISIBLE
                 tokenInputRow.visibility = View.VISIBLE
-                btnPlusMenu.animate().rotation(45f).setDuration(200).start()
-                Toast.makeText(this, "Isi Gemini API Token dulu ya", Toast.LENGTH_SHORT).show()
+                btnPlusMenu.animate().rotation(45f).setDuration(220).start()
+                Toast.makeText(this, "Tempel Gemini API Key dulu ya", Toast.LENGTH_SHORT).show()
                 return
             }
 
             if (plusMenuDrawer.visibility == View.VISIBLE) {
                 plusMenuDrawer.visibility = View.GONE
-                btnPlusMenu.animate().rotation(0f).setDuration(200).start()
+                btnPlusMenu.animate().rotation(0f).setDuration(220).start()
             }
 
-            addChatMessage(chatContainer, scrollChat, prompt, isUser = true)
+            triggerHaptic()
+            val userTime = currentTimeLabel()
+            addChatMessage(prompt, userTime, isUser = true)
             etPrompt.text.clear()
             btnSendPrompt.isEnabled = false
+            typingIndicatorRow.visibility = View.VISIBLE
+            tvIslandLabel.text = "Berpikir..."
 
             val screenBase64 = if (isScreenShareActive) captureCurrentScreenBase64() else null
-            val typingIndicator = addTypingIndicator(
-                chatContainer,
-                scrollChat,
-                if (screenBase64 != null) "Lagi ngelihat layar & mikir..." else "Gemini lagi ngetik..."
-            )
 
             serviceScope.launch {
                 val rawReply = callGeminiApi(apiKey, prompt, screenBase64)
-                chatContainer.removeView(typingIndicator)
-
                 val cleanReply = sanitizeMarkdown(rawReply)
+                val botTime = currentTimeLabel()
                 lastBotReply = cleanReply
 
-                chatHistory.add(Pair("user", prompt))
-                chatHistory.add(Pair("model", cleanReply))
-                if (chatHistory.size > 160) {
+                chatHistory.add(SessionMessage("user", prompt, userTime))
+                chatHistory.add(SessionMessage("model", cleanReply, botTime))
+                if (chatHistory.size > 200) {
                     chatHistory.removeAt(0)
                     chatHistory.removeAt(0)
                 }
                 saveSessionHistory()
 
-                addChatMessage(chatContainer, scrollChat, cleanReply, isUser = false)
+                typingIndicatorRow.visibility = View.GONE
+                tvIslandLabel.text = if (isScreenShareActive) "Live Vision" else "Floamini"
+                addChatMessage(cleanReply, botTime, isUser = false)
                 btnSendPrompt.isEnabled = true
+                triggerHaptic()
             }
         }
 
         // ----------------------------------------------------------------------
-        // INTERAKSI BUBBLE UTAMA (GESER BEBAS + MAGNETIC SNAP KE PINGGIR LAYAR)
+        // 1. INTERAKSI DYNAMIC ISLAND (TAP UNTUK EXPAND + GESER HALUS)
+        // ----------------------------------------------------------------------
+        dynamicIslandView.setOnTouchListener(object : View.OnTouchListener {
+            private var initialX = 0
+            private var initialY = 0
+            private var initialTouchX = 0f
+            private var initialTouchY = 0f
+
+            override fun onTouch(v: View, event: MotionEvent): Boolean {
+                when (event.action) {
+                    MotionEvent.ACTION_DOWN -> {
+                        initialX = params.x
+                        initialY = params.y
+                        initialTouchX = event.rawX
+                        initialTouchY = event.rawY
+                        dynamicIslandView.animate().scaleX(1.06f).scaleY(1.06f).setDuration(140).start()
+                        return true
+                    }
+                    MotionEvent.ACTION_MOVE -> {
+                        val dx = (event.rawX - initialTouchX).toInt()
+                        val dy = (event.rawY - initialTouchY).toInt()
+                        if (abs(dx) > 12 || abs(dy) > 12) {
+                            params.x = (initialX + dx).coerceIn(16, (fullScreenWidth - prefIslandWidthPx - 16).coerceAtLeast(16))
+                            params.y = (initialY + dy).coerceIn(0, fullScreenHeight / 2)
+                            windowManager.updateViewLayout(floatingView, params)
+                        }
+                        return true
+                    }
+                    MotionEvent.ACTION_UP -> {
+                        dynamicIslandView.animate().scaleX(1.0f).scaleY(1.0f).setDuration(140).start()
+                        val diffX = abs(event.rawX - initialTouchX)
+                        val diffY = abs(event.rawY - initialTouchY)
+                        if (diffX < 18 && diffY < 18) {
+                            triggerHaptic()
+                            openPopupChat()
+                        }
+                        return true
+                    }
+                }
+                return false
+            }
+        })
+
+        // ----------------------------------------------------------------------
+        // 2. INTERAKSI BUBBLE & XIAOMI EDGE PILL (JIKA DIPILIH DI PENGATURAN)
         // ----------------------------------------------------------------------
         bubbleView.setOnTouchListener(object : View.OnTouchListener {
             private var initialX = 0
@@ -2175,13 +3164,10 @@ class FloatingAssistantService : Service() {
                         val diffX = abs(event.rawX - initialTouchX)
                         val diffY = abs(event.rawY - initialTouchY)
                         if (diffX < 15 && diffY < 15) {
+                            triggerHaptic()
                             openPopupChat()
                         } else {
-                            if (prefMagneticSnap) {
-                                snapBubbleToNearestEdge()
-                            } else {
-                                scheduleXiaomiEdgeTransform()
-                            }
+                            snapBubbleToNearestEdge()
                         }
                         return true
                     }
@@ -2190,9 +3176,6 @@ class FloatingAssistantService : Service() {
             }
         })
 
-        // ----------------------------------------------------------------------
-        // INTERAKSI XIAOMI EDGE PILL (KETUK ATAU GESER KE DALAM UNTUK MEMBUKA)
-        // ----------------------------------------------------------------------
         xiaomiEdgeView.setOnTouchListener(object : View.OnTouchListener {
             private var initialY = 0
             private var initialTouchX = 0f
@@ -2207,18 +3190,17 @@ class FloatingAssistantService : Service() {
                         return true
                     }
                     MotionEvent.ACTION_MOVE -> {
-                        params.y = (initialY + (event.rawY - initialTouchY).toInt()).coerceIn(0, fullScreenHeight - 190)
+                        params.y = (initialY + (event.rawY - initialTouchY).toInt()).coerceIn(0, fullScreenHeight - 180)
                         windowManager.updateViewLayout(floatingView, params)
                         return true
                     }
                     MotionEvent.ACTION_UP -> {
                         val diffX = event.rawX - initialTouchX
-                        val absX = abs(diffX)
-                        val absY = abs(event.rawY - initialTouchY)
-                        val swipedInward = (!snappedToRightEdge && diffX > 35) || (snappedToRightEdge && diffX < -35)
+                        val swipedInward = (snappedToRightEdge && diffX < -45) || (!snappedToRightEdge && diffX > 45)
+                        triggerHaptic()
                         if (swipedInward) {
                             openPopupChat()
-                        } else if (absX < 25 && absY < 25) {
+                        } else {
                             exitXiaomiEdgeMode()
                         }
                         return true
@@ -2229,9 +3211,9 @@ class FloatingAssistantService : Service() {
         })
 
         // ----------------------------------------------------------------------
-        // GESER JENDELA POPUP MAC OS KE MANA SAJA DI LAYAR
+        // 3. GESER & RESIZE JENDELA LIQUID GLASS
         // ----------------------------------------------------------------------
-        macTitleBar.setOnTouchListener(object : View.OnTouchListener {
+        glassTitleBar.setOnTouchListener(object : View.OnTouchListener {
             private var initialX = 0
             private var initialY = 0
             private var initialTouchX = 0f
@@ -2259,10 +3241,7 @@ class FloatingAssistantService : Service() {
             }
         })
 
-        // ----------------------------------------------------------------------
-        // CORNER RESIZE HANDLE (UBAH UKURAN JENDELA BEBAS DARI POJOK KANAN BAWAH)
-        // ----------------------------------------------------------------------
-        btnResizeCorner.setOnTouchListener(object : View.OnTouchListener {
+        btnResizeHandle.setOnTouchListener(object : View.OnTouchListener {
             private var initialW = 0
             private var initialH = 0
             private var initialTouchX = 0f
@@ -2270,10 +3249,10 @@ class FloatingAssistantService : Service() {
 
             override fun onTouch(v: View, event: MotionEvent): Boolean {
                 val density = resources.displayMetrics.density
-                val minW = (270 * density).toInt()
-                val minH = (340 * density).toInt()
+                val minW = (280 * density).toInt()
+                val minH = (320 * density).toInt()
                 val maxW = (fullScreenWidth * 0.95f).toInt()
-                val maxH = (fullScreenHeight * 0.80f).toInt()
+                val maxH = (fullScreenHeight * 0.82f).toInt()
 
                 when (event.action) {
                     MotionEvent.ACTION_DOWN -> {
@@ -2284,9 +3263,11 @@ class FloatingAssistantService : Service() {
                         return true
                     }
                     MotionEvent.ACTION_MOVE -> {
+                        val newW = (initialW + (event.rawX - initialTouchX).toInt()).coerceIn(minW, maxW)
+                        val newH = (initialH + (event.rawY - initialTouchY).toInt()).coerceIn(minH, maxH)
                         val lp = popupChatView.layoutParams
-                        lp.width = (initialW + (event.rawX - initialTouchX).toInt()).coerceIn(minW, maxW)
-                        lp.height = (initialH + (event.rawY - initialTouchY).toInt()).coerceIn(minH, maxH)
+                        lp.width = newW
+                        lp.height = newH
                         popupChatView.layoutParams = lp
                         windowManager.updateViewLayout(floatingView, params)
                         return true
@@ -2296,30 +3277,14 @@ class FloatingAssistantService : Service() {
             }
         })
 
-        btnMacClose.setOnClickListener {
-            stopSelf()
-        }
-
-        btnMacMinimize.setOnClickListener {
+        // Tombol X untuk Close kembali ke Dynamic Island / Bubble
+        btnCloseWindowX.setOnClickListener {
+            triggerHaptic()
             closePopupChat()
         }
 
-        btnMacExpand.setOnClickListener {
-            isWindowExpanded = !isWindowExpanded
-            val lp = popupChatView.layoutParams
-            val density = resources.displayMetrics.density
-            if (isWindowExpanded) {
-                lp.width = (fullScreenWidth * 0.92f).toInt()
-                lp.height = (fullScreenHeight * 0.68f).toInt()
-            } else {
-                lp.width = (338 * density).toInt()
-                lp.height = (470 * density).toInt()
-            }
-            popupChatView.layoutParams = lp
-            windowManager.updateViewLayout(floatingView, params)
-        }
-
         btnScreenShare.setOnClickListener {
+            triggerHaptic()
             if (!isScreenShareActive) {
                 val permIntent = Intent(this, ScreenCapturePermissionActivity::class.java).apply {
                     addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
@@ -2327,14 +3292,15 @@ class FloatingAssistantService : Service() {
                 startActivity(permIntent)
             } else {
                 stopMediaProjection()
-                Toast.makeText(this, "Live Screen Share dihentikan", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, "Live Screen Vision dihentikan", Toast.LENGTH_SHORT).show()
             }
         }
 
         btnPlusMenu.setOnClickListener {
+            triggerHaptic()
             val isVisible = plusMenuDrawer.visibility == View.VISIBLE
             plusMenuDrawer.visibility = if (isVisible) View.GONE else View.VISIBLE
-            btnPlusMenu.animate().rotation(if (isVisible) 0f else 45f).setDuration(200).start()
+            btnPlusMenu.animate().rotation(if (isVisible) 0f else 45f).setDuration(220).start()
         }
 
         actionToggleToken.setOnClickListener {
@@ -2351,24 +3317,20 @@ class FloatingAssistantService : Service() {
         }
 
         actionCyclePersona.setOnClickListener {
+            triggerHaptic()
             prefPersona = when (prefPersona) {
                 "asik" -> "ringkas"
                 "ringkas" -> "detail"
-                "detail" -> "kreatif"
+                "detail" -> "teknis"
                 else -> "asik"
             }
             prefs.edit().putString("ai_persona", prefPersona).apply()
             applyVisualPreferences()
-            val label = when (prefPersona) {
-                "ringkas" -> "Gaya: Singkat & Padat"
-                "detail" -> "Gaya: Penjelasan Lengkap"
-                "kreatif" -> "Gaya: Kreatif & Ekspresif"
-                else -> "Gaya: Asik & Santai"
-            }
-            Toast.makeText(this, label, Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "Gaya: ${tvCurrentPersonaBadge.text}", Toast.LENGTH_SHORT).show()
         }
 
         actionCycleModel.setOnClickListener {
+            triggerHaptic()
             prefModel = when (prefModel) {
                 "gemini-3-flash-preview" -> "gemini-2.5-flash"
                 "gemini-2.5-flash" -> "gemini-2.5-pro"
@@ -2376,56 +3338,172 @@ class FloatingAssistantService : Service() {
             }
             prefs.edit().putString("ai_model", prefModel).apply()
             applyVisualPreferences()
-            Toast.makeText(this, "Model: ${getShortModelName()}", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "Model: ${tvCurrentModelBadge.text}", Toast.LENGTH_SHORT).show()
         }
 
         actionCopyLast.setOnClickListener {
             if (lastBotReply.isNotEmpty()) {
                 val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                clipboard.setPrimaryClip(ClipData.newPlainText("Gemini Reply", lastBotReply))
-                Toast.makeText(this, "Jawaban AI terakhir disalin", Toast.LENGTH_SHORT).show()
+                clipboard.setPrimaryClip(ClipData.newPlainText("Floamini Reply", lastBotReply))
+                Toast.makeText(this, "Jawaban disalin", Toast.LENGTH_SHORT).show()
             }
         }
 
+        actionExportChat.setOnClickListener {
+            if (chatHistory.isEmpty()) {
+                Toast.makeText(this, "Belum ada percakapan di sesi ini", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+            val sb = StringBuilder()
+            for (msg in chatHistory) {
+                val sender = if (msg.role == "user") "Kamu" else "Floamini"
+                sb.append("[$sender - ${msg.timestamp}]\n${msg.text}\n\n")
+            }
+            val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+            clipboard.setPrimaryClip(ClipData.newPlainText("Sesi Floamini", sb.toString().trim()))
+            Toast.makeText(this, "Seluruh sesi disalin ke clipboard", Toast.LENGTH_SHORT).show()
+        }
+
         actionResetChat.setOnClickListener {
-            resetConversationSession(chatContainer, scrollChat)
+            triggerHaptic()
+            resetConversationSession()
             plusMenuDrawer.visibility = View.GONE
             btnPlusMenu.animate().rotation(0f).setDuration(200).start()
         }
 
         actionQuickForceStop.setOnClickListener {
+            triggerHaptic()
             performQuickForceStop()
         }
 
-        // Quick Prompt Chips
-        chipScreenAnalyze.setOnClickListener {
-            if (!isScreenShareActive) {
-                Toast.makeText(this, "Aktifkan ikon Screen Share di pojok kanan atas dulu ya", Toast.LENGTH_SHORT).show()
-            } else {
-                sendPromptMessage("Coba lihat dan jelasin inti dari apa yang lagi tampil di layar aku sekarang.")
-            }
+        chipQuickScreenSummary.setOnClickListener {
+            sendUserPrompt("Tolong ringkas isi layar yang lagi tampil sekarang secara singkat dan jelas.")
         }
-
-        chipSummarize.setOnClickListener {
-            sendPromptMessage("Tolong ringkas inti pembahasan kita barusan jadi lebih gampang dipahami.")
+        chipQuickExplain.setOnClickListener {
+            sendUserPrompt("Jelasin maksud dari apa yang sedang kita bahas atau tampil di layar dengan bahasa gampang.")
         }
-
-        chipTranslate.setOnClickListener {
-            sendPromptMessage("Terjemahin teks atau pembahasan terakhir tadi ke bahasa Indonesia yang santai.")
+        chipQuickTranslate.setOnClickListener {
+            sendUserPrompt("Terjemahkan teks utama yang tampil di layar atau yang barusan kita bahas ke bahasa Indonesia yang natural.")
         }
-
-        chipReplyHelp.setOnClickListener {
-            sendPromptMessage("Kasih saran balasan yang asik dan natural buat konteks obrolan atau layar ini.")
+        chipQuickReply.setOnClickListener {
+            sendUserPrompt("Buatin ide balasan yang asik, sopan, dan nyambung buat konteks ini.")
         }
 
         btnSendPrompt.setOnClickListener {
-            sendPromptMessage(etPrompt.text.toString())
+            sendUserPrompt(etPrompt.text.toString())
         }
     }
 
     // ==========================================================================
-    // LOGIKA MAGNETIC EDGE SNAP & XIAOMI HALF-CIRCLE EDGE PILL
+    // FLUID SPRING ANIMATIONS: DYNAMIC ISLAND <-> LIQUID GLASS WINDOW
     // ==========================================================================
+    private fun showCollapsedTriggerState() {
+        edgeHandler.removeCallbacks(transformToXiaomiEdgeRunnable)
+        popupChatView.visibility = View.GONE
+        dynamicIslandView.visibility = View.GONE
+        bubbleView.visibility = View.GONE
+        xiaomiEdgeView.visibility = View.GONE
+
+        params.flags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN
+        applyWindowBlur(enabled = false)
+
+        when (prefOverlayStyle) {
+            "xiaomi_edge" -> {
+                bubbleView.visibility = View.VISIBLE
+                bubbleView.alpha = 1.0f
+                params.x = if (snappedToRightEdge) (fullScreenWidth - prefBubbleSizePx) else 0
+                params.y = fullScreenHeight / 3
+                windowManager.updateViewLayout(floatingView, params)
+                edgeHandler.postDelayed(transformToXiaomiEdgeRunnable, 2500L)
+            }
+            "classic_bubble" -> {
+                bubbleView.visibility = View.VISIBLE
+                bubbleView.alpha = 1.0f
+                params.x = if (snappedToRightEdge) (fullScreenWidth - prefBubbleSizePx) else 0
+                params.y = fullScreenHeight / 3
+                windowManager.updateViewLayout(floatingView, params)
+            }
+            else -> {
+                dynamicIslandView.visibility = View.VISIBLE
+                dynamicIslandView.scaleX = 0.7f
+                dynamicIslandView.scaleY = 0.7f
+                dynamicIslandView.alpha = 0f
+                params.x = (((fullScreenWidth - prefIslandWidthPx) / 2) + prefIslandOffsetXPx)
+                    .coerceIn(12, (fullScreenWidth - prefIslandWidthPx - 12).coerceAtLeast(12))
+                params.y = prefIslandPosYPx
+                windowManager.updateViewLayout(floatingView, params)
+
+                dynamicIslandView.animate()
+                    .scaleX(1.0f)
+                    .scaleY(1.0f)
+                    .alpha(1.0f)
+                    .setDuration(300)
+                    .setInterpolator(OvershootInterpolator(1.1f))
+                    .start()
+            }
+        }
+    }
+
+    private fun openPopupChat() {
+        edgeHandler.removeCallbacks(transformToXiaomiEdgeRunnable)
+        dynamicIslandView.visibility = View.GONE
+        xiaomiEdgeView.visibility = View.GONE
+        bubbleView.visibility = View.GONE
+
+        popupChatView.visibility = View.VISIBLE
+        popupChatView.pivotX = popupChatView.layoutParams.width / 2f
+        popupChatView.pivotY = 0f
+        popupChatView.scaleX = 0.45f
+        popupChatView.scaleY = 0.22f
+        popupChatView.alpha = 0f
+
+        val popupW = popupChatView.layoutParams.width
+        params.x = ((fullScreenWidth - popupW) / 2).coerceIn(16, (fullScreenWidth - popupW - 16).coerceAtLeast(16))
+        params.y = (prefIslandPosYPx + (14 * resources.displayMetrics.density).toInt()).coerceIn(24, fullScreenHeight / 4)
+        params.flags = WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
+                WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH or
+                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN
+
+        applyWindowBlur(enabled = prefLiquidBlur)
+        windowManager.updateViewLayout(floatingView, params)
+
+        popupChatView.animate()
+            .scaleX(1.0f)
+            .scaleY(1.0f)
+            .alpha(prefPopupAlpha)
+            .setDuration(340)
+            .setInterpolator(OvershootInterpolator(0.85f))
+            .start()
+    }
+
+    private fun closePopupChat() {
+        popupChatView.animate()
+            .scaleX(0.42f)
+            .scaleY(0.18f)
+            .alpha(0f)
+            .setDuration(210)
+            .setInterpolator(DecelerateInterpolator())
+            .withEndAction {
+                showCollapsedTriggerState()
+            }
+            .start()
+    }
+
+    private fun applyWindowBlur(enabled: Boolean) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            try {
+                if (enabled) {
+                    params.flags = params.flags or WindowManager.LayoutParams.FLAG_BLUR_BEHIND
+                    params.blurBehindRadius = 26
+                } else {
+                    params.flags = params.flags and WindowManager.LayoutParams.FLAG_BLUR_BEHIND.inv()
+                    params.blurBehindRadius = 0
+                }
+            } catch (_: Exception) {}
+        }
+    }
+
     private fun snapBubbleToNearestEdge() {
         val centerX = params.x + (prefBubbleSizePx / 2)
         snappedToRightEdge = centerX >= (fullScreenWidth / 2)
@@ -2442,86 +3520,39 @@ class FloatingAssistantService : Service() {
             }
         }
         animator.start()
-        scheduleXiaomiEdgeTransform()
-    }
-
-    private fun scheduleXiaomiEdgeTransform() {
-        edgeHandler.removeCallbacks(transformToXiaomiEdgeRunnable)
-        if (prefXiaomiEdge) {
-            edgeHandler.postDelayed(transformToXiaomiEdgeRunnable, prefEdgeDelayMs)
+        if (prefOverlayStyle == "xiaomi_edge") {
+            edgeHandler.removeCallbacks(transformToXiaomiEdgeRunnable)
+            edgeHandler.postDelayed(transformToXiaomiEdgeRunnable, 2500L)
         }
     }
 
     private fun enterXiaomiEdgeMode() {
-        isXiaomiEdgeModeActive = true
         snappedToRightEdge = (params.x + prefBubbleSizePx / 2) >= (fullScreenWidth / 2)
-
         xiaomiEdgeView.setBackgroundResource(
             if (snappedToRightEdge) R.drawable.bg_xiaomi_edge_right else R.drawable.bg_xiaomi_edge_left
         )
-
         bubbleView.visibility = View.GONE
         xiaomiEdgeView.visibility = View.VISIBLE
-        xiaomiEdgeView.alpha = 0.88f
+        xiaomiEdgeView.alpha = 0.85f
 
         val pillWidthPx = (18 * resources.displayMetrics.density).toInt()
         params.x = if (snappedToRightEdge) (fullScreenWidth - pillWidthPx) else 0
         windowManager.updateViewLayout(floatingView, params)
-
-        xiaomiEdgeView.animate()
-            .alpha(0.48f)
-            .setDuration(420)
-            .start()
+        xiaomiEdgeView.animate().alpha(0.45f).setDuration(400).start()
     }
 
     private fun exitXiaomiEdgeMode() {
         edgeHandler.removeCallbacks(transformToXiaomiEdgeRunnable)
-        isXiaomiEdgeModeActive = false
         xiaomiEdgeView.visibility = View.GONE
         bubbleView.visibility = View.VISIBLE
         bubbleView.alpha = 1.0f
-
         params.x = if (snappedToRightEdge) (fullScreenWidth - prefBubbleSizePx) else 0
         windowManager.updateViewLayout(floatingView, params)
-        scheduleXiaomiEdgeTransform()
-    }
-
-    private fun openPopupChat() {
-        edgeHandler.removeCallbacks(transformToXiaomiEdgeRunnable)
-        isXiaomiEdgeModeActive = false
-        xiaomiEdgeView.visibility = View.GONE
-        bubbleView.visibility = View.GONE
-        popupChatView.visibility = View.VISIBLE
-        popupChatView.alpha = prefPopupAlpha
-
-        val popupW = (338 * resources.displayMetrics.density).toInt()
-        val popupH = (470 * resources.displayMetrics.density).toInt()
-        params.x = params.x.coerceIn(16, (fullScreenWidth - popupW - 16).coerceAtLeast(16))
-        params.y = params.y.coerceIn(48, (fullScreenHeight - popupH - 48).coerceAtLeast(48))
-        params.flags = WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL
-        windowManager.updateViewLayout(floatingView, params)
-    }
-
-    private fun closePopupChat() {
-        popupChatView.visibility = View.GONE
-        xiaomiEdgeView.visibility = View.GONE
-        bubbleView.visibility = View.VISIBLE
-        bubbleView.alpha = 1.0f
-        isXiaomiEdgeModeActive = false
-
-        params.flags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
-        params.x = if (snappedToRightEdge) (fullScreenWidth - prefBubbleSizePx) else 0
-        windowManager.updateViewLayout(floatingView, params)
-
-        if (prefMagneticSnap) {
-            snapBubbleToNearestEdge()
-        } else {
-            scheduleXiaomiEdgeTransform()
-        }
+        edgeHandler.postDelayed(transformToXiaomiEdgeRunnable, 2500L)
     }
 
     private fun performQuickForceStop() {
-        Toast.makeText(this, "Menghentikan paksa layanan...", Toast.LENGTH_SHORT).show()
+        Toast.makeText(this, "Menghentikan paksa Floamini...", Toast.LENGTH_SHORT).show()
         stopMediaProjection()
         val appInfoIntent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
             data = Uri.parse("package:$packageName")
@@ -2533,9 +3564,9 @@ class FloatingAssistantService : Service() {
     }
 
     // ==========================================================================
-    // TAMPILAN CHAT KIRI-KANAN (TEKAN LAMA UNTUK SALIN) & PEMBERSIH MARKDOWN
+    // GELEMBUNG CHAT KIRI-KANAN + TIMESTAMP + TAP TO COPY
     // ==========================================================================
-    private fun addChatMessage(container: LinearLayout, scrollView: ScrollView, text: String, isUser: Boolean) {
+    private fun addChatMessage(text: String, timeLabel: String, isUser: Boolean) {
         val wrapper = LinearLayout(this).apply {
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
@@ -2543,6 +3574,7 @@ class FloatingAssistantService : Service() {
             ).apply {
                 setMargins(0, 6, 0, 6)
             }
+            orientation = LinearLayout.VERTICAL
             gravity = if (isUser) Gravity.END else Gravity.START
         }
 
@@ -2552,45 +3584,27 @@ class FloatingAssistantService : Service() {
             lineHeight = (19 * resources.displayMetrics.density).toInt()
             setTextColor(Color.parseColor("#F8FAFC"))
             setPadding(28, 18, 28, 18)
-            maxWidth = (248 * resources.displayMetrics.density).toInt()
+            maxWidth = (250 * resources.displayMetrics.density).toInt()
             setBackgroundResource(if (isUser) R.drawable.bg_chat_user else R.drawable.bg_chat_bot)
 
-            setOnLongClickListener {
+            setOnClickListener {
                 val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                clipboard.setPrimaryClip(ClipData.newPlainText("Chat Message", text))
-                Toast.makeText(this@FloatingAssistantService, "Teks pesan disalin", Toast.LENGTH_SHORT).show()
-                true
+                clipboard.setPrimaryClip(ClipData.newPlainText("Floamini Message", text))
+                Toast.makeText(this@FloatingAssistantService, "Pesan disalin", Toast.LENGTH_SHORT).show()
             }
+        }
+
+        val tvTime = TextView(this).apply {
+            this.text = if (isUser) "Kamu • $timeLabel" else "Floamini • $timeLabel"
+            textSize = 9.5f
+            setTextColor(Color.parseColor("#64748B"))
+            setPadding(8, 3, 8, 0)
         }
 
         wrapper.addView(tvMessage)
-        container.addView(wrapper)
-        scrollView.post { scrollView.fullScroll(View.FOCUS_DOWN) }
-    }
-
-    private fun addTypingIndicator(container: LinearLayout, scrollView: ScrollView, statusText: String): View {
-        val wrapper = LinearLayout(this).apply {
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT
-            ).apply {
-                setMargins(0, 6, 0, 6)
-            }
-            gravity = Gravity.START
-        }
-
-        val tvTyping = TextView(this).apply {
-            this.text = statusText
-            textSize = 12f
-            setTextColor(Color.parseColor("#94A3B8"))
-            setPadding(28, 16, 28, 16)
-            setBackgroundResource(R.drawable.bg_chat_bot)
-        }
-
-        wrapper.addView(tvTyping)
-        container.addView(wrapper)
-        scrollView.post { scrollView.fullScroll(View.FOCUS_DOWN) }
-        return wrapper
+        wrapper.addView(tvTime)
+        chatContainer.addView(wrapper)
+        scrollChat.post { scrollChat.fullScroll(View.FOCUS_DOWN) }
     }
 
     private fun sanitizeMarkdown(text: String): String {
@@ -2605,16 +3619,24 @@ class FloatingAssistantService : Service() {
     }
 
     // ==========================================================================
-    // LIVE SCREEN SHARE (MEDIA PROJECTION + IMAGE READER)
+    // LIVE SCREEN SHARE (MEDIA PROJECTION + ANDROID 14 CALLBACK SAFE)
     // ==========================================================================
     private fun startMediaProjection(resultCode: Int, data: Intent) {
         startForegroundNotification(withMediaProjection = true)
         val projectionManager = getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
         mediaProjection = projectionManager.getMediaProjection(resultCode, data)
 
+        mediaProjection?.registerCallback(object : MediaProjection.Callback() {
+            override fun onStop() {
+                Handler(Looper.getMainLooper()).post {
+                    stopMediaProjection()
+                }
+            }
+        }, Handler(Looper.getMainLooper()))
+
         imageReader = ImageReader.newInstance(captureWidth, captureHeight, PixelFormat.RGBA_8888, 2)
         virtualDisplay = mediaProjection?.createVirtualDisplay(
-            "GeminiScreenShare",
+            "FloaminiScreenShare",
             captureWidth,
             captureHeight,
             screenDensity,
@@ -2627,14 +3649,16 @@ class FloatingAssistantService : Service() {
         isScreenShareActive = true
         btnScreenShare.setColorFilter(Color.parseColor("#38BDF8"))
         tvScreenShareStatus.visibility = View.VISIBLE
-        Toast.makeText(this, "Live Screen Share aktif", Toast.LENGTH_SHORT).show()
+        tvIslandLabel.text = "Live Vision"
+        popupChatView.setBackgroundResource(R.drawable.bg_liquid_glass_window_share)
+        Toast.makeText(this, "Live Screen Vision aktif", Toast.LENGTH_SHORT).show()
     }
 
     private fun stopMediaProjection() {
         isScreenShareActive = false
-        virtualDisplay?.release()
-        imageReader?.close()
-        mediaProjection?.stop()
+        try { virtualDisplay?.release() } catch (_: Exception) {}
+        try { imageReader?.close() } catch (_: Exception) {}
+        try { mediaProjection?.stop() } catch (_: Exception) {}
         virtualDisplay = null
         imageReader = null
         mediaProjection = null
@@ -2643,6 +3667,12 @@ class FloatingAssistantService : Service() {
         }
         if (::tvScreenShareStatus.isInitialized) {
             tvScreenShareStatus.visibility = View.GONE
+        }
+        if (::tvIslandLabel.isInitialized) {
+            tvIslandLabel.text = "Floamini"
+        }
+        if (::popupChatView.isInitialized) {
+            popupChatView.setBackgroundResource(R.drawable.bg_liquid_glass_window)
         }
         startForegroundNotification(withMediaProjection = false)
     }
@@ -2677,36 +3707,29 @@ class FloatingAssistantService : Service() {
     }
 
     // ==========================================================================
-    // KONEKSI GEMINI API (INGAT KONTEKS SESI, GAYA ASIK, MINIMAL 1-3 KALIMAT)
+    // KONEKSI GEMINI API (MEMORI SESI + GAYA ASIK + TANPA SIMBOL MARKDOWN)
     // ==========================================================================
     private fun buildSystemInstructionText(): String {
-        val customNote = if (prefCustomPersonaNote.isNotEmpty()) {
-            "Catatan tambahan dari pengguna tentang dirinya atau preferensinya: $prefCustomPersonaNote. "
-        } else ""
-
-        val memoryRule = "Penting: Selalu ingat dan hubungkan seluruh konteks percakapan sebelumnya dalam sesi ini agar obrolan terus nyambung dan tidak pernah lupa apa yang sedang dibahas."
+        val memoryRule = "Penting: Selalu ingat dan hubungkan seluruh konteks percakapan sebelumnya dalam sesi ini agar obrolan tetap nyambung dan tidak pernah lupa apa yang sedang dibahas."
         val formatRule = "Aturan format wajib: Jangan pernah gunakan simbol markdown seperti tanda bintang (* atau **), tanda pagar (#), atau backtick (`). Tulis dalam teks polos yang bersih dan rapi."
-
         return when (prefPersona) {
-            "ringkas" -> "Kamu adalah asisten AI yang sigap dan langsung ke inti masalah. Jawab singkat dan padat dalam 1 sampai 2 kalimat utuh tanpa basa-basi. $customNote$memoryRule $formatRule"
-            "detail" -> "Kamu adalah asisten AI yang ramah dan informatif. Jelaskan jawaban secara runtut dan jelas dalam beberapa kalimat yang mudah dipahami. $customNote$memoryRule $formatRule"
-            "kreatif" -> "Kamu adalah asisten AI yang kreatif, ekspresif, dan seru diajak brainstorming. Berikan jawaban yang segar dalam 2 sampai 4 kalimat utuh. $customNote$memoryRule $formatRule"
-            else -> "Kamu adalah asisten AI yang asik, santai, ramah, dan tidak kaku seperti teman ngobrol yang pintar. Gunakan bahasa Indonesia yang natural dan enak dibaca. Jawab cukup pendek tapi tetap jelas dan berisi, minimal 1 sampai 3 kalimat utuh yang langsung menjawab inti pertanyaan pengguna tanpa bertele-tele. $customNote$memoryRule $formatRule"
+            "ringkas" -> "Kamu adalah Floamini, asisten AI yang sigap dan langsung ke inti masalah. Jawab singkat dan padat dalam 1 sampai 2 kalimat utuh tanpa basa-basi. $memoryRule $formatRule"
+            "detail" -> "Kamu adalah Floamini, asisten AI yang ramah dan informatif. Jelaskan jawaban secara runtut dan jelas dalam beberapa kalimat yang mudah dipahami. $memoryRule $formatRule"
+            "teknis" -> "Kamu adalah Floamini, asisten teknis dan programmer yang cerdas. Berikan solusi langsung ke intinya dengan penjelasan logis dan ringkas. $memoryRule $formatRule"
+            else -> "Kamu adalah Floamini, asisten AI yang asik, santai, ramah, dan tidak kaku seperti teman ngobrol yang pintar. Gunakan bahasa Indonesia yang natural dan enak dibaca. Jawab cukup pendek tapi tetap jelas dan berisi, minimal 1 sampai 3 kalimat utuh yang langsung menjawab inti pertanyaan pengguna tanpa bertele-tele. $memoryRule $formatRule"
         }
     }
 
     private suspend fun callGeminiApi(apiKey: String, prompt: String, screenBase64: String?): String = withContext(Dispatchers.IO) {
         try {
             val url = "https://generativelanguage.googleapis.com/v1beta/models/$prefModel:generateContent?key=$apiKey"
-
             val contentsArray = JSONArray()
 
-            // Kirim seluruh riwayat percakapan sesi aktif agar Gemini tidak pernah lupa konteks
-            for ((role, text) in chatHistory) {
+            for (msg in chatHistory) {
                 contentsArray.put(JSONObject().apply {
-                    put("role", role)
+                    put("role", msg.role)
                     put("parts", JSONArray().apply {
-                        put(JSONObject().apply { put("text", text) })
+                        put(JSONObject().apply { put("text", msg.text) })
                     })
                 })
             }
@@ -2789,7 +3812,7 @@ def generate_project():
         with open(filepath, "w", encoding="utf-8") as f:
             f.write(content.strip() + "\n")
         print(f"Berhasil membuat/memperbarui: {filepath}")
-    print("\nSeluruh proyek Android Gemini Floating Pro siap di-push ke GitHub!")
+    print("\nProyek Floamini v4.0 (iOS 26 Liquid Glass & Dynamic Island) siap di-push ke GitHub!")
 
 if __name__ == "__main__":
     generate_project()

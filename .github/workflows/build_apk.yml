@@ -1,4 +1,4 @@
-name: Build Android Debug APK
+name: Build Floamini APK
 
 on:
   push:
@@ -21,16 +21,28 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
+      - name: Restore Permanent Signing Keystore
+        uses: actions/cache@v4
+        with:
+          path: app/floamini.jks
+          key: floamini-permanent-keystore-v1
+
+      - name: Ensure Permanent Signing Keystore Exists
+        run: |
+          if [ ! -f app/floamini.jks ]; then
+            keytool -genkeypair -v -keystore app/floamini.jks -alias floamini_key -keyalg RSA -keysize 2048 -validity 10000 -storepass floamini_keystore_pass_2026 -keypass floamini_keystore_pass_2026 -dname "CN=Floamini, OU=Mobile, O=AvoluProject, L=Yogyakarta, ST=DIY, C=ID"
+          fi
+
       - name: Setup Gradle 8.5
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.5'
 
-      - name: Build Debug APK
+      - name: Build Update-Ready APK
         run: gradle assembleDebug
 
-      - name: Upload APK Artifact
+      - name: Upload Floamini APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: FloatingGeminiAI-debug
+          name: Floamini-v4.0-update-ready
           path: app/build/outputs/apk/debug/app-debug.apk

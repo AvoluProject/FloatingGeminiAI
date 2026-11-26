@@ -15,82 +15,103 @@ import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import com.google.android.material.switchmaterial.SwitchMaterial
 import com.google.android.material.textfield.TextInputEditText
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import okhttp3.MediaType.Companion.toMediaType
-import okhttp3.OkHttpClient
-import okhttp3.Request
-import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONArray
-import org.json.JSONObject
-import java.util.concurrent.TimeUnit
 import kotlin.system.exitProcess
 
 class MainActivity : AppCompatActivity() {
 
-    private val testHttpClient = OkHttpClient.Builder()
-        .connectTimeout(15, TimeUnit.SECONDS)
-        .readTimeout(15, TimeUnit.SECONDS)
-        .build()
+    private lateinit var tvSessionStatusMain: TextView
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_main)
 
         val prefs = getSharedPreferences("gemini_prefs", Context.MODE_PRIVATE)
+        if (!prefs.getBoolean("has_seen_welcome", false)) {
+            startActivity(Intent(this, WelcomeActivity::class.java))
+            finish()
+            return
+        }
 
-        val tvDashboardSessionStatus = findViewById<TextView>(R.id.tvDashboardSessionStatus)
-        val etApiKey = findViewById<TextInputEditText>(R.id.etApiKey)
-        val etCustomPersonaNote = findViewById<TextInputEditText>(R.id.etCustomPersonaNote)
-        val btnTestToken = findViewById<Button>(R.id.btnTestToken)
+        setContentView(R.layout.activity_main)
+
+        val tvAppVersionInfo = findViewById<TextView>(R.id.tvAppVersionInfo)
+        val btnOpenWelcomeGuide = findViewById<Button>(R.id.btnOpenWelcomeGuide)
         val btnStartOverlay = findViewById<Button>(R.id.btnStartOverlay)
         val btnStopOverlay = findViewById<Button>(R.id.btnStopOverlay)
         val btnQuickForceStopMain = findViewById<Button>(R.id.btnQuickForceStopMain)
-        val btnClearSessionMain = findViewById<Button>(R.id.btnClearSessionMain)
-        val btnSaveAllSettings = findViewById<Button>(R.id.btnSaveAllSettings)
+        tvSessionStatusMain = findViewById(R.id.tvSessionStatusMain)
+        val btnResetSessionMain = findViewById<Button>(R.id.btnResetSessionMain)
 
+        val rgOverlayStyle = findViewById<RadioGroup>(R.id.rgOverlayStyle)
+        val rbStyleDynamicIsland = findViewById<RadioButton>(R.id.rbStyleDynamicIsland)
+        val rbStyleXiaomiEdge = findViewById<RadioButton>(R.id.rbStyleXiaomiEdge)
+        val rbStyleClassicBubble = findViewById<RadioButton>(R.id.rbStyleClassicBubble)
+
+        val swTapOutsideClose = findViewById<SwitchMaterial>(R.id.swTapOutsideClose)
+        val swLiquidBlur = findViewById<SwitchMaterial>(R.id.swLiquidBlur)
+        val swHapticFeedback = findViewById<SwitchMaterial>(R.id.swHapticFeedback)
+
+        val tvIslandWidthLabel = findViewById<TextView>(R.id.tvIslandWidthLabel)
+        val sbIslandWidth = findViewById<SeekBar>(R.id.sbIslandWidth)
+        val tvIslandPosYLabel = findViewById<TextView>(R.id.tvIslandPosYLabel)
+        val sbIslandPosY = findViewById<SeekBar>(R.id.sbIslandPosY)
+        val tvIslandOffsetXLabel = findViewById<TextView>(R.id.tvIslandOffsetXLabel)
+        val sbIslandOffsetX = findViewById<SeekBar>(R.id.sbIslandOffsetX)
+        val tvOpacityLabel = findViewById<TextView>(R.id.tvOpacityLabel)
+        val sbOpacity = findViewById<SeekBar>(R.id.sbOpacity)
+
+        val tvGetKeyShortcut = findViewById<TextView>(R.id.tvGetKeyShortcut)
+        val etApiKey = findViewById<TextInputEditText>(R.id.etApiKey)
         val rgPersona = findViewById<RadioGroup>(R.id.rgPersona)
         val rbAsik = findViewById<RadioButton>(R.id.rbAsik)
         val rbRingkas = findViewById<RadioButton>(R.id.rbRingkas)
         val rbDetail = findViewById<RadioButton>(R.id.rbDetail)
-        val rbKreatif = findViewById<RadioButton>(R.id.rbKreatif)
+        val rbTeknis = findViewById<RadioButton>(R.id.rbTeknis)
 
         val rgModel = findViewById<RadioGroup>(R.id.rgModel)
         val rbModel3Flash = findViewById<RadioButton>(R.id.rbModel3Flash)
         val rbModel25Flash = findViewById<RadioButton>(R.id.rbModel25Flash)
         val rbModel25Pro = findViewById<RadioButton>(R.id.rbModel25Pro)
+        val btnSaveAllSettings = findViewById<Button>(R.id.btnSaveAllSettings)
 
-        val swMagneticSnap = findViewById<SwitchMaterial>(R.id.swMagneticSnap)
-        val swXiaomiEdge = findViewById<SwitchMaterial>(R.id.swXiaomiEdge)
-        val tvEdgeDelayLabel = findViewById<TextView>(R.id.tvEdgeDelayLabel)
-        val sbEdgeDelay = findViewById<SeekBar>(R.id.sbEdgeDelay)
-        val tvOpacityLabel = findViewById<TextView>(R.id.tvOpacityLabel)
-        val sbOpacity = findViewById<SeekBar>(R.id.sbOpacity)
-        val tvBubbleSizeLabel = findViewById<TextView>(R.id.tvBubbleSizeLabel)
-        val sbBubbleSize = findViewById<SeekBar>(R.id.sbBubbleSize)
+        try {
+            val pInfo = packageManager.getPackageInfo(packageName, 0)
+            tvAppVersionInfo.text = "v${pInfo.versionName} • iOS 26 Liquid Glass & Dynamic Island"
+        } catch (_: Exception) {}
 
-        fun updateSessionBadge() {
-            val raw = prefs.getString("session_history_json", null)
-            val count = try {
-                if (raw.isNullOrEmpty()) 0 else JSONArray(raw).length()
-            } catch (_: Exception) { 0 }
-            tvDashboardSessionStatus.text = if (count > 0) {
-                "Sesi Memori Aktif • $count pesan tersimpan"
-            } else {
-                "Sesi Memori Baru • Siap Digunakan"
-            }
+        etApiKey.setText(prefs.getString("api_key", ""))
+        updateSessionStatsLabel()
+
+        when (prefs.getString("overlay_style", "dynamic_island")) {
+            "xiaomi_edge" -> rbStyleXiaomiEdge.isChecked = true
+            "classic_bubble" -> rbStyleClassicBubble.isChecked = true
+            else -> rbStyleDynamicIsland.isChecked = true
         }
 
-        updateSessionBadge()
-        etApiKey.setText(prefs.getString("api_key", ""))
-        etCustomPersonaNote.setText(prefs.getString("custom_persona_note", ""))
+        swTapOutsideClose.isChecked = prefs.getBoolean("tap_outside_close", true)
+        swLiquidBlur.isChecked = prefs.getBoolean("liquid_blur", true)
+        swHapticFeedback.isChecked = prefs.getBoolean("haptic_feedback", true)
+
+        val savedIslandW = prefs.getInt("island_width_dp", 168)
+        sbIslandWidth.progress = (savedIslandW - 120).coerceIn(0, 120)
+        tvIslandWidthLabel.text = "Lebar Pil Dynamic Island: ${savedIslandW}dp"
+
+        val savedIslandY = prefs.getInt("island_pos_y_dp", 12)
+        sbIslandPosY.progress = savedIslandY.coerceIn(0, 70)
+        tvIslandPosYLabel.text = "Posisi Vertikal Atas (Y): ${savedIslandY}dp"
+
+        val savedIslandX = prefs.getInt("island_offset_x_dp", 0)
+        sbIslandOffsetX.progress = (savedIslandX + 80).coerceIn(0, 160)
+        tvIslandOffsetXLabel.text = "Geser Horizontal Kamera (X): ${savedIslandX}dp"
+
+        val savedOpacity = prefs.getInt("popup_opacity", 82)
+        sbOpacity.progress = (savedOpacity - 45).coerceIn(0, 55)
+        tvOpacityLabel.text = "Transparansi Liquid Glass: ${savedOpacity}%"
 
         when (prefs.getString("ai_persona", "asik")) {
             "ringkas" -> rbRingkas.isChecked = true
             "detail" -> rbDetail.isChecked = true
-            "kreatif" -> rbKreatif.isChecked = true
+            "teknis" -> rbTeknis.isChecked = true
             else -> rbAsik.isChecked = true
         }
 
@@ -100,24 +121,25 @@ class MainActivity : AppCompatActivity() {
             else -> rbModel3Flash.isChecked = true
         }
 
-        swMagneticSnap.isChecked = prefs.getBoolean("magnetic_snap", true)
-        swXiaomiEdge.isChecked = prefs.getBoolean("xiaomi_edge", true)
-
-        val savedDelaySec = prefs.getInt("edge_delay_sec", 3)
-        sbEdgeDelay.progress = (savedDelaySec - 1).coerceIn(0, 9)
-        tvEdgeDelayLabel.text = "Jeda Berubah ke Garis Xiaomi: ${savedDelaySec} Detik"
-
-        val savedOpacity = prefs.getInt("popup_opacity", 84)
-        sbOpacity.progress = (savedOpacity - 45).coerceIn(0, 55)
-        tvOpacityLabel.text = "Transparansi Jendela Chat: ${savedOpacity}%"
-
-        val savedBubbleSize = prefs.getInt("bubble_size_dp", 56)
-        sbBubbleSize.progress = (savedBubbleSize - 44).coerceIn(0, 28)
-        tvBubbleSizeLabel.text = "Ukuran Bubble Utama: ${savedBubbleSize}dp"
-
-        sbEdgeDelay.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+        sbIslandWidth.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
-                tvEdgeDelayLabel.text = "Jeda Berubah ke Garis Xiaomi: ${progress + 1} Detik"
+                tvIslandWidthLabel.text = "Lebar Pil Dynamic Island: ${progress + 120}dp"
+            }
+            override fun onStartTrackingTouch(seekBar: SeekBar?) {}
+            override fun onStopTrackingTouch(seekBar: SeekBar?) {}
+        })
+
+        sbIslandPosY.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
+                tvIslandPosYLabel.text = "Posisi Vertikal Atas (Y): ${progress}dp"
+            }
+            override fun onStartTrackingTouch(seekBar: SeekBar?) {}
+            override fun onStopTrackingTouch(seekBar: SeekBar?) {}
+        })
+
+        sbIslandOffsetX.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
+                tvIslandOffsetXLabel.text = "Geser Horizontal Kamera (X): ${progress - 80}dp"
             }
             override fun onStartTrackingTouch(seekBar: SeekBar?) {}
             override fun onStopTrackingTouch(seekBar: SeekBar?) {}
@@ -125,25 +147,22 @@ class MainActivity : AppCompatActivity() {
 
         sbOpacity.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
-                tvOpacityLabel.text = "Transparansi Jendela Chat: ${progress + 45}%"
-            }
-            override fun onStartTrackingTouch(seekBar: SeekBar?) {}
-            override fun onStopTrackingTouch(seekBar: SeekBar?) {}
-        })
-
-        sbBubbleSize.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-            override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
-                tvBubbleSizeLabel.text = "Ukuran Bubble Utama: ${progress + 44}dp"
+                tvOpacityLabel.text = "Transparansi Liquid Glass: ${progress + 45}%"
             }
             override fun onStartTrackingTouch(seekBar: SeekBar?) {}
             override fun onStopTrackingTouch(seekBar: SeekBar?) {}
         })
 
         fun saveAllPreferences() {
+            val style = when (rgOverlayStyle.checkedRadioButtonId) {
+                R.id.rbStyleXiaomiEdge -> "xiaomi_edge"
+                R.id.rbStyleClassicBubble -> "classic_bubble"
+                else -> "dynamic_island"
+            }
             val persona = when (rgPersona.checkedRadioButtonId) {
                 R.id.rbRingkas -> "ringkas"
                 R.id.rbDetail -> "detail"
-                R.id.rbKreatif -> "kreatif"
+                R.id.rbTeknis -> "teknis"
                 else -> "asik"
             }
             val model = when (rgModel.checkedRadioButtonId) {
@@ -153,82 +172,64 @@ class MainActivity : AppCompatActivity() {
             }
             prefs.edit()
                 .putString("api_key", etApiKey.text.toString().trim())
-                .putString("custom_persona_note", etCustomPersonaNote.text.toString().trim())
+                .putString("overlay_style", style)
+                .putBoolean("tap_outside_close", swTapOutsideClose.isChecked)
+                .putBoolean("liquid_blur", swLiquidBlur.isChecked)
+                .putBoolean("haptic_feedback", swHapticFeedback.isChecked)
+                .putInt("island_width_dp", sbIslandWidth.progress + 120)
+                .putInt("island_pos_y_dp", sbIslandPosY.progress)
+                .putInt("island_offset_x_dp", sbIslandOffsetX.progress - 80)
+                .putInt("popup_opacity", sbOpacity.progress + 45)
                 .putString("ai_persona", persona)
                 .putString("ai_model", model)
-                .putBoolean("magnetic_snap", swMagneticSnap.isChecked)
-                .putBoolean("xiaomi_edge", swXiaomiEdge.isChecked)
-                .putInt("edge_delay_sec", sbEdgeDelay.progress + 1)
-                .putInt("popup_opacity", sbOpacity.progress + 45)
-                .putInt("bubble_size_dp", sbBubbleSize.progress + 44)
                 .apply()
 
-            try {
+            if (Settings.canDrawOverlays(this)) {
                 val refreshIntent = Intent(this, FloatingAssistantService::class.java).apply {
                     action = FloatingAssistantService.ACTION_RELOAD_SETTINGS
                 }
-                startService(refreshIntent)
-            } catch (_: Exception) {}
+                try {
+                    startService(refreshIntent)
+                } catch (_: Exception) {}
+            }
         }
 
-        btnTestToken.setOnClickListener {
-            val token = etApiKey.text.toString().trim()
-            if (token.isEmpty()) {
-                Toast.makeText(this, "Masukkan API Token terlebih dahulu", Toast.LENGTH_SHORT).show()
-                return@setOnClickListener
+        btnOpenWelcomeGuide.setOnClickListener {
+            val welcomeIntent = Intent(this, WelcomeActivity::class.java).apply {
+                putExtra("from_settings", true)
             }
-            btnTestToken.isEnabled = false
-            btnTestToken.text = "Menguji..."
-            CoroutineScope(Dispatchers.IO).launch {
-                val isValid = try {
-                    val url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=$token"
-                    val body = JSONObject().apply {
-                        put("contents", JSONArray().apply {
-                            put(JSONObject().apply {
-                                put("parts", JSONArray().apply {
-                                    put(JSONObject().apply { put("text", "Halo") })
-                                })
-                            })
-                        })
-                    }.toString().toRequestBody("application/json; charset=utf-8".toMediaType())
-                    val req = Request.Builder().url(url).post(body).build()
-                    testHttpClient.newCall(req).execute().use { it.isSuccessful }
-                } catch (_: Exception) { false }
+            startActivity(welcomeIntent)
+        }
 
-                withContext(Dispatchers.Main) {
-                    btnTestToken.isEnabled = true
-                    btnTestToken.text = "Tes Token"
-                    if (isValid) {
-                        saveAllPreferences()
-                        Toast.makeText(this@MainActivity, "Koneksi Berhasil! Token Gemini Valid", Toast.LENGTH_SHORT).show()
-                    } else {
-                        Toast.makeText(this@MainActivity, "Token tidak valid atau koneksi gagal", Toast.LENGTH_LONG).show()
-                    }
-                }
+        tvGetKeyShortcut.setOnClickListener {
+            try {
+                startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://aistudio.google.com/apikey")))
+            } catch (_: Exception) {
+                Toast.makeText(this, "Kunjungi aistudio.google.com/apikey", Toast.LENGTH_LONG).show()
             }
+        }
+
+        btnResetSessionMain.setOnClickListener {
+            prefs.edit().remove("session_history_json").apply()
+            updateSessionStatsLabel()
+            val resetIntent = Intent(this, FloatingAssistantService::class.java).apply {
+                action = FloatingAssistantService.ACTION_RESET_SESSION
+            }
+            try {
+                startService(resetIntent)
+            } catch (_: Exception) {}
+            Toast.makeText(this, "Memori sesi Floamini di-reset", Toast.LENGTH_SHORT).show()
         }
 
         btnSaveAllSettings.setOnClickListener {
             saveAllPreferences()
-            Toast.makeText(this, "Semua pengaturan berhasil disimpan", Toast.LENGTH_SHORT).show()
-        }
-
-        btnClearSessionMain.setOnClickListener {
-            prefs.edit().remove("session_history_json").apply()
-            updateSessionBadge()
-            try {
-                val resetIntent = Intent(this, FloatingAssistantService::class.java).apply {
-                    action = FloatingAssistantService.ACTION_RESET_SESSION
-                }
-                startService(resetIntent)
-            } catch (_: Exception) {}
-            Toast.makeText(this, "Memori sesi obrolan dibersihkan", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "Pengaturan Floamini diterapkan", Toast.LENGTH_SHORT).show()
         }
 
         btnStartOverlay.setOnClickListener {
             saveAllPreferences()
             if (!Settings.canDrawOverlays(this)) {
-                Toast.makeText(this, "Izinkan tampil di atas aplikasi lain terlebih dahulu", Toast.LENGTH_LONG).show()
+                Toast.makeText(this, "Izinkan Floamini tampil di atas aplikasi lain", Toast.LENGTH_LONG).show()
                 val intent = Intent(
                     Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
                     Uri.parse("package:$packageName")
@@ -243,12 +244,12 @@ class MainActivity : AppCompatActivity() {
             } else {
                 startService(serviceIntent)
             }
-            Toast.makeText(this, "Floating Assistant aktif di layar", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "Floamini aktif di layar", Toast.LENGTH_SHORT).show()
         }
 
         btnStopOverlay.setOnClickListener {
             stopService(Intent(this, FloatingAssistantService::class.java))
-            Toast.makeText(this, "Floating Assistant dihentikan", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "Floamini dihentikan", Toast.LENGTH_SHORT).show()
         }
 
         btnQuickForceStopMain.setOnClickListener {
@@ -261,5 +262,21 @@ class MainActivity : AppCompatActivity() {
             finishAffinity()
             exitProcess(0)
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        val prefs = getSharedPreferences("gemini_prefs", Context.MODE_PRIVATE)
+        findViewById<TextInputEditText>(R.id.etApiKey)?.setText(prefs.getString("api_key", ""))
+        updateSessionStatsLabel()
+    }
+
+    private fun updateSessionStatsLabel() {
+        val prefs = getSharedPreferences("gemini_prefs", Context.MODE_PRIVATE)
+        val raw = prefs.getString("session_history_json", null)
+        val count = try {
+            if (!raw.isNullOrEmpty()) JSONArray(raw).length() else 0
+        } catch (_: Exception) { 0 }
+        tvSessionStatusMain.text = "Memori Sesi: $count pesan tersimpan"
     }
 }

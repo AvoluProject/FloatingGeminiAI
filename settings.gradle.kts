@@ -12,5 +12,5 @@ dependencyResolutionManagement {
         mavenCentral()
     }
 }
-rootProject.name = "FloatingGeminiAI"
+rootProject.name = "Floamini"
 include(":app")
