@@ -3,17 +3,27 @@
 
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.VIBRATE" />
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.TTS_SERVICE" />
+        </intent>
+        <intent>
+            <action android:name="android.speech.RecognitionService" />
+        </intent>
+    </queries>
+
     <application
         android:allowBackup="true"
         android:label="Floamini"
         android:supportsRtl="true"
-        android:theme="@style/Theme.Material3.Dark.NoActionBar">
+        android:theme="@style/Theme.Floamini.Adaptive">
 
         <activity
             android:name=".MainActivity"
@@ -37,7 +47,49 @@
         <activity
             android:name=".ScreenCapturePermissionActivity"
             android:exported="false"
+            android:excludeFromRecents="true"
             android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+
+        <activity
+            android:name=".FilePickerProxyActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+
+        <activity
+            android:name=".AudioPermissionProxyActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+
+        <!-- Text Selection Assistant (PROCESS_TEXT) & Share-to-AI (ACTION_SEND) -->
+        <activity
+            android:name=".ExternalTriggerActivity"
+            android:exported="true"
+            android:label="Tanya Floamini AI"
+            android:excludeFromRecents="true"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar">
+            <intent-filter>
+                <action android:name="android.intent.action.PROCESS_TEXT" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="image/*" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="application/pdf" />
+            </intent-filter>
+        </activity>
 
         <service
             android:name=".FloaminiTileService"
@@ -57,7 +109,7 @@
             android:foregroundServiceType="specialUse|mediaProjection">
             <property
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
-                android:value="Floamini Liquid Glass AI Assistant" />
+                android:value="Floamini OS Liquid Glass AI Assistant" />
         </service>
 
     </application>

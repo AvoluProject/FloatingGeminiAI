@@ -4,8 +4,8 @@ plugins {
 }
 
 val ciRunNumber = System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull() ?: 0
-val appVersionCode = 6 + ciRunNumber
-val appVersionName = "5.0.$ciRunNumber"
+val appVersionCode = 10 + ciRunNumber
+val appVersionName = "6.0.$ciRunNumber"
 
 android {
     namespace = "com.example.floatinggeminiai"
@@ -65,6 +65,7 @@ dependencies {
     implementation("com.google.android.material:material:1.11.0")
     implementation("androidx.constraintlayout:constraintlayout:2.1.4")
     implementation("androidx.dynamicanimation:dynamicanimation:1.0.0")
+    implementation("androidx.security:security-crypto:1.1.0-alpha06")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
 }

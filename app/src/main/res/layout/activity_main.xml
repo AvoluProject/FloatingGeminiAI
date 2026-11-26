@@ -3,7 +3,7 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#04070F"
+    android:background="@color/bg_screen"
     android:fillViewport="true">
 
     <LinearLayout
@@ -12,13 +12,12 @@
         android:orientation="vertical"
         android:padding="18dp">
 
-        <!-- iOS LARGE TITLE HEADER -->
+        <!-- HEADER -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
             android:gravity="center_vertical"
-            android:layout_marginTop="4dp"
             android:layout_marginBottom="16dp">
 
             <FrameLayout
@@ -44,18 +43,18 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Floamini"
-                    android:textSize="24sp"
+                    android:text="Floamini OS"
+                    android:textSize="23sp"
                     android:textStyle="bold"
-                    android:textColor="#F8FAFC" />
+                    android:textColor="@color/text_primary" />
 
                 <TextView
                     android:id="@+id/tvAppVersionInfo"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Liquid Glass • Siri Aura • Smart Freeze"
+                    android:text="11 AI Providers • Liquid Glass • Siri Aura"
                     android:textSize="11.5sp"
-                    android:textColor="#94A3B8" />
+                    android:textColor="@color/text_secondary" />
             </LinearLayout>
 
             <Button
@@ -64,20 +63,19 @@
                 android:layout_height="38dp"
                 android:text="Panduan"
                 android:textSize="12sp"
-                android:textColor="#38BDF8"
-                app:strokeColor="#334155"
+                android:textColor="@color/accent_primary"
                 style="@style/Widget.Material3.Button.OutlinedButton" />
         </LinearLayout>
 
-        <!-- SECTION 1: KONTROL LAYANAN & CONTROL CENTER SHORTCUT -->
+        <!-- 1. FLOATING WINDOW & CONTROL CENTER -->
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="KONTROL &amp; SHORTCUT CONTROL CENTER"
+            android:text="1. FLOATING WINDOW &amp; CONTROL CENTER"
             android:textSize="11sp"
             android:textStyle="bold"
             android:letterSpacing="0.06"
-            android:textColor="#64748B"
+            android:textColor="@color/text_secondary"
             android:layout_marginStart="6dp"
             android:layout_marginBottom="6dp" />
 
@@ -87,7 +85,7 @@
             android:orientation="vertical"
             android:background="@drawable/bg_liquid_glass_card"
             android:padding="16dp"
-            android:layout_marginBottom="18dp">
+            android:layout_marginBottom="16dp">
 
             <Button
                 android:id="@+id/btnStartOverlay"
@@ -102,17 +100,16 @@
                 android:backgroundTint="#38BDF8"
                 android:textColor="#04070F" />
 
-            <!-- Tombol Tambah Shortcut ke Control Center (Quick Settings) -->
             <Button
                 android:id="@+id/btnAddControlCenterTile"
                 android:layout_width="match_parent"
-                android:layout_height="46dp"
+                android:layout_height="44dp"
                 android:layout_marginTop="10dp"
-                android:text="Tambah Tombol ke Control Center"
-                android:textSize="12.5sp"
+                android:text="Tambah Tombol ke Control Center (Siri Mode)"
+                android:textSize="12sp"
                 android:textStyle="bold"
                 app:icon="@drawable/ic_siri_orb"
-                app:iconSize="18dp"
+                app:iconSize="17dp"
                 app:iconGravity="textStart"
                 app:iconTint="#C084FC"
                 android:backgroundTint="#1E1B4B"
@@ -127,7 +124,7 @@
                 <Button
                     android:id="@+id/btnStopOverlay"
                     android:layout_width="0dp"
-                    android:layout_height="44dp"
+                    android:layout_height="42dp"
                     android:layout_weight="1"
                     android:text="Hentikan"
                     android:textSize="12sp"
@@ -138,7 +135,7 @@
                 <Button
                     android:id="@+id/btnQuickForceStopMain"
                     android:layout_width="0dp"
-                    android:layout_height="44dp"
+                    android:layout_height="42dp"
                     android:layout_weight="1.15"
                     android:layout_marginStart="10dp"
                     android:text="Quick Force Stop"
@@ -151,79 +148,18 @@
                     android:textColor="#FCA5A5" />
             </LinearLayout>
 
-            <View
-                android:layout_width="match_parent"
-                android:layout_height="1dp"
-                android:background="#1E293B"
-                android:layout_marginVertical="12dp" />
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:gravity="center_vertical">
-
-                <TextView
-                    android:id="@+id/tvSessionStatusMain"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="Memori Sesi: 0 pesan tersimpan"
-                    android:textSize="12.5sp"
-                    android:textColor="#CBD5E1" />
-
-                <Button
-                    android:id="@+id/btnResetSessionMain"
-                    android:layout_width="wrap_content"
-                    android:layout_height="34dp"
-                    android:text="Reset Sesi"
-                    android:textSize="11sp"
-                    android:textColor="#FBBF24"
-                    app:strokeColor="#475569"
-                    style="@style/Widget.Material3.Button.OutlinedButton" />
-            </LinearLayout>
-        </LinearLayout>
-
-        <!-- SECTION 2: MODE TAMPILAN & KUSTOMISASI PIL DYNAMIC ISLAND -->
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="MODE TAMPILAN &amp; KUSTOMISASI PIL"
-            android:textSize="11sp"
-            android:textStyle="bold"
-            android:letterSpacing="0.06"
-            android:textColor="#64748B"
-            android:layout_marginStart="6dp"
-            android:layout_marginBottom="6dp" />
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:background="@drawable/bg_liquid_glass_card"
-            android:padding="16dp"
-            android:layout_marginBottom="18dp">
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Pilih Mode Pemicu Layar"
-                android:textSize="13.5sp"
-                android:textStyle="bold"
-                android:textColor="#F8FAFC" />
-
             <RadioGroup
                 android:id="@+id/rgOverlayStyle"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
-                android:layout_marginTop="6dp">
+                android:layout_marginTop="12dp">
 
                 <RadioButton
                     android:id="@+id/rbStyleDynamicIsland"
                     android:layout_width="match_parent"
-                    android:layout_height="36dp"
-                    android:text="Dynamic Island (Pil Melayang di Atas Layar)"
+                    android:layout_height="34dp"
+                    android:text="Dynamic Island (Pil Melayang Atas)"
                     android:textSize="12.5sp"
                     android:textColor="#F8FAFC"
                     android:checked="true" />
@@ -231,56 +167,42 @@
                 <RadioButton
                     android:id="@+id/rbStyleSiriMode"
                     android:layout_width="match_parent"
-                    android:layout_height="36dp"
-                    android:text="Mode Siri (Tersembunyi Total, Panggil via Control Center)"
+                    android:layout_height="34dp"
+                    android:text="Mode Siri (Tersembunyi, Panggil via Control Center)"
                     android:textSize="12.5sp"
                     android:textColor="#E9D5FF" />
 
                 <RadioButton
                     android:id="@+id/rbStyleXiaomiEdge"
                     android:layout_width="match_parent"
-                    android:layout_height="36dp"
-                    android:text="Xiaomi Edge Pill (Garis Tipis di Tepi Layar)"
+                    android:layout_height="34dp"
+                    android:text="Xiaomi Edge Pill (Garis Tipis Tepi Layar)"
                     android:textSize="12.5sp"
                     android:textColor="#F8FAFC" />
 
                 <RadioButton
                     android:id="@+id/rbStyleClassicBubble"
                     android:layout_width="match_parent"
-                    android:layout_height="36dp"
-                    android:text="Classic Bubble (Gelembung Melayang Bebas)"
+                    android:layout_height="34dp"
+                    android:text="Classic Bubble (Gelembung Bebas)"
                     android:textSize="12.5sp"
                     android:textColor="#F8FAFC" />
             </RadioGroup>
-
-            <View
-                android:layout_width="match_parent"
-                android:layout_height="1dp"
-                android:background="#1E293B"
-                android:layout_marginVertical="10dp" />
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Gaya Visual Pil Dynamic Island"
-                android:textSize="13sp"
-                android:textStyle="bold"
-                android:textColor="#F8FAFC" />
 
             <RadioGroup
                 android:id="@+id/rgPillAppearance"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
-                android:layout_marginTop="4dp">
+                android:layout_marginTop="6dp">
 
                 <RadioButton
                     android:id="@+id/rbPillStandard"
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="Lengkap"
-                    android:textSize="12sp"
+                    android:text="Pil Lengkap"
+                    android:textSize="11.5sp"
                     android:textColor="#E2E8F0"
                     android:checked="true" />
 
@@ -289,8 +211,8 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="Polos (Hitam)"
-                    android:textSize="12sp"
+                    android:text="Polos Hitam"
+                    android:textSize="11.5sp"
                     android:textColor="#E2E8F0" />
 
                 <RadioButton
@@ -299,7 +221,7 @@
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
                     android:text="Ikon Saja"
-                    android:textSize="12sp"
+                    android:textSize="11.5sp"
                     android:textColor="#E2E8F0" />
             </RadioGroup>
 
@@ -307,64 +229,35 @@
                 android:id="@+id/swAutoHidePill"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="6dp"
-                android:text="Auto-Hide Pil (Menghilang Halus Setelah 3 Detik Diam)"
+                android:text="Auto-Hide Pil (Memudar Setelah 3 Detik Diam)"
                 android:textColor="#E2E8F0"
-                android:textSize="12.5sp"
-                android:checked="false" />
+                android:textSize="12sp" />
 
             <com.google.android.material.switchmaterial.SwitchMaterial
                 android:id="@+id/swSmartFreeze"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="2dp"
-                android:text="Auto Smart Freeze (Hemat RAM &amp; Daya Saat Layar Mati/Idle)"
+                android:text="Auto Smart Freeze (Hemat RAM &amp; Baterai Saat Idle)"
                 android:textColor="#34D399"
-                android:textSize="12.5sp"
+                android:textSize="12sp"
                 android:checked="true" />
 
             <com.google.android.material.switchmaterial.SwitchMaterial
                 android:id="@+id/swTapOutsideClose"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="2dp"
                 android:text="Ketuk di Luar Jendela untuk Menutup"
                 android:textColor="#E2E8F0"
-                android:textSize="12.5sp"
+                android:textSize="12sp"
                 android:checked="true" />
-
-            <com.google.android.material.switchmaterial.SwitchMaterial
-                android:id="@+id/swLiquidBlur"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="2dp"
-                android:text="Liquid Glass Real Blur &amp; Specular Refraction"
-                android:textColor="#E2E8F0"
-                android:textSize="12.5sp"
-                android:checked="true" />
-
-            <com.google.android.material.switchmaterial.SwitchMaterial
-                android:id="@+id/swHapticFeedback"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="2dp"
-                android:text="Getaran Taktil iOS (Haptic Engine)"
-                android:textColor="#E2E8F0"
-                android:textSize="12.5sp"
-                android:checked="true" />
-
-            <View
-                android:layout_width="match_parent"
-                android:layout_height="1dp"
-                android:background="#1E293B"
-                android:layout_marginVertical="10dp" />
 
             <TextView
                 android:id="@+id/tvIslandWidthLabel"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
                 android:text="Lebar Pil Dynamic Island: 164dp"
-                android:textSize="12sp"
+                android:textSize="11.5sp"
                 android:textColor="#CBD5E1" />
 
             <SeekBar
@@ -372,15 +265,14 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:max="130"
-                android:progress="54"
-                android:layout_marginBottom="10dp" />
+                android:progress="54" />
 
             <TextView
                 android:id="@+id/tvIslandPosYLabel"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="Posisi Vertikal Atas (Y): 12dp"
-                android:textSize="12sp"
+                android:textSize="11.5sp"
                 android:textColor="#CBD5E1" />
 
             <SeekBar
@@ -388,15 +280,14 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:max="70"
-                android:progress="12"
-                android:layout_marginBottom="10dp" />
+                android:progress="12" />
 
             <TextView
                 android:id="@+id/tvIslandOffsetXLabel"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="Geser Horizontal Kamera (X): 0dp"
-                android:textSize="12sp"
+                android:textSize="11.5sp"
                 android:textColor="#CBD5E1" />
 
             <SeekBar
@@ -404,34 +295,18 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:max="160"
-                android:progress="80"
-                android:layout_marginBottom="10dp" />
-
-            <TextView
-                android:id="@+id/tvOpacityLabel"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Transparansi Liquid Glass: 80%"
-                android:textSize="12sp"
-                android:textColor="#CBD5E1" />
-
-            <SeekBar
-                android:id="@+id/sbOpacity"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:max="55"
-                android:progress="35" />
+                android:progress="80" />
         </LinearLayout>
 
-        <!-- SECTION 3: GEMINI API KEY & KARAKTER AI -->
+        <!-- 2. MULTI-AI PROVIDERS, API KEYS & MODEL MANAGER -->
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="GEMINI API &amp; KARAKTER AI"
+            android:text="2. AI PROVIDERS, API KEYS &amp; MODEL MANAGER (11 ENGINES)"
             android:textSize="11sp"
             android:textStyle="bold"
             android:letterSpacing="0.06"
-            android:textColor="#64748B"
+            android:textColor="@color/text_secondary"
             android:layout_marginStart="6dp"
             android:layout_marginBottom="6dp" />
 
@@ -441,29 +316,53 @@
             android:orientation="vertical"
             android:background="@drawable/bg_liquid_glass_card"
             android:padding="16dp"
-            android:layout_marginBottom="18dp">
+            android:layout_marginBottom="16dp">
+
+            <com.google.android.material.switchmaterial.SwitchMaterial
+                android:id="@+id/swAutoRouter"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="AI Auto-Router (Pilih Provider Terbaik Otomatis)"
+                android:textColor="#38BDF8"
+                android:textSize="12.5sp" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="Pilih Provider untuk Dikonfigurasi / Dijadikan Aktif:"
+                android:textSize="12sp"
+                android:textColor="#94A3B8" />
+
+            <Spinner
+                android:id="@+id/spProviderSelector"
+                android:layout_width="match_parent"
+                android:layout_height="44dp"
+                android:layout_marginTop="6dp"
+                android:background="@drawable/bg_input_glass"
+                android:paddingHorizontal="12dp" />
 
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
                 android:gravity="center_vertical"
-                android:layout_marginBottom="10dp">
+                android:layout_marginTop="10dp">
 
                 <TextView
+                    android:id="@+id/tvProviderKeyStatus"
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="Gemini API Token"
-                    android:textSize="14sp"
-                    android:textStyle="bold"
-                    android:textColor="#F8FAFC" />
+                    android:text="Status Key: Belum diisi"
+                    android:textSize="12sp"
+                    android:textColor="#FBBF24" />
 
                 <TextView
-                    android:id="@+id/tvGetKeyShortcut"
+                    android:id="@+id/tvOpenProviderDocs"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Ambil API Key ↗"
+                    android:text="Dapatkan Key ↗"
                     android:textSize="12sp"
                     android:textStyle="bold"
                     android:textColor="#38BDF8" />
@@ -472,7 +371,8 @@
             <com.google.android.material.textfield.TextInputLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:hint="Tempel Gemini API Key (AIzaSy...)"
+                android:layout_marginTop="8dp"
+                android:hint="API Key Provider (Terenkripsi AES-256)"
                 app:boxBackgroundColor="#0B111E"
                 app:boxStrokeColor="#38BDF8"
                 app:hintTextColor="#38BDF8"
@@ -480,7 +380,7 @@
                 style="@style/Widget.Material3.TextInputLayout.OutlinedBox">
 
                 <com.google.android.material.textfield.TextInputEditText
-                    android:id="@+id/etApiKey"
+                    android:id="@+id/etProviderApiKey"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:textColor="#F8FAFC"
@@ -488,20 +388,267 @@
                     android:inputType="textPassword" />
             </com.google.android.material.textfield.TextInputLayout>
 
+            <com.google.android.material.textfield.TextInputLayout
+                android:id="@+id/tilCustomBaseUrl"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:hint="Custom Base URL (Contoh: https://api.openai.com/v1)"
+                app:boxBackgroundColor="#0B111E"
+                app:boxStrokeColor="#38BDF8"
+                app:hintTextColor="#38BDF8"
+                android:visibility="gone"
+                style="@style/Widget.Material3.TextInputLayout.OutlinedBox">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/etCustomBaseUrl"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textColor="#F8FAFC"
+                    android:textSize="13sp"
+                    android:inputType="textUri" />
+            </com.google.android.material.textfield.TextInputLayout>
+
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="14dp"
-                android:text="Gaya Bicara Floamini"
+                android:layout_marginTop="10dp"
+                android:text="Model Preset atau Ketik Model ID Kustom:"
                 android:textSize="12sp"
                 android:textColor="#94A3B8" />
+
+            <Spinner
+                android:id="@+id/spModelPresetSelector"
+                android:layout_width="match_parent"
+                android:layout_height="42dp"
+                android:layout_marginTop="4dp"
+                android:background="@drawable/bg_input_glass"
+                android:paddingHorizontal="12dp" />
+
+            <com.google.android.material.textfield.TextInputLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:hint="Model ID Aktif"
+                app:boxBackgroundColor="#0B111E"
+                app:boxStrokeColor="#38BDF8"
+                app:hintTextColor="#38BDF8"
+                style="@style/Widget.Material3.TextInputLayout.OutlinedBox">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/etActiveModelId"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textColor="#F8FAFC"
+                    android:textSize="13sp"
+                    android:inputType="text" />
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginTop="10dp">
+
+                <Button
+                    android:id="@+id/btnSaveProviderConfig"
+                    android:layout_width="0dp"
+                    android:layout_height="42dp"
+                    android:layout_weight="1"
+                    android:text="Simpan Provider"
+                    android:textSize="12sp"
+                    android:textStyle="bold"
+                    android:backgroundTint="#0284C7"
+                    android:textColor="#FFFFFF" />
+
+                <Button
+                    android:id="@+id/btnTestProviderConnection"
+                    android:layout_width="0dp"
+                    android:layout_height="42dp"
+                    android:layout_weight="1"
+                    android:layout_marginStart="8dp"
+                    android:text="Tes Koneksi"
+                    android:textSize="12sp"
+                    android:textColor="#38BDF8"
+                    app:strokeColor="#38BDF8"
+                    style="@style/Widget.Material3.Button.OutlinedButton" />
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/tvProviderTestOutput"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:text="Siap menguji koneksi provider"
+                android:textSize="11.5sp"
+                android:textColor="#94A3B8" />
+        </LinearLayout>
+
+        <!-- 3. APPEARANCE, THEME & ANIMATION SETTINGS -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="3. APPEARANCE, LIQUID GLASS &amp; ANIMATION"
+            android:textSize="11sp"
+            android:textStyle="bold"
+            android:letterSpacing="0.06"
+            android:textColor="@color/text_secondary"
+            android:layout_marginStart="6dp"
+            android:layout_marginBottom="6dp" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:background="@drawable/bg_liquid_glass_card"
+            android:padding="16dp"
+            android:layout_marginBottom="16dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Tema Aplikasi (Adaptive Theme)"
+                android:textSize="12.5sp"
+                android:textStyle="bold"
+                android:textColor="#F8FAFC" />
+
+            <RadioGroup
+                android:id="@+id/rgAppTheme"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginTop="4dp">
+
+                <RadioButton
+                    android:id="@+id/rbThemeSystem"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Sistem"
+                    android:textSize="12sp"
+                    android:textColor="#E2E8F0" />
+
+                <RadioButton
+                    android:id="@+id/rbThemeDark"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Dark Glass"
+                    android:textSize="12sp"
+                    android:textColor="#E2E8F0"
+                    android:checked="true" />
+
+                <RadioButton
+                    android:id="@+id/rbThemeLight"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Light Glass"
+                    android:textSize="12sp"
+                    android:textColor="#E2E8F0" />
+            </RadioGroup>
+
+            <com.google.android.material.switchmaterial.SwitchMaterial
+                android:id="@+id/swLiquidBlur"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Dynamic Real-Time Window Blur"
+                android:textColor="#E2E8F0"
+                android:textSize="12sp"
+                android:checked="true" />
+
+            <com.google.android.material.switchmaterial.SwitchMaterial
+                android:id="@+id/swHapticFeedback"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Haptic Engine Feedback"
+                android:textColor="#E2E8F0"
+                android:textSize="12sp"
+                android:checked="true" />
+
+            <TextView
+                android:id="@+id/tvOpacityLabel"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:text="Transparansi Liquid Glass: 84%"
+                android:textSize="11.5sp"
+                android:textColor="#CBD5E1" />
+
+            <SeekBar
+                android:id="@+id/sbOpacity"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:max="55"
+                android:progress="39" />
+
+            <TextView
+                android:id="@+id/tvAnimSpeedLabel"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Kecepatan Spring Animation: 1.0x"
+                android:textSize="11.5sp"
+                android:textColor="#CBD5E1" />
+
+            <SeekBar
+                android:id="@+id/sbAnimSpeed"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:max="10"
+                android:progress="5" />
+        </LinearLayout>
+
+        <!-- 4. VOICE SYSTEM, PERSONA & CUSTOM SYSTEM INSTRUCTION -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="4. VOICE SYSTEM &amp; AI PERSONALITY"
+            android:textSize="11sp"
+            android:textStyle="bold"
+            android:letterSpacing="0.06"
+            android:textColor="@color/text_secondary"
+            android:layout_marginStart="6dp"
+            android:layout_marginBottom="6dp" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:background="@drawable/bg_liquid_glass_card"
+            android:padding="16dp"
+            android:layout_marginBottom="16dp">
+
+            <com.google.android.material.switchmaterial.SwitchMaterial
+                android:id="@+id/swAutoSpeakTts"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Auto-Speak Balasan AI di Mode Voice Chat"
+                android:textColor="#E2E8F0"
+                android:textSize="12sp"
+                android:checked="true" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:text="Pilih Suara Text-to-Speech (TTS):"
+                android:textSize="12sp"
+                android:textColor="#94A3B8" />
+
+            <Spinner
+                android:id="@+id/spTtsVoiceSelector"
+                android:layout_width="match_parent"
+                android:layout_height="42dp"
+                android:layout_marginTop="4dp"
+                android:background="@drawable/bg_input_glass"
+                android:paddingHorizontal="12dp" />
 
             <RadioGroup
                 android:id="@+id/rgPersona"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
-                android:layout_marginTop="4dp">
+                android:layout_marginTop="10dp">
 
                 <RadioButton
                     android:id="@+id/rbAsik"
@@ -541,56 +688,102 @@
                     android:textColor="#E2E8F0" />
             </RadioGroup>
 
-            <TextView
-                android:layout_width="wrap_content"
+            <com.google.android.material.textfield.TextInputLayout
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="10dp"
-                android:text="Model Gemini"
-                android:textSize="12sp"
-                android:textColor="#94A3B8" />
+                android:layout_marginTop="8dp"
+                android:hint="Custom System Instruction (Opsional)"
+                app:boxBackgroundColor="#0B111E"
+                app:boxStrokeColor="#38BDF8"
+                app:hintTextColor="#38BDF8"
+                style="@style/Widget.Material3.TextInputLayout.OutlinedBox">
 
-            <RadioGroup
-                android:id="@+id/rgModel"
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/etCustomSystemInstruction"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textColor="#F8FAFC"
+                    android:textSize="12.5sp"
+                    android:maxLines="3" />
+            </com.google.android.material.textfield.TextInputLayout>
+        </LinearLayout>
+
+        <!-- 5. PRIVACY, DATA MANAGEMENT & USAGE STATISTICS -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="5. PRIVACY, DATA MANAGEMENT &amp; USAGE STATISTICS"
+            android:textSize="11sp"
+            android:textStyle="bold"
+            android:letterSpacing="0.06"
+            android:textColor="@color/text_secondary"
+            android:layout_marginStart="6dp"
+            android:layout_marginBottom="6dp" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:background="@drawable/bg_liquid_glass_card"
+            android:padding="16dp"
+            android:layout_marginBottom="16dp">
+
+            <TextView
+                android:id="@+id/tvUsageStatistics"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Memuat statistik penggunaan..."
+                android:textSize="12sp"
+                android:lineHeight="18dp"
+                android:textColor="#CBD5E1" />
+
+            <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
-                android:layout_marginTop="4dp">
+                android:layout_marginTop="12dp">
 
-                <RadioButton
-                    android:id="@+id/rbModel3Flash"
+                <Button
+                    android:id="@+id/btnClearAllHistoryMain"
                     android:layout_width="0dp"
-                    android:layout_height="wrap_content"
+                    android:layout_height="40dp"
                     android:layout_weight="1"
-                    android:text="3 Flash"
-                    android:textSize="12sp"
-                    android:textColor="#E2E8F0"
-                    android:checked="true" />
+                    android:text="Hapus Semua Chat"
+                    android:textSize="11.5sp"
+                    android:textColor="#FBBF24"
+                    app:strokeColor="#475569"
+                    style="@style/Widget.Material3.Button.OutlinedButton" />
 
-                <RadioButton
-                    android:id="@+id/rbModel25Flash"
+                <Button
+                    android:id="@+id/btnResetUsageStats"
                     android:layout_width="0dp"
-                    android:layout_height="wrap_content"
+                    android:layout_height="40dp"
                     android:layout_weight="1"
-                    android:text="2.5 Flash"
-                    android:textSize="12sp"
-                    android:textColor="#E2E8F0" />
+                    android:layout_marginStart="8dp"
+                    android:text="Reset Statistik"
+                    android:textSize="11.5sp"
+                    android:textColor="#94A3B8"
+                    app:strokeColor="#475569"
+                    style="@style/Widget.Material3.Button.OutlinedButton" />
+            </LinearLayout>
 
-                <RadioButton
-                    android:id="@+id/rbModel25Pro"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="2.5 Pro"
-                    android:textSize="12sp"
-                    android:textColor="#E2E8F0" />
-            </RadioGroup>
+            <Button
+                android:id="@+id/btnWipeVaultKeys"
+                android:layout_width="match_parent"
+                android:layout_height="40dp"
+                android:layout_marginTop="8dp"
+                android:text="Hapus Seluruh API Keys dari Vault Terenkripsi"
+                android:textSize="11.5sp"
+                android:textColor="#FCA5A5"
+                app:strokeColor="#7F1D1D"
+                style="@style/Widget.Material3.Button.OutlinedButton" />
         </LinearLayout>
 
         <Button
             android:id="@+id/btnSaveAllSettings"
             android:layout_width="match_parent"
             android:layout_height="52dp"
-            android:text="Simpan &amp; Terapkan ke Floamini"
+            android:text="Simpan &amp; Terapkan Semua Pengaturan"
             android:textStyle="bold"
             android:backgroundTint="#2563EB"
             android:textColor="#FFFFFF"

@@ -3,7 +3,7 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#04070F"
+    android:background="@color/bg_screen"
     android:fillViewport="true">
 
     <LinearLayout
@@ -17,7 +17,7 @@
             android:layout_height="wrap_content"
             android:orientation="vertical"
             android:gravity="center"
-            android:paddingVertical="18dp">
+            android:paddingVertical="16dp">
 
             <FrameLayout
                 android:layout_width="72dp"
@@ -35,14 +35,14 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="14dp"
+                android:layout_marginTop="12dp"
                 android:paddingHorizontal="12dp"
                 android:paddingVertical="4dp"
                 android:background="@drawable/bg_badge_pill"
-                android:text="FLOAMINI • LIQUID GLASS &amp; SIRI MODE"
+                android:text="FLOAMINI OS • MULTI-AI &amp; LIQUID GLASS"
                 android:textSize="10sp"
                 android:textStyle="bold"
-                android:textColor="#38BDF8" />
+                android:textColor="@color/accent_primary" />
 
             <TextView
                 android:layout_width="wrap_content"
@@ -51,21 +51,20 @@
                 android:text="Selamat Datang di Floamini"
                 android:textSize="24sp"
                 android:textStyle="bold"
-                android:textColor="#F8FAFC"
+                android:textColor="@color/text_primary"
                 android:gravity="center" />
 
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="6dp"
-                android:text="Asisten AI melayang bergaya iOS 26 Liquid Glass dengan kustomisasi Dynamic Island, Mode Siri dari Control Center, serta Auto Smart Freeze hemat baterai."
+                android:text="Asisten AI tingkat sistem operasi dengan 11 AI Provider, Streaming SSE, Voice Chat, PDF Vision, Dynamic Island, dan Siri Mode."
                 android:textSize="13sp"
                 android:lineHeight="19dp"
-                android:textColor="#94A3B8"
+                android:textColor="@color/text_secondary"
                 android:gravity="center" />
         </LinearLayout>
 
-        <!-- KARTU 1: PANDUAN & LINK GEMINI API KEY -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -74,64 +73,47 @@
             android:padding="18dp"
             android:layout_marginBottom="16dp">
 
-            <LinearLayout
-                android:layout_width="match_parent"
+            <TextView
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:gravity="center_vertical">
-
-                <FrameLayout
-                    android:layout_width="32dp"
-                    android:layout_height="32dp"
-                    android:background="@drawable/bg_ios_icon_blue">
-
-                    <ImageView
-                        android:layout_width="17dp"
-                        android:layout_height="17dp"
-                        android:layout_gravity="center"
-                        android:src="@drawable/ic_key"
-                        app:tint="#FFFFFF" />
-                </FrameLayout>
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="10dp"
-                    android:text="Cara Mendapatkan Gemini API Key"
-                    android:textSize="16sp"
-                    android:textStyle="bold"
-                    android:textColor="#F8FAFC" />
-            </LinearLayout>
+                android:text="Setup Cepat API Key (Encrypted AES-256)"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:textColor="#F8FAFC" />
 
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
-                android:text="1. Ketuk tombol Buka Google AI Studio di bawah ini.\n2. Masuk menggunakan akun Google Anda.\n3. Pilih Create API Key lalu salin kode yang diawali AIzaSy...\n4. Tempelkan API Key pada kolom di bawah dan tekan Tes Token."
+                android:layout_marginTop="8dp"
+                android:text="1. Pilih provider utama Anda (Google Gemini gratis di Google AI Studio, atau OpenAI, Claude, DeepSeek, Grok, Groq, OpenRouter, Mistral, Qwen, Perplexity).\n2. Tempel API Key pada kolom di bawah dan tekan Tes Koneksi."
                 android:textSize="12.5sp"
-                android:lineHeight="19dp"
+                android:lineHeight="18.5dp"
                 android:textColor="#CBD5E1" />
+
+            <Spinner
+                android:id="@+id/spWelcomeProvider"
+                android:layout_width="match_parent"
+                android:layout_height="44dp"
+                android:layout_marginTop="12dp"
+                android:background="@drawable/bg_input_glass"
+                android:paddingHorizontal="12dp" />
 
             <Button
                 android:id="@+id/btnOpenAiStudio"
                 android:layout_width="match_parent"
-                android:layout_height="46dp"
-                android:layout_marginTop="14dp"
-                android:text="Buka Google AI Studio (aistudio.google.com)"
+                android:layout_height="44dp"
+                android:layout_marginTop="10dp"
+                android:text="Buka Portal API Key Provider ↗"
                 android:textSize="12.5sp"
                 android:textStyle="bold"
-                app:icon="@drawable/ic_external_link"
-                app:iconSize="16dp"
-                app:iconGravity="textStart"
-                app:iconTint="#38BDF8"
                 android:backgroundTint="#1E293B"
                 android:textColor="#38BDF8" />
 
             <com.google.android.material.textfield.TextInputLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
-                android:hint="Tempel Gemini API Key Anda di sini"
+                android:layout_marginTop="10dp"
+                android:hint="Tempel API Key di sini"
                 app:boxBackgroundColor="#0B111E"
                 app:boxStrokeColor="#38BDF8"
                 app:hintTextColor="#38BDF8"
@@ -158,7 +140,7 @@
                     android:id="@+id/btnTestTokenWelcome"
                     android:layout_width="wrap_content"
                     android:layout_height="40dp"
-                    android:text="Tes Token"
+                    android:text="Tes Koneksi"
                     android:textSize="12sp"
                     android:textStyle="bold"
                     android:backgroundTint="#0284C7"
@@ -176,7 +158,6 @@
             </LinearLayout>
         </LinearLayout>
 
-        <!-- KARTU 2: HINT & FITUR BARU -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -185,42 +166,21 @@
             android:padding="18dp"
             android:layout_marginBottom="16dp">
 
-            <LinearLayout
-                android:layout_width="match_parent"
+            <TextView
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:gravity="center_vertical">
-
-                <FrameLayout
-                    android:layout_width="32dp"
-                    android:layout_height="32dp"
-                    android:background="@drawable/bg_ios_icon_purple">
-
-                    <ImageView
-                        android:layout_width="17dp"
-                        android:layout_height="17dp"
-                        android:layout_gravity="center"
-                        android:src="@drawable/ic_bolt"
-                        app:tint="#FFFFFF" />
-                </FrameLayout>
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="10dp"
-                    android:text="Hint &amp; Mode Interaksi Floamini"
-                    android:textSize="16sp"
-                    android:textStyle="bold"
-                    android:textColor="#F8FAFC" />
-            </LinearLayout>
+                android:text="Privasi &amp; Kemampuan OS-Level"
+                android:textSize="15sp"
+                android:textStyle="bold"
+                android:textColor="#F8FAFC" />
 
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
-                android:text="• Mode Siri (Control Center): Saat dipilih, layar bersih tanpa ikon melayang apa pun. Tarik panel Control Center / Quick Settings HP Anda dan ketuk tombol Floamini AI untuk memunculkan aura cahaya pinggir layar khas Siri iOS!\n\n• Pil Dynamic Island Polos &amp; Auto-Hide: Anda bisa memilih tampilan pil polos hitam pekat yang menyatu dengan kamera depan, serta mengaktifkan Auto-Hide agar pil menghilang otomatis saat diam.\n\n• Auto Smart Freeze: Saat layar mati atau idle, Floamini otomatis membekukan animasi dan membebaskan memori agar baterai tetap irit."
-                android:textSize="12.5sp"
-                android:lineHeight="18.5dp"
+                android:layout_marginTop="8dp"
+                android:text="• Zero Background Spying: Floamini tidak pernah membaca layar atau clipboard secara diam-diam tanpa tindakan Anda.\n• Seleksi Teks &amp; Share: Blok teks di aplikasi mana pun lalu pilih Tanya Floamini AI, atau bagikan PDF/Gambar langsung ke Floamini.\n• Mode Siri Control Center: Panggil aura Siri dari panel Quick Settings HP Anda kapan saja."
+                android:textSize="12sp"
+                android:lineHeight="18dp"
                 android:textColor="#CBD5E1" />
         </LinearLayout>
 
@@ -228,7 +188,7 @@
             android:id="@+id/btnContinueToFloamini"
             android:layout_width="match_parent"
             android:layout_height="54dp"
-            android:text="Mulai Gunakan Floamini"
+            android:text="Masuk ke Dashboard Floamini"
             android:textStyle="bold"
             android:textSize="15sp"
             android:backgroundTint="#38BDF8"

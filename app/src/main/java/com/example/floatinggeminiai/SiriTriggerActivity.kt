@@ -15,13 +15,10 @@ class SiriTriggerActivity : Activity() {
 
         if (!Settings.canDrawOverlays(this)) {
             Toast.makeText(this, "Izinkan Floamini tampil di atas layar dulu", Toast.LENGTH_LONG).show()
-            val permIntent = Intent(
+            startActivity(Intent(
                 Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
                 Uri.parse("package:$packageName")
-            ).apply {
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            }
-            startActivity(permIntent)
+            ).apply { addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) })
             finish()
             return
         }

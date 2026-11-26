@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-    <!-- Lapisan 1: Refraksi Prisma Tepi Liquid Glass -->
     <item>
         <shape android:shape="rectangle">
             <gradient
@@ -11,18 +10,13 @@
             <corners android:radius="28dp" />
         </shape>
     </item>
-    <!-- Lapisan 2: Inti Kaca Transparan Bergradasi dengan Pantulan Internal -->
-    <item
-        android:left="1.4dp"
-        android:top="1.4dp"
-        android:right="1.4dp"
-        android:bottom="1.4dp">
+    <item android:left="1.4dp" android:top="1.4dp" android:right="1.4dp" android:bottom="1.4dp">
         <shape android:shape="rectangle">
             <gradient
                 android:angle="270"
-                android:startColor="#CC18233A"
-                android:centerColor="#B80E1628"
-                android:endColor="#CC0A101E" />
+                android:startColor="#D418233A"
+                android:centerColor="#C40E1628"
+                android:endColor="#D40A101E" />
             <corners android:radius="26.5dp" />
         </shape>
     </item>

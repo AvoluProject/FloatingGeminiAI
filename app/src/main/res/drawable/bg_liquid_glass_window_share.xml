@@ -10,17 +10,13 @@
             <corners android:radius="28dp" />
         </shape>
     </item>
-    <item
-        android:left="1.8dp"
-        android:top="1.8dp"
-        android:right="1.8dp"
-        android:bottom="1.8dp">
+    <item android:left="1.8dp" android:top="1.8dp" android:right="1.8dp" android:bottom="1.8dp">
         <shape android:shape="rectangle">
             <gradient
                 android:angle="270"
-                android:startColor="#CC18233A"
-                android:centerColor="#B80E1628"
-                android:endColor="#CC0A101E" />
+                android:startColor="#D418233A"
+                android:centerColor="#C40E1628"
+                android:endColor="#D40A101E" />
             <corners android:radius="26dp" />
         </shape>
     </item>
