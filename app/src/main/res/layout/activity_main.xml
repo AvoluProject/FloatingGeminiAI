@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="24dp"
+    android:gravity="center_vertical"
+    android:background="#F8FAFC">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="✨ Gemini Floating AI"
+        android:textSize="26sp"
+        android:textStyle="bold"
+        android:textColor="#0F172A" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:layout_marginBottom="24dp"
+        android:text="Masukkan Gemini API Token Anda untuk mengaktifkan asisten mengambang di atas layar."
+        android:textSize="14sp"
+        android:textColor="#475569" />
+
+    <com.google.android.material.textfield.TextInputLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Gemini API Key / Token"
+        app:endIconMode="password_toggle"
+        style="@style/Widget.Material3.TextInputLayout.OutlinedBox">
+
+        <com.google.android.material.textfield.TextInputEditText
+            android:id="@+id/etApiKey"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:inputType="textPassword" />
+    </com.google.android.material.textfield.TextInputLayout>
+
+    <Button
+        android:id="@+id/btnSaveToken"
+        android:layout_width="match_parent"
+        android:layout_height="52dp"
+        android:layout_marginTop="16dp"
+        android:text="Simpan Token"
+        android:backgroundTint="#2563EB"
+        android:textColor="#FFFFFF" />
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:layout_marginVertical="24dp"
+        android:background="#E2E8F0" />
+
+    <Button
+        android:id="@+id/btnStartOverlay"
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:text="🚀 Munculkan Bubble AI di Layar"
+        android:backgroundTint="#0F172A"
+        android:textColor="#FFFFFF" />
+
+    <Button
+        android:id="@+id/btnStopOverlay"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:layout_marginTop="12dp"
+        android:text="Matikan Bubble AI"
+        style="@style/Widget.Material3.Button.OutlinedButton" />
+
+</LinearLayout>
