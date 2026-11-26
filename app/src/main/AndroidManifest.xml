@@ -10,13 +10,14 @@
     <!-- Izin Foreground Service agar Bubble tidak dimatikan sistem -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <application
         android:allowBackup="true"
         android:label="Gemini Overlay AI"
         android:supportsRtl="true"
-        android:theme="@style/Theme.Material3.DayNight.NoActionBar">
+        android:theme="@style/Theme.Material3.Dark.NoActionBar">
 
         <!-- Halaman Utama Pengaturan Token & Aktivasi Bubble -->
         <activity
@@ -28,12 +29,18 @@
             </intent-filter>
         </activity>
 
-        <!-- Service untuk Menampilkan Floating Bubble & Popup Chat -->
+        <!-- Activity Transparan untuk Meminta Izin Screen Capture (MediaProjection) -->
+        <activity
+            android:name=".ScreenCapturePermissionActivity"
+            android:exported="false"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+
+        <!-- Service untuk Menampilkan Floating Bubble, Screen Share & Popup Chat -->
         <service
             android:name=".FloatingAssistantService"
             android:enabled="true"
             android:exported="false"
-            android:foregroundServiceType="specialUse">
+            android:foregroundServiceType="specialUse|mediaProjection">
             <property
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
                 android:value="Floating AI Assistant Overlay" />

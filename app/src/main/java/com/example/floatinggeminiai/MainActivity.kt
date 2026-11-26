@@ -23,22 +23,21 @@ class MainActivity : AppCompatActivity() {
         val btnStartOverlay = findViewById<Button>(R.id.btnStartOverlay)
         val btnStopOverlay = findViewById<Button>(R.id.btnStopOverlay)
 
-        // Muat token yang sudah tersimpan sebelumnya
         etApiKey.setText(prefs.getString("api_key", ""))
 
         btnSaveToken.setOnClickListener {
             val token = etApiKey.text.toString().trim()
             if (token.isEmpty()) {
-                Toast.makeText(this, "Token tidak boleh kosong!", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, "Token tidak boleh kosong", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
             prefs.edit().putString("api_key", token).apply()
-            Toast.makeText(this, "Token Gemini berhasil disimpan!", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "Token Gemini tersimpan", Toast.LENGTH_SHORT).show()
         }
 
         btnStartOverlay.setOnClickListener {
             if (!Settings.canDrawOverlays(this)) {
-                Toast.makeText(this, "Izinkan aplikasi tampil di atas layar terlebih dahulu", Toast.LENGTH_LONG).show()
+                Toast.makeText(this, "Aktifkan izin tampil di atas aplikasi lain", Toast.LENGTH_LONG).show()
                 val intent = Intent(
                     Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
                     Uri.parse("package:$packageName")
@@ -53,12 +52,12 @@ class MainActivity : AppCompatActivity() {
             } else {
                 startService(serviceIntent)
             }
-            Toast.makeText(this, "Bubble AI aktif! Silakan keluar dari aplikasi ini.", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "Bubble AI aktif di layar", Toast.LENGTH_SHORT).show()
         }
 
         btnStopOverlay.setOnClickListener {
             stopService(Intent(this, FloatingAssistantService::class.java))
-            Toast.makeText(this, "Bubble AI dimatikan.", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "Bubble AI dinonaktifkan", Toast.LENGTH_SHORT).show()
         }
     }
 }

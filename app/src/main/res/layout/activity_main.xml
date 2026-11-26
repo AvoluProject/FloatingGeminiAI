@@ -6,29 +6,46 @@
     android:orientation="vertical"
     android:padding="24dp"
     android:gravity="center_vertical"
-    android:background="#F8FAFC">
+    android:background="#090D16">
 
-    <TextView
+    <LinearLayout
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="✨ Gemini Floating AI"
-        android:textSize="26sp"
-        android:textStyle="bold"
-        android:textColor="#0F172A" />
+        android:orientation="horizontal"
+        android:gravity="center_vertical">
+
+        <ImageView
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:src="@drawable/ic_sparkle"
+            app:tint="#38BDF8" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="12dp"
+            android:text="Gemini Floating AI"
+            android:textSize="24sp"
+            android:textStyle="bold"
+            android:textColor="#F8FAFC" />
+    </LinearLayout>
 
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginTop="8dp"
-        android:layout_marginBottom="24dp"
-        android:text="Masukkan Gemini API Token Anda untuk mengaktifkan asisten mengambang di atas layar."
+        android:layout_marginBottom="28dp"
+        android:text="Asisten AI mengambang dengan dukungan Live Screen Share dan antarmuka macOS."
         android:textSize="14sp"
-        android:textColor="#475569" />
+        android:textColor="#94A3B8" />
 
     <com.google.android.material.textfield.TextInputLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:hint="Gemini API Key / Token"
+        android:hint="Gemini API Token"
+        app:boxBackgroundColor="#1E293B"
+        app:boxStrokeColor="#38BDF8"
+        app:hintTextColor="#38BDF8"
         app:endIconMode="password_toggle"
         style="@style/Widget.Material3.TextInputLayout.OutlinedBox">
 
@@ -36,6 +53,7 @@
             android:id="@+id/etApiKey"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:textColor="#F8FAFC"
             android:inputType="textPassword" />
     </com.google.android.material.textfield.TextInputLayout>
 
@@ -45,6 +63,7 @@
         android:layout_height="52dp"
         android:layout_marginTop="16dp"
         android:text="Simpan Token"
+        android:textStyle="bold"
         android:backgroundTint="#2563EB"
         android:textColor="#FFFFFF" />
 
@@ -52,22 +71,27 @@
         android:layout_width="match_parent"
         android:layout_height="1dp"
         android:layout_marginVertical="24dp"
-        android:background="#E2E8F0" />
+        android:background="#1E293B" />
 
     <Button
         android:id="@+id/btnStartOverlay"
         android:layout_width="match_parent"
         android:layout_height="56dp"
-        android:text="🚀 Munculkan Bubble AI di Layar"
-        android:backgroundTint="#0F172A"
-        android:textColor="#FFFFFF" />
+        android:text="Aktifkan Floating Assistant"
+        android:textStyle="bold"
+        app:icon="@drawable/ic_sparkle"
+        app:iconGravity="textStart"
+        android:backgroundTint="#0EA5E9"
+        android:textColor="#090D16" />
 
     <Button
         android:id="@+id/btnStopOverlay"
         android:layout_width="match_parent"
         android:layout_height="48dp"
         android:layout_marginTop="12dp"
-        android:text="Matikan Bubble AI"
+        android:text="Nonaktifkan Assistant"
+        android:textColor="#94A3B8"
+        app:strokeColor="#334155"
         style="@style/Widget.Material3.Button.OutlinedButton" />
 
 </LinearLayout>

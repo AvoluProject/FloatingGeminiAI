@@ -1,82 +1,119 @@
 <?xml version="1.0" encoding="utf-8"?>
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="wrap_content"
     android:layout_height="wrap_content">
 
-    <!-- 1. TAMPILAN BUBBLE MENGAMBANG -->
-    <LinearLayout
+    <!-- 1. BUBBLE MENGAMBANG (Akan memudar setelah 3 detik saat minimize) -->
+    <FrameLayout
         android:id="@+id/bubbleView"
-        android:layout_width="60dp"
-        android:layout_height="60dp"
+        android:layout_width="56dp"
+        android:layout_height="56dp"
         android:background="@drawable/bg_bubble"
-        android:gravity="center"
-        android:elevation="8dp">
+        android:elevation="10dp">
 
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="✨"
-            android:textSize="26sp" />
-    </LinearLayout>
+        <ImageView
+            android:layout_width="26dp"
+            android:layout_height="26dp"
+            android:layout_gravity="center"
+            android:src="@drawable/ic_sparkle"
+            app:tint="#38BDF8" />
+    </FrameLayout>
 
-    <!-- 2. TAMPILAN POPUP CHAT & TOKEN SAAT BUBBLE DIKLIK -->
+    <!-- 2. POPUP CHAT GAYA MAC OS WINDOW (SEMI-TRANSPARAN) -->
     <LinearLayout
         android:id="@+id/popupChatView"
-        android:layout_width="320dp"
-        android:layout_height="430dp"
+        android:layout_width="330dp"
+        android:layout_height="440dp"
         android:orientation="vertical"
-        android:background="@drawable/bg_popup"
-        android:padding="14dp"
-        android:elevation="12dp"
+        android:background="@drawable/bg_popup_glass"
+        android:elevation="14dp"
         android:visibility="gone">
 
-        <!-- Header Popup -->
+        <!-- MAC OS TOP ACCESSORY BAR -->
         <LinearLayout
+            android:id="@+id/macTitleBar"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
+            android:layout_height="38dp"
             android:orientation="horizontal"
             android:gravity="center_vertical"
-            android:paddingBottom="8dp">
+            android:paddingHorizontal="12dp"
+            android:background="@drawable/bg_mac_header">
+
+            <!-- Tombol Kontrol Ala macOS (Merah: Tutup Service, Kuning: Minimize) -->
+            <View
+                android:id="@+id/btnMacClose"
+                android:layout_width="13dp"
+                android:layout_height="13dp"
+                android:background="@drawable/dot_mac_red" />
+
+            <View
+                android:id="@+id/btnMacMinimize"
+                android:layout_width="13dp"
+                android:layout_height="13dp"
+                android:layout_marginStart="8dp"
+                android:background="@drawable/dot_mac_yellow" />
+
+            <View
+                android:layout_width="13dp"
+                android:layout_height="13dp"
+                android:layout_marginStart="8dp"
+                android:background="@drawable/dot_mac_green" />
 
             <TextView
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="✨ Gemini Assistant"
-                android:textStyle="bold"
-                android:textSize="16sp"
-                android:textColor="#0F172A" />
-
-            <!-- Tombol Toggle Pengaturan Token di Popup -->
-            <TextView
-                android:id="@+id/btnToggleTokenPanel"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="🔑 Token"
+                android:gravity="center"
+                android:text="Gemini AI"
                 android:textSize="12sp"
-                android:textColor="#2563EB"
-                android:padding="6dp"
-                android:layout_marginEnd="6dp" />
+                android:textStyle="bold"
+                android:textColor="#CBD5E1" />
 
-            <!-- Tombol Perkecil Kembali ke Bubble -->
-            <TextView
-                android:id="@+id/btnMinimizePopup"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="➖"
-                android:textSize="16sp"
-                android:padding="6dp" />
+            <!-- Tombol Toggle Live Screen Share -->
+            <ImageView
+                android:id="@+id/btnScreenShare"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:padding="3dp"
+                android:src="@drawable/ic_screen_share"
+                app:tint="#94A3B8"
+                android:contentDescription="Screen Share" />
+
+            <!-- Tombol Toggle Token -->
+            <ImageView
+                android:id="@+id/btnToggleTokenPanel"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:layout_marginStart="6dp"
+                android:padding="3dp"
+                android:src="@drawable/ic_key"
+                app:tint="#94A3B8"
+                android:contentDescription="Token" />
         </LinearLayout>
 
-        <!-- Panel Ubah Token Langsung di Popup (Tersembunyi secara default) -->
+        <!-- Indikator Status Live Screen Share -->
+        <TextView
+            android:id="@+id/tvScreenShareStatus"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="#330EA5E9"
+            android:paddingVertical="3dp"
+            android:paddingHorizontal="12dp"
+            android:text="Live Screen Share Aktif (AI melihat layar Anda)"
+            android:textSize="10sp"
+            android:textColor="#38BDF8"
+            android:gravity="center"
+            android:visibility="gone" />
+
+        <!-- Panel Ubah Token di dalam Popup -->
         <LinearLayout
             android:id="@+id/tokenPanel"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
-            android:background="#F1F5F9"
+            android:background="#CC1E293B"
             android:padding="8dp"
-            android:layout_marginBottom="8dp"
             android:visibility="gone">
 
             <EditText
@@ -85,6 +122,8 @@
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:hint="Tempel Gemini API Key..."
+                android:textColorHint="#64748B"
+                android:textColor="#F8FAFC"
                 android:textSize="12sp"
                 android:inputType="textPassword"
                 android:background="@android:color/transparent"
@@ -93,60 +132,59 @@
             <Button
                 android:id="@+id/btnSavePopupToken"
                 android:layout_width="wrap_content"
-                android:layout_height="36dp"
+                android:layout_height="34dp"
                 android:text="Simpan"
                 android:textSize="11sp"
                 android:backgroundTint="#2563EB"
                 android:textColor="#FFFFFF" />
         </LinearLayout>
 
-        <!-- Area Riwayat Percakapan -->
+        <!-- Area Percakapan (Chat Kiri untuk Bot, Chat Kanan untuk User) -->
         <ScrollView
             android:id="@+id/scrollChat"
             android:layout_width="match_parent"
             android:layout_height="0dp"
             android:layout_weight="1"
-            android:background="#F8FAFC"
             android:padding="10dp">
 
-            <TextView
-                android:id="@+id/tvChatHistory"
+            <LinearLayout
+                android:id="@+id/chatContainer"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="AI: Halo! Ada yang bisa saya bantu di layar ini?"
-                android:textSize="13sp"
-                android:lineSpacingExtra="4dp"
-                android:textColor="#1E293B" />
+                android:orientation="vertical" />
         </ScrollView>
 
-        <!-- Input Pesan & Tombol Kirim -->
+        <!-- Input Pesan & Tombol Kirim SVG -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
             android:gravity="center_vertical"
-            android:layout_marginTop="8dp">
+            android:padding="10dp">
 
             <EditText
                 android:id="@+id/etPrompt"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:hint="Tanya sesuatu..."
+                android:hint="Tanya inti masalah..."
+                android:textColorHint="#94A3B8"
+                android:textColor="#F8FAFC"
                 android:textSize="13sp"
                 android:maxLines="3"
-                android:padding="10dp"
-                android:background="@drawable/bg_input" />
+                android:paddingHorizontal="12dp"
+                android:paddingVertical="9dp"
+                android:background="@drawable/bg_input_glass" />
 
-            <Button
+            <ImageButton
                 android:id="@+id/btnSendPrompt"
-                android:layout_width="wrap_content"
-                android:layout_height="42dp"
-                android:layout_marginStart="6dp"
-                android:text="Kirim"
-                android:textSize="12sp"
-                android:backgroundTint="#2563EB"
-                android:textColor="#FFFFFF" />
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:layout_marginStart="8dp"
+                android:background="@drawable/bg_send_btn"
+                android:src="@drawable/ic_send"
+                app:tint="#FFFFFF"
+                android:contentDescription="Kirim" />
         </LinearLayout>
 
     </LinearLayout>
