@@ -6331,7 +6331,7 @@ class FloatingAssistantService : Service() {
         if (matches.isEmpty()) {
             val emptyTv = TextView(this).apply {
                 text = "Tidak ada riwayat cocok"
-                textSize = 11sp
+                textSize = 11f
                 setTextColor(Color.parseColor("#94A3B8"))
                 setPadding(6, 6, 6, 6)
             }
@@ -6342,7 +6342,7 @@ class FloatingAssistantService : Service() {
         for (thread in matches) {
             val row = TextView(this).apply {
                 text = "• ${thread.title} (${thread.messages.size} pesan)"
-                textSize = 11.5sp
+                textSize = 11.5f
                 setTextColor(Color.parseColor("#E2E8F0"))
                 setPadding(8, 8, 8, 8)
                 setOnClickListener {
