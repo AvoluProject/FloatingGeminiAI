@@ -4,10 +4,10 @@
     android:layout_width="wrap_content"
     android:layout_height="wrap_content">
 
-    <!-- 1A. DYNAMIC ISLAND PILL (PIL HITAM PANJANG DI BAGIAN ATAS LAYAR) -->
+    <!-- 1A. DYNAMIC ISLAND PILL (MENDUKUNG MODE LENGKAP, POLOS, & IKON SAJA) -->
     <LinearLayout
         android:id="@+id/dynamicIslandView"
-        android:layout_width="168dp"
+        android:layout_width="164dp"
         android:layout_height="34dp"
         android:orientation="horizontal"
         android:gravity="center_vertical"
@@ -58,7 +58,7 @@
             app:tint="#38BDF8" />
     </FrameLayout>
 
-    <!-- 1C. XIAOMI EDGE PILL (GARIS SETENGAH LINGKARAN DI PINGGIR LAYAR) -->
+    <!-- 1C. XIAOMI EDGE PILL -->
     <FrameLayout
         android:id="@+id/xiaomiEdgeView"
         android:layout_width="18dp"
@@ -74,27 +74,27 @@
             android:background="@drawable/bg_xiaomi_inner_line" />
     </FrameLayout>
 
-    <!-- 2. JENDELA CHAT iOS 26 LIQUID GLASS (EXPANDED DARI DYNAMIC ISLAND) -->
+    <!-- 2. JENDELA CHAT GENUINE LIQUID GLASS -->
     <LinearLayout
         android:id="@+id/popupChatView"
-        android:layout_width="344dp"
-        android:layout_height="475dp"
+        android:layout_width="346dp"
+        android:layout_height="478dp"
         android:orientation="vertical"
         android:background="@drawable/bg_liquid_glass_window"
-        android:elevation="20dp"
+        android:elevation="22dp"
         android:visibility="gone">
 
-        <!-- LIQUID GLASS TOP HEADER BAR -->
+        <!-- LIQUID GLASS SPECULAR TOP HEADER BAR -->
         <LinearLayout
             android:id="@+id/glassTitleBar"
             android:layout_width="match_parent"
-            android:layout_height="44dp"
+            android:layout_height="46dp"
             android:orientation="horizontal"
             android:gravity="center_vertical"
             android:paddingHorizontal="12dp"
             android:background="@drawable/bg_liquid_glass_header">
 
-            <!-- Tombol X untuk Close kembali ke Dynamic Island / Bubble -->
+            <!-- Tombol X untuk Close -->
             <ImageView
                 android:id="@+id/btnCloseWindowX"
                 android:layout_width="28dp"
@@ -103,7 +103,7 @@
                 android:background="@drawable/bg_close_x_btn"
                 android:src="@drawable/ic_close_x"
                 app:tint="#F8FAFC"
-                android:contentDescription="Tutup ke Dynamic Island" />
+                android:contentDescription="Tutup" />
 
             <LinearLayout
                 android:layout_width="0dp"
@@ -124,7 +124,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginStart="6dp"
                     android:text="Floamini"
-                    android:textSize="13sp"
+                    android:textSize="13.5sp"
                     android:textStyle="bold"
                     android:textColor="#F8FAFC" />
 
@@ -184,11 +184,10 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:background="#EB131B2E"
+            android:background="#EB111827"
             android:padding="10dp"
             android:visibility="gone">
 
-            <!-- Baris 1: Token, Gaya AI, Model AI -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -272,7 +271,6 @@
                 </LinearLayout>
             </LinearLayout>
 
-            <!-- Baris 2: Salin, Export, Reset, & Quick Force Stop -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -381,7 +379,6 @@
                 </LinearLayout>
             </LinearLayout>
 
-            <!-- Baris 3: Smart Quick Prompt Chips -->
             <HorizontalScrollView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -442,7 +439,6 @@
                 </LinearLayout>
             </HorizontalScrollView>
 
-            <!-- Input Token Gemini di dalam Drawer -->
             <LinearLayout
                 android:id="@+id/tokenInputRow"
                 android:layout_width="match_parent"
@@ -494,7 +490,7 @@
                 android:orientation="vertical" />
         </ScrollView>
 
-        <!-- INDIKATOR MENGETIK (TYPING STATUS) -->
+        <!-- INDIKATOR MENGETIK -->
         <LinearLayout
             android:id="@+id/typingIndicatorRow"
             android:layout_width="match_parent"
@@ -520,7 +516,7 @@
                 android:textColor="#7DD3FC" />
         </LinearLayout>
 
-        <!-- INPUT PESAN, TOMBOL KIRIM, & CORNER RESIZE HANDLE -->
+        <!-- INPUT PESAN, TOMBOL KIRIM, & RESIZE HANDLE -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"

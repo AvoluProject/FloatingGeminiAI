@@ -6,10 +6,12 @@ import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.Service
+import android.content.BroadcastReceiver
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.ServiceInfo
 import android.graphics.Bitmap
 import android.graphics.Color
@@ -36,7 +38,6 @@ import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
 import android.view.animation.DecelerateInterpolator
-import android.view.animation.OvershootInterpolator
 import android.widget.Button
 import android.widget.EditText
 import android.widget.FrameLayout
@@ -47,6 +48,9 @@ import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.core.app.NotificationCompat
+import androidx.dynamicanimation.animation.DynamicAnimation
+import androidx.dynamicanimation.animation.SpringAnimation
+import androidx.dynamicanimation.animation.SpringForce
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -72,17 +76,25 @@ class FloatingAssistantService : Service() {
         const val ACTION_SCREEN_CAPTURE_RESULT = "ACTION_SCREEN_CAPTURE_RESULT"
         const val ACTION_RELOAD_SETTINGS = "ACTION_RELOAD_SETTINGS"
         const val ACTION_RESET_SESSION = "ACTION_RESET_SESSION"
+        const val ACTION_TRIGGER_SIRI = "ACTION_TRIGGER_SIRI"
         private const val KEY_SESSION_HISTORY = "session_history_json"
     }
 
     private lateinit var windowManager: WindowManager
     private lateinit var floatingView: View
     private lateinit var params: WindowManager.LayoutParams
+    private var isFloatingViewAttached = false
+
+    // Overlay khusus Siri Edge Glow Aura (Full Screen Non-Touchable Border)
+    private var siriGlowView: SiriEdgeGlowView? = null
+    private var isSiriAuraActive = false
+
     private val serviceJob = Job()
     private val serviceScope = CoroutineScope(Dispatchers.Main + serviceJob)
 
-    // Komponen UI Utama
+    // Komponen UI
     private lateinit var dynamicIslandView: LinearLayout
+    private lateinit var ivIslandSparkle: ImageView
     private lateinit var tvIslandLabel: TextView
     private lateinit var viewIslandPulseDot: View
     private lateinit var bubbleView: FrameLayout
@@ -97,31 +109,36 @@ class FloatingAssistantService : Service() {
     private lateinit var scrollChat: ScrollView
     private lateinit var chatContainer: LinearLayout
 
-    // State Posisi & Mode Overlay
-    private val edgeHandler = Handler(Looper.getMainLooper())
+    // Handler & Smart Freeze State
+    private val mainHandler = Handler(Looper.getMainLooper())
     private var snappedToRightEdge = false
     private var fullScreenWidth = 1080
     private var fullScreenHeight = 2400
+    private var isPillAutoHidden = false
+    private var isSmartFrozen = false
 
     // Pengaturan Dinamis
     private var prefOverlayStyle = "dynamic_island"
+    private var prefPillAppearance = "standard"
+    private var prefAutoHidePill = false
+    private var prefSmartFreeze = true
     private var prefTapOutsideClose = true
     private var prefLiquidBlur = true
     private var prefHapticFeedback = true
-    private var prefIslandWidthPx = 450
+    private var prefIslandWidthPx = 440
     private var prefIslandPosYPx = 32
     private var prefIslandOffsetXPx = 0
-    private var prefPopupAlpha = 0.86f
+    private var prefPopupAlpha = 0.84f
     private var prefBubbleSizePx = 148
     private var prefPersona = "asik"
     private var prefModel = "gemini-3-flash-preview"
 
-    // Data Model Pesan Sesi
+    // Data Sesi
     data class SessionMessage(val role: String, val text: String, val timestamp: String)
     private val chatHistory = mutableListOf<SessionMessage>()
     private var lastBotReply = ""
 
-    // MediaProjection untuk Live Screen Share
+    // Live Screen Share
     private var mediaProjection: MediaProjection? = null
     private var virtualDisplay: VirtualDisplay? = null
     private var imageReader: ImageReader? = null
@@ -135,9 +152,54 @@ class FloatingAssistantService : Service() {
         .readTimeout(35, TimeUnit.SECONDS)
         .build()
 
+    // Runnables untuk Auto-Hide, Xiaomi Edge, dan Auto Smart Freeze
+    private val autoHidePillRunnable = Runnable {
+        if (prefOverlayStyle == "dynamic_island" &&
+            prefAutoHidePill &&
+            dynamicIslandView.visibility == View.VISIBLE &&
+            popupChatView.visibility != View.VISIBLE
+        ) {
+            isPillAutoHidden = true
+            dynamicIslandView.animate()
+                .alpha(0.02f)
+                .scaleX(0.45f)
+                .scaleY(0.45f)
+                .setDuration(420)
+                .start()
+        }
+    }
+
     private val transformToXiaomiEdgeRunnable = Runnable {
         if (prefOverlayStyle == "xiaomi_edge" && bubbleView.visibility == View.VISIBLE) {
             enterXiaomiEdgeMode()
+        }
+    }
+
+    private val smartFreezeRunnable = Runnable {
+        if (prefSmartFreeze && popupChatView.visibility != View.VISIBLE) {
+            enterSmartFreezeState()
+        }
+    }
+
+    // Screen Off / Screen On Receiver untuk Auto Smart Freeze Instan
+    private val screenStateReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            when (intent?.action) {
+                Intent.ACTION_SCREEN_OFF -> {
+                    if (prefSmartFreeze) {
+                        if (popupChatView.visibility == View.VISIBLE) {
+                            popupChatView.visibility = View.GONE
+                        }
+                        dismissSiriAura()
+                        enterSmartFreezeState()
+                    }
+                }
+                Intent.ACTION_SCREEN_ON -> {
+                    if (isSmartFrozen && prefOverlayStyle != "siri_mode") {
+                        wakeFromSmartFreeze()
+                    }
+                }
+            }
         }
     }
 
@@ -149,6 +211,12 @@ class FloatingAssistantService : Service() {
         setupScreenMetrics()
         loadUserPreferences()
         setupFloatingOverlay()
+
+        val filter = IntentFilter().apply {
+            addAction(Intent.ACTION_SCREEN_OFF)
+            addAction(Intent.ACTION_SCREEN_ON)
+        }
+        registerReceiver(screenStateReceiver, filter)
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -170,6 +238,7 @@ class FloatingAssistantService : Service() {
             }
             ACTION_RELOAD_SETTINGS -> {
                 loadUserPreferences()
+                wakeFromSmartFreeze()
                 applyVisualPreferences()
                 if (popupChatView.visibility != View.VISIBLE) {
                     showCollapsedTriggerState()
@@ -180,8 +249,114 @@ class FloatingAssistantService : Service() {
                     resetConversationSession()
                 }
             }
+            ACTION_TRIGGER_SIRI -> {
+                triggerHaptic()
+                wakeFromSmartFreeze()
+                summonSiriExperience()
+            }
         }
         return START_STICKY
+    }
+
+    // ==========================================================================
+    // AUTO SMART FREEZE ENGINE (HEMAT MEMORI & DAYA SAAT IDLE / LAYAR MATI)
+    // ==========================================================================
+    private fun scheduleSmartFreeze() {
+        mainHandler.removeCallbacks(smartFreezeRunnable)
+        if (prefSmartFreeze) {
+            mainHandler.postDelayed(smartFreezeRunnable, 18_000L)
+        }
+    }
+
+    private fun enterSmartFreezeState() {
+        if (isSmartFrozen) return
+        isSmartFrozen = true
+        mainHandler.removeCallbacks(autoHidePillRunnable)
+        mainHandler.removeCallbacks(transformToXiaomiEdgeRunnable)
+
+        dynamicIslandView.animate().cancel()
+        bubbleView.animate().cancel()
+        xiaomiEdgeView.animate().cancel()
+        siriGlowView?.stopAndFreezeAnimation()
+
+        // Jika Mode Siri aktif, lepas view dari WindowManager agar 0% GPU/RAM saat idle
+        if (prefOverlayStyle == "siri_mode" && isFloatingViewAttached) {
+            try {
+                windowManager.removeViewImmediate(floatingView)
+                isFloatingViewAttached = false
+            } catch (_: Exception) {}
+        }
+
+        // Bersihkan buffer memori sementara saat idle
+        System.gc()
+    }
+
+    private fun wakeFromSmartFreeze() {
+        mainHandler.removeCallbacks(smartFreezeRunnable)
+        if (!isFloatingViewAttached && ::floatingView.isInitialized) {
+            try {
+                windowManager.addView(floatingView, params)
+                isFloatingViewAttached = true
+            } catch (_: Exception) {}
+        }
+        isSmartFrozen = false
+    }
+
+    // ==========================================================================
+    // SIRI EDGE GLOW AURA (DIPANGGIL DARI CONTROL CENTER SHORTCUT)
+    // ==========================================================================
+    private fun summonSiriExperience() {
+        showSiriAura()
+        openPopupChat(fromSiri = true)
+    }
+
+    private fun showSiriAura() {
+        if (isSiriAuraActive) return
+        isSiriAuraActive = true
+
+        val layoutFlag = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
+        } else {
+            @Suppress("DEPRECATION")
+            WindowManager.LayoutParams.TYPE_PHONE
+        }
+
+        val auraParams = WindowManager.LayoutParams(
+            WindowManager.LayoutParams.MATCH_PARENT,
+            WindowManager.LayoutParams.MATCH_PARENT,
+            layoutFlag,
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                    WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
+                    WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
+                    WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
+            PixelFormat.TRANSLUCENT
+        )
+
+        val glowView = SiriEdgeGlowView(this).apply {
+            alpha = 0f
+        }
+        siriGlowView = glowView
+        try {
+            windowManager.addView(glowView, auraParams)
+            glowView.startSiriAnimation()
+            glowView.animate().alpha(1f).setDuration(360).start()
+        } catch (_: Exception) {}
+    }
+
+    private fun dismissSiriAura() {
+        val glowView = siriGlowView ?: return
+        isSiriAuraActive = false
+        siriGlowView = null
+        glowView.animate()
+            .alpha(0f)
+            .setDuration(260)
+            .withEndAction {
+                glowView.stopAndFreezeAnimation()
+                try {
+                    windowManager.removeViewImmediate(glowView)
+                } catch (_: Exception) {}
+            }
+            .start()
     }
 
     private fun triggerHaptic() {
@@ -211,13 +386,16 @@ class FloatingAssistantService : Service() {
         val prefs = getSharedPreferences("gemini_prefs", Context.MODE_PRIVATE)
         val density = resources.displayMetrics.density
         prefOverlayStyle = prefs.getString("overlay_style", "dynamic_island") ?: "dynamic_island"
+        prefPillAppearance = prefs.getString("pill_appearance", "standard") ?: "standard"
+        prefAutoHidePill = prefs.getBoolean("auto_hide_pill", false)
+        prefSmartFreeze = prefs.getBoolean("smart_freeze", true)
         prefTapOutsideClose = prefs.getBoolean("tap_outside_close", true)
         prefLiquidBlur = prefs.getBoolean("liquid_blur", true)
         prefHapticFeedback = prefs.getBoolean("haptic_feedback", true)
-        prefIslandWidthPx = (prefs.getInt("island_width_dp", 168) * density).toInt()
+        prefIslandWidthPx = (prefs.getInt("island_width_dp", 164) * density).toInt()
         prefIslandPosYPx = (prefs.getInt("island_pos_y_dp", 12) * density).toInt()
         prefIslandOffsetXPx = (prefs.getInt("island_offset_x_dp", 0) * density).toInt()
-        prefPopupAlpha = (prefs.getInt("popup_opacity", 82) / 100f).coerceIn(0.45f, 1.0f)
+        prefPopupAlpha = (prefs.getInt("popup_opacity", 80) / 100f).coerceIn(0.45f, 1.0f)
         prefBubbleSizePx = (54 * density).toInt()
         prefPersona = prefs.getString("ai_persona", "asik") ?: "asik"
         prefModel = prefs.getString("ai_model", "gemini-3-flash-preview") ?: "gemini-3-flash-preview"
@@ -228,6 +406,27 @@ class FloatingAssistantService : Service() {
             val lp = dynamicIslandView.layoutParams
             lp.width = prefIslandWidthPx
             dynamicIslandView.layoutParams = lp
+
+            when (prefPillAppearance) {
+                "polos" -> {
+                    dynamicIslandView.setBackgroundResource(R.drawable.bg_dynamic_island_polos)
+                    ivIslandSparkle.visibility = View.GONE
+                    tvIslandLabel.visibility = View.GONE
+                    viewIslandPulseDot.visibility = View.GONE
+                }
+                "minimal" -> {
+                    dynamicIslandView.setBackgroundResource(R.drawable.bg_dynamic_island)
+                    ivIslandSparkle.visibility = View.VISIBLE
+                    tvIslandLabel.visibility = View.GONE
+                    viewIslandPulseDot.visibility = View.VISIBLE
+                }
+                else -> {
+                    dynamicIslandView.setBackgroundResource(R.drawable.bg_dynamic_island)
+                    ivIslandSparkle.visibility = View.VISIBLE
+                    tvIslandLabel.visibility = View.VISIBLE
+                    viewIslandPulseDot.visibility = View.VISIBLE
+                }
+            }
         }
         if (::popupChatView.isInitialized) {
             popupChatView.alpha = prefPopupAlpha
@@ -257,7 +456,7 @@ class FloatingAssistantService : Service() {
     }
 
     // ==========================================================================
-    // MEMORI SESI PERMANEN (ANTI-LUPA KONTEKS OBROLAN)
+    // MEMORI SESI PERMANEN
     // ==========================================================================
     private fun saveSessionHistory() {
         try {
@@ -301,7 +500,7 @@ class FloatingAssistantService : Service() {
 
         updateSessionCounterBadge()
         if (chatHistory.isEmpty()) {
-            val greeting = "Hai! Floamini sudah siap di Dynamic Island kamu. Sesi obrolan ini terus berjalan dan aku bakal ingat semua yang kita bahas!"
+            val greeting = "Hai! Floamini sudah siap menemani kamu. Obrolan di sesi ini terus tersimpan dan nyambung!"
             lastBotReply = greeting
             addChatMessage(greeting, currentTimeLabel(), isUser = false)
         }
@@ -313,13 +512,13 @@ class FloatingAssistantService : Service() {
         prefs.edit().remove(KEY_SESSION_HISTORY).apply()
         chatContainer.removeAllViews()
         updateSessionCounterBadge()
-        val resetMsg = "Sesi obrolan Floamini sudah di-reset bersih. Yuk mulai bahasan baru!"
+        val resetMsg = "Sesi obrolan Floamini sudah di-reset bersih. Yuk mulai topik baru!"
         lastBotReply = resetMsg
         addChatMessage(resetMsg, currentTimeLabel(), isUser = false)
     }
 
     private fun startForegroundNotification(withMediaProjection: Boolean) {
-        val channelId = "floamini_dynamic_island_channel"
+        val channelId = "floamini_liquid_glass_channel"
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
                 channelId,
@@ -332,7 +531,7 @@ class FloatingAssistantService : Service() {
 
         val notification: Notification = NotificationCompat.Builder(this, channelId)
             .setContentTitle("Floamini")
-            .setContentText(if (withMediaProjection) "Live Screen Vision aktif" else "Dynamic Island AI siap digunakan")
+            .setContentText(if (withMediaProjection) "Live Screen Vision aktif" else "Liquid Glass & Smart Freeze aktif")
             .setSmallIcon(android.R.drawable.ic_dialog_info)
             .build()
 
@@ -384,8 +583,10 @@ class FloatingAssistantService : Service() {
         }
 
         windowManager.addView(floatingView, params)
+        isFloatingViewAttached = true
 
         dynamicIslandView = floatingView.findViewById(R.id.dynamicIslandView)
+        ivIslandSparkle = floatingView.findViewById(R.id.ivIslandSparkle)
         tvIslandLabel = floatingView.findViewById(R.id.tvIslandLabel)
         viewIslandPulseDot = floatingView.findViewById(R.id.viewIslandPulseDot)
         bubbleView = floatingView.findViewById(R.id.bubbleView)
@@ -432,9 +633,7 @@ class FloatingAssistantService : Service() {
         restoreSessionHistory()
         showCollapsedTriggerState()
 
-        // ----------------------------------------------------------------------
-        // TAP DI LUAR JENDELA UNTUK MENUTUP KEMBALI KE DYNAMIC ISLAND / BUBBLE
-        // ----------------------------------------------------------------------
+        // Ketuk di luar jendela untuk menutup
         floatingView.setOnTouchListener { _, event ->
             if (event.action == MotionEvent.ACTION_OUTSIDE &&
                 popupChatView.visibility == View.VISIBLE &&
@@ -466,6 +665,7 @@ class FloatingAssistantService : Service() {
                 btnPlusMenu.animate().rotation(0f).setDuration(220).start()
             }
 
+            wakeFromSmartFreeze()
             triggerHaptic()
             val userTime = currentTimeLabel()
             addChatMessage(prompt, userTime, isUser = true)
@@ -499,7 +699,7 @@ class FloatingAssistantService : Service() {
         }
 
         // ----------------------------------------------------------------------
-        // 1. INTERAKSI DYNAMIC ISLAND (TAP UNTUK EXPAND + GESER HALUS)
+        // 1. INTERAKSI DYNAMIC ISLAND (SPRING PHYSICS + AUTO-HIDE REVEAL)
         // ----------------------------------------------------------------------
         dynamicIslandView.setOnTouchListener(object : View.OnTouchListener {
             private var initialX = 0
@@ -510,30 +710,40 @@ class FloatingAssistantService : Service() {
             override fun onTouch(v: View, event: MotionEvent): Boolean {
                 when (event.action) {
                     MotionEvent.ACTION_DOWN -> {
+                        wakeFromSmartFreeze()
+                        mainHandler.removeCallbacks(autoHidePillRunnable)
                         initialX = params.x
                         initialY = params.y
                         initialTouchX = event.rawX
                         initialTouchY = event.rawY
-                        dynamicIslandView.animate().scaleX(1.06f).scaleY(1.06f).setDuration(140).start()
+                        animateSpringScale(dynamicIslandView, 1.07f)
                         return true
                     }
                     MotionEvent.ACTION_MOVE -> {
                         val dx = (event.rawX - initialTouchX).toInt()
                         val dy = (event.rawY - initialTouchY).toInt()
                         if (abs(dx) > 12 || abs(dy) > 12) {
-                            params.x = (initialX + dx).coerceIn(16, (fullScreenWidth - prefIslandWidthPx - 16).coerceAtLeast(16))
+                            params.x = (initialX + dx).coerceIn(12, (fullScreenWidth - prefIslandWidthPx - 12).coerceAtLeast(12))
                             params.y = (initialY + dy).coerceIn(0, fullScreenHeight / 2)
                             windowManager.updateViewLayout(floatingView, params)
                         }
                         return true
                     }
                     MotionEvent.ACTION_UP -> {
-                        dynamicIslandView.animate().scaleX(1.0f).scaleY(1.0f).setDuration(140).start()
+                        animateSpringScale(dynamicIslandView, 1.0f)
                         val diffX = abs(event.rawX - initialTouchX)
                         val diffY = abs(event.rawY - initialTouchY)
                         if (diffX < 18 && diffY < 18) {
                             triggerHaptic()
-                            openPopupChat()
+                            if (isPillAutoHidden) {
+                                isPillAutoHidden = false
+                                dynamicIslandView.alpha = 1.0f
+                                openPopupChat(fromSiri = false)
+                            } else {
+                                openPopupChat(fromSiri = false)
+                            }
+                        } else {
+                            scheduleAutoHideAndFreeze()
                         }
                         return true
                     }
@@ -543,7 +753,7 @@ class FloatingAssistantService : Service() {
         })
 
         // ----------------------------------------------------------------------
-        // 2. INTERAKSI BUBBLE & XIAOMI EDGE PILL (JIKA DIPILIH DI PENGATURAN)
+        // 2. INTERAKSI BUBBLE & XIAOMI EDGE PILL
         // ----------------------------------------------------------------------
         bubbleView.setOnTouchListener(object : View.OnTouchListener {
             private var initialX = 0
@@ -554,7 +764,8 @@ class FloatingAssistantService : Service() {
             override fun onTouch(v: View, event: MotionEvent): Boolean {
                 when (event.action) {
                     MotionEvent.ACTION_DOWN -> {
-                        edgeHandler.removeCallbacks(transformToXiaomiEdgeRunnable)
+                        wakeFromSmartFreeze()
+                        mainHandler.removeCallbacks(transformToXiaomiEdgeRunnable)
                         initialX = params.x
                         initialY = params.y
                         initialTouchX = event.rawX
@@ -572,7 +783,7 @@ class FloatingAssistantService : Service() {
                         val diffY = abs(event.rawY - initialTouchY)
                         if (diffX < 15 && diffY < 15) {
                             triggerHaptic()
-                            openPopupChat()
+                            openPopupChat(fromSiri = false)
                         } else {
                             snapBubbleToNearestEdge()
                         }
@@ -591,6 +802,7 @@ class FloatingAssistantService : Service() {
             override fun onTouch(v: View, event: MotionEvent): Boolean {
                 when (event.action) {
                     MotionEvent.ACTION_DOWN -> {
+                        wakeFromSmartFreeze()
                         initialY = params.y
                         initialTouchX = event.rawX
                         initialTouchY = event.rawY
@@ -606,7 +818,7 @@ class FloatingAssistantService : Service() {
                         val swipedInward = (snappedToRightEdge && diffX < -45) || (!snappedToRightEdge && diffX > 45)
                         triggerHaptic()
                         if (swipedInward) {
-                            openPopupChat()
+                            openPopupChat(fromSiri = false)
                         } else {
                             exitXiaomiEdgeMode()
                         }
@@ -684,7 +896,6 @@ class FloatingAssistantService : Service() {
             }
         })
 
-        // Tombol X untuk Close kembali ke Dynamic Island / Bubble
         btnCloseWindowX.setOnClickListener {
             triggerHaptic()
             closePopupChat()
@@ -802,72 +1013,114 @@ class FloatingAssistantService : Service() {
     }
 
     // ==========================================================================
-    // FLUID SPRING ANIMATIONS: DYNAMIC ISLAND <-> LIQUID GLASS WINDOW
+    // ANDROIDX REAL SPRING ANIMATION & LIQUID GLASS TRANSITIONS
     // ==========================================================================
+    private fun animateSpringScale(target: View, finalScale: Float) {
+        SpringAnimation(target, DynamicAnimation.SCALE_X, finalScale).apply {
+            spring.dampingRatio = SpringForce.DAMPING_RATIO_LOW_BOUNCY
+            spring.stiffness = SpringForce.STIFFNESS_MEDIUM
+            start()
+        }
+        SpringAnimation(target, DynamicAnimation.SCALE_Y, finalScale).apply {
+            spring.dampingRatio = SpringForce.DAMPING_RATIO_LOW_BOUNCY
+            spring.stiffness = SpringForce.STIFFNESS_MEDIUM
+            start()
+        }
+    }
+
+    private fun scheduleAutoHideAndFreeze() {
+        mainHandler.removeCallbacks(autoHidePillRunnable)
+        if (prefAutoHidePill && prefOverlayStyle == "dynamic_island") {
+            mainHandler.postDelayed(autoHidePillRunnable, 3000L)
+        }
+        scheduleSmartFreeze()
+    }
+
     private fun showCollapsedTriggerState() {
-        edgeHandler.removeCallbacks(transformToXiaomiEdgeRunnable)
+        mainHandler.removeCallbacks(transformToXiaomiEdgeRunnable)
+        mainHandler.removeCallbacks(autoHidePillRunnable)
+        dismissSiriAura()
+
         popupChatView.visibility = View.GONE
         dynamicIslandView.visibility = View.GONE
         bubbleView.visibility = View.GONE
         xiaomiEdgeView.visibility = View.GONE
+        isPillAutoHidden = false
 
         params.flags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
                 WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN
         applyWindowBlur(enabled = false)
 
         when (prefOverlayStyle) {
+            "siri_mode" -> {
+                // Mode Siri: layar bersih total saat idle, langsung aktifkan Smart Freeze
+                if (isFloatingViewAttached) {
+                    windowManager.updateViewLayout(floatingView, params)
+                }
+                if (prefSmartFreeze) {
+                    enterSmartFreezeState()
+                }
+            }
             "xiaomi_edge" -> {
+                wakeFromSmartFreeze()
                 bubbleView.visibility = View.VISIBLE
                 bubbleView.alpha = 1.0f
                 params.x = if (snappedToRightEdge) (fullScreenWidth - prefBubbleSizePx) else 0
                 params.y = fullScreenHeight / 3
                 windowManager.updateViewLayout(floatingView, params)
-                edgeHandler.postDelayed(transformToXiaomiEdgeRunnable, 2500L)
+                mainHandler.postDelayed(transformToXiaomiEdgeRunnable, 2500L)
+                scheduleSmartFreeze()
             }
             "classic_bubble" -> {
+                wakeFromSmartFreeze()
                 bubbleView.visibility = View.VISIBLE
                 bubbleView.alpha = 1.0f
                 params.x = if (snappedToRightEdge) (fullScreenWidth - prefBubbleSizePx) else 0
                 params.y = fullScreenHeight / 3
                 windowManager.updateViewLayout(floatingView, params)
+                scheduleSmartFreeze()
             }
             else -> {
+                wakeFromSmartFreeze()
                 dynamicIslandView.visibility = View.VISIBLE
-                dynamicIslandView.scaleX = 0.7f
-                dynamicIslandView.scaleY = 0.7f
-                dynamicIslandView.alpha = 0f
+                dynamicIslandView.scaleX = 0.72f
+                dynamicIslandView.scaleY = 0.72f
+                dynamicIslandView.alpha = 1.0f
                 params.x = (((fullScreenWidth - prefIslandWidthPx) / 2) + prefIslandOffsetXPx)
                     .coerceIn(12, (fullScreenWidth - prefIslandWidthPx - 12).coerceAtLeast(12))
                 params.y = prefIslandPosYPx
                 windowManager.updateViewLayout(floatingView, params)
 
-                dynamicIslandView.animate()
-                    .scaleX(1.0f)
-                    .scaleY(1.0f)
-                    .alpha(1.0f)
-                    .setDuration(300)
-                    .setInterpolator(OvershootInterpolator(1.1f))
-                    .start()
+                animateSpringScale(dynamicIslandView, 1.0f)
+                scheduleAutoHideAndFreeze()
             }
         }
     }
 
-    private fun openPopupChat() {
-        edgeHandler.removeCallbacks(transformToXiaomiEdgeRunnable)
+    private fun openPopupChat(fromSiri: Boolean) {
+        wakeFromSmartFreeze()
+        mainHandler.removeCallbacks(transformToXiaomiEdgeRunnable)
+        mainHandler.removeCallbacks(autoHidePillRunnable)
+
         dynamicIslandView.visibility = View.GONE
         xiaomiEdgeView.visibility = View.GONE
         bubbleView.visibility = View.GONE
 
         popupChatView.visibility = View.VISIBLE
         popupChatView.pivotX = popupChatView.layoutParams.width / 2f
-        popupChatView.pivotY = 0f
-        popupChatView.scaleX = 0.45f
-        popupChatView.scaleY = 0.22f
+        popupChatView.pivotY = if (fromSiri) popupChatView.layoutParams.height.toFloat() else 0f
+        popupChatView.scaleX = 0.55f
+        popupChatView.scaleY = 0.35f
         popupChatView.alpha = 0f
 
         val popupW = popupChatView.layoutParams.width
+        val popupH = popupChatView.layoutParams.height
         params.x = ((fullScreenWidth - popupW) / 2).coerceIn(16, (fullScreenWidth - popupW - 16).coerceAtLeast(16))
-        params.y = (prefIslandPosYPx + (14 * resources.displayMetrics.density).toInt()).coerceIn(24, fullScreenHeight / 4)
+        params.y = if (fromSiri) {
+            ((fullScreenHeight - popupH) / 2).coerceIn(32, fullScreenHeight / 3)
+        } else {
+            (prefIslandPosYPx + (14 * resources.displayMetrics.density).toInt()).coerceIn(24, fullScreenHeight / 4)
+        }
         params.flags = WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
                 WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH or
                 WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN
@@ -876,20 +1129,18 @@ class FloatingAssistantService : Service() {
         windowManager.updateViewLayout(floatingView, params)
 
         popupChatView.animate()
-            .scaleX(1.0f)
-            .scaleY(1.0f)
             .alpha(prefPopupAlpha)
-            .setDuration(340)
-            .setInterpolator(OvershootInterpolator(0.85f))
+            .setDuration(260)
             .start()
+        animateSpringScale(popupChatView, 1.0f)
     }
 
     private fun closePopupChat() {
         popupChatView.animate()
-            .scaleX(0.42f)
-            .scaleY(0.18f)
+            .scaleX(0.45f)
+            .scaleY(0.22f)
             .alpha(0f)
-            .setDuration(210)
+            .setDuration(200)
             .setInterpolator(DecelerateInterpolator())
             .withEndAction {
                 showCollapsedTriggerState()
@@ -902,7 +1153,7 @@ class FloatingAssistantService : Service() {
             try {
                 if (enabled) {
                     params.flags = params.flags or WindowManager.LayoutParams.FLAG_BLUR_BEHIND
-                    params.blurBehindRadius = 26
+                    params.blurBehindRadius = 38
                 } else {
                     params.flags = params.flags and WindowManager.LayoutParams.FLAG_BLUR_BEHIND.inv()
                     params.blurBehindRadius = 0
@@ -928,9 +1179,10 @@ class FloatingAssistantService : Service() {
         }
         animator.start()
         if (prefOverlayStyle == "xiaomi_edge") {
-            edgeHandler.removeCallbacks(transformToXiaomiEdgeRunnable)
-            edgeHandler.postDelayed(transformToXiaomiEdgeRunnable, 2500L)
+            mainHandler.removeCallbacks(transformToXiaomiEdgeRunnable)
+            mainHandler.postDelayed(transformToXiaomiEdgeRunnable, 2500L)
         }
+        scheduleSmartFreeze()
     }
 
     private fun enterXiaomiEdgeMode() {
@@ -946,20 +1198,23 @@ class FloatingAssistantService : Service() {
         params.x = if (snappedToRightEdge) (fullScreenWidth - pillWidthPx) else 0
         windowManager.updateViewLayout(floatingView, params)
         xiaomiEdgeView.animate().alpha(0.45f).setDuration(400).start()
+        scheduleSmartFreeze()
     }
 
     private fun exitXiaomiEdgeMode() {
-        edgeHandler.removeCallbacks(transformToXiaomiEdgeRunnable)
+        mainHandler.removeCallbacks(transformToXiaomiEdgeRunnable)
         xiaomiEdgeView.visibility = View.GONE
         bubbleView.visibility = View.VISIBLE
         bubbleView.alpha = 1.0f
         params.x = if (snappedToRightEdge) (fullScreenWidth - prefBubbleSizePx) else 0
         windowManager.updateViewLayout(floatingView, params)
-        edgeHandler.postDelayed(transformToXiaomiEdgeRunnable, 2500L)
+        mainHandler.postDelayed(transformToXiaomiEdgeRunnable, 2500L)
+        scheduleSmartFreeze()
     }
 
     private fun performQuickForceStop() {
         Toast.makeText(this, "Menghentikan paksa Floamini...", Toast.LENGTH_SHORT).show()
+        dismissSiriAura()
         stopMediaProjection()
         val appInfoIntent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
             data = Uri.parse("package:$packageName")
@@ -991,7 +1246,7 @@ class FloatingAssistantService : Service() {
             lineHeight = (19 * resources.displayMetrics.density).toInt()
             setTextColor(Color.parseColor("#F8FAFC"))
             setPadding(28, 18, 28, 18)
-            maxWidth = (250 * resources.displayMetrics.density).toInt()
+            maxWidth = (252 * resources.displayMetrics.density).toInt()
             setBackgroundResource(if (isUser) R.drawable.bg_chat_user else R.drawable.bg_chat_bot)
 
             setOnClickListener {
@@ -1026,7 +1281,7 @@ class FloatingAssistantService : Service() {
     }
 
     // ==========================================================================
-    // LIVE SCREEN SHARE (MEDIA PROJECTION + ANDROID 14 CALLBACK SAFE)
+    // LIVE SCREEN SHARE
     // ==========================================================================
     private fun startMediaProjection(resultCode: Int, data: Intent) {
         startForegroundNotification(withMediaProjection = true)
@@ -1108,13 +1363,13 @@ class FloatingAssistantService : Service() {
             croppedBitmap.recycle()
 
             Base64.encodeToString(outputStream.toByteArray(), Base64.NO_WRAP)
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             null
         }
     }
 
     // ==========================================================================
-    // KONEKSI GEMINI API (MEMORI SESI + GAYA ASIK + TANPA SIMBOL MARKDOWN)
+    // KONEKSI GEMINI API
     // ==========================================================================
     private fun buildSystemInstructionText(): String {
         val memoryRule = "Penting: Selalu ingat dan hubungkan seluruh konteks percakapan sebelumnya dalam sesi ini agar obrolan tetap nyambung dan tidak pernah lupa apa yang sedang dibahas."
@@ -1198,10 +1453,14 @@ class FloatingAssistantService : Service() {
 
     override fun onDestroy() {
         super.onDestroy()
-        edgeHandler.removeCallbacks(transformToXiaomiEdgeRunnable)
+        try { unregisterReceiver(screenStateReceiver) } catch (_: Exception) {}
+        mainHandler.removeCallbacks(transformToXiaomiEdgeRunnable)
+        mainHandler.removeCallbacks(autoHidePillRunnable)
+        mainHandler.removeCallbacks(smartFreezeRunnable)
+        dismissSiriAura()
         stopMediaProjection()
         serviceJob.cancel()
-        if (::floatingView.isInitialized) {
+        if (isFloatingViewAttached && ::floatingView.isInitialized) {
             try {
                 windowManager.removeView(floatingView)
             } catch (_: Exception) {}

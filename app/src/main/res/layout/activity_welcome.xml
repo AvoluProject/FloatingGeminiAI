@@ -3,7 +3,7 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#050810"
+    android:background="#04070F"
     android:fillViewport="true">
 
     <LinearLayout
@@ -12,7 +12,6 @@
         android:orientation="vertical"
         android:padding="20dp">
 
-        <!-- HERO WELCOME HEADER -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -21,13 +20,13 @@
             android:paddingVertical="18dp">
 
             <FrameLayout
-                android:layout_width="68dp"
-                android:layout_height="68dp"
+                android:layout_width="72dp"
+                android:layout_height="72dp"
                 android:background="@drawable/bg_dynamic_island">
 
                 <ImageView
-                    android:layout_width="32dp"
-                    android:layout_height="32dp"
+                    android:layout_width="34dp"
+                    android:layout_height="34dp"
                     android:layout_gravity="center"
                     android:src="@drawable/ic_sparkle"
                     app:tint="#38BDF8" />
@@ -40,7 +39,7 @@
                 android:paddingHorizontal="12dp"
                 android:paddingVertical="4dp"
                 android:background="@drawable/bg_badge_pill"
-                android:text="FLOAMINI v4.0 • iOS 26 LIQUID GLASS"
+                android:text="FLOAMINI • LIQUID GLASS &amp; SIRI MODE"
                 android:textSize="10sp"
                 android:textStyle="bold"
                 android:textColor="#38BDF8" />
@@ -59,14 +58,14 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="6dp"
-                android:text="Asisten AI melayang bergaya Dynamic Island dengan kaca transparan Liquid Glass, memori sesi permanen, dan kemampuan melihat layar secara langsung."
+                android:text="Asisten AI melayang bergaya iOS 26 Liquid Glass dengan kustomisasi Dynamic Island, Mode Siri dari Control Center, serta Auto Smart Freeze hemat baterai."
                 android:textSize="13sp"
                 android:lineHeight="19dp"
                 android:textColor="#94A3B8"
                 android:gravity="center" />
         </LinearLayout>
 
-        <!-- KARTU 1: PANDUAN & LINK MENDAPATKAN GEMINI API KEY -->
+        <!-- KARTU 1: PANDUAN & LINK GEMINI API KEY -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -108,7 +107,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="12dp"
-                android:text="1. Ketuk tombol Buka Google AI Studio di bawah ini.\n2. Masuk menggunakan akun Google Anda.\n3. Pilih tombol Create API Key lalu salin kode yang diawali huruf AIzaSy...\n4. Tempelkan API Key pada kolom di bawah dan tekan Tes Token."
+                android:text="1. Ketuk tombol Buka Google AI Studio di bawah ini.\n2. Masuk menggunakan akun Google Anda.\n3. Pilih Create API Key lalu salin kode yang diawali AIzaSy...\n4. Tempelkan API Key pada kolom di bawah dan tekan Tes Token."
                 android:textSize="12.5sp"
                 android:lineHeight="19dp"
                 android:textColor="#CBD5E1" />
@@ -177,7 +176,7 @@
             </LinearLayout>
         </LinearLayout>
 
-        <!-- KARTU 2: HINT & TIPS PENGGUNAAN FLOAMINI -->
+        <!-- KARTU 2: HINT & FITUR BARU -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -209,7 +208,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginStart="10dp"
-                    android:text="Hint &amp; Panduan Fitur Utama"
+                    android:text="Hint &amp; Mode Interaksi Floamini"
                     android:textSize="16sp"
                     android:textStyle="bold"
                     android:textColor="#F8FAFC" />
@@ -219,58 +218,10 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="12dp"
-                android:text="• Dynamic Island Interaktif: Ketuk pil hitam di atas layar untuk membuka jendela chat Liquid Glass. Ketuk area luar jendela atau tombol X untuk menutupnya kembali ke pil atas.\n\n• Selaraskan Kamera Depan: Gunakan slider Posisi Vertikal &amp; Horizontal di Pengaturan agar posisi Dynamic Island pas menyatu dengan kamera punch-hole HP Anda.\n\n• Live Screen Share: Ketuk ikon layar di bilah atas jendela chat agar Floamini bisa melihat dan menjawab soal, chat, atau artikel di layar secara real-time.\n\n• Memori Sesi Berkelanjutan: Sekali sesi berjalan, Floamini terus mengingat konteks obrolan meski jendela ditutup. Tekan tombol + lalu Reset jika ingin memulai topik baru.\n\n• Update Langsung Tanpa Uninstall: Setiap versi terbaru Floamini dapat langsung diinstal menimpa aplikasi lama tanpa menghapus data dan token Anda."
+                android:text="• Mode Siri (Control Center): Saat dipilih, layar bersih tanpa ikon melayang apa pun. Tarik panel Control Center / Quick Settings HP Anda dan ketuk tombol Floamini AI untuk memunculkan aura cahaya pinggir layar khas Siri iOS!\n\n• Pil Dynamic Island Polos &amp; Auto-Hide: Anda bisa memilih tampilan pil polos hitam pekat yang menyatu dengan kamera depan, serta mengaktifkan Auto-Hide agar pil menghilang otomatis saat diam.\n\n• Auto Smart Freeze: Saat layar mati atau idle, Floamini otomatis membekukan animasi dan membebaskan memori agar baterai tetap irit."
                 android:textSize="12.5sp"
                 android:lineHeight="18.5dp"
                 android:textColor="#CBD5E1" />
-        </LinearLayout>
-
-        <!-- KARTU 3: KETENTUAN PENGGUNAAN & PRIVASI -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:background="@drawable/bg_liquid_glass_card"
-            android:padding="18dp"
-            android:layout_marginBottom="20dp">
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:gravity="center_vertical">
-
-                <FrameLayout
-                    android:layout_width="32dp"
-                    android:layout_height="32dp"
-                    android:background="@drawable/bg_ios_icon_green">
-
-                    <ImageView
-                        android:layout_width="17dp"
-                        android:layout_height="17dp"
-                        android:layout_gravity="center"
-                        android:src="@drawable/ic_info_shield"
-                        app:tint="#FFFFFF" />
-                </FrameLayout>
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="10dp"
-                    android:text="Ketentuan &amp; Keamanan Privasi"
-                    android:textSize="16sp"
-                    android:textStyle="bold"
-                    android:textColor="#F8FAFC" />
-            </LinearLayout>
-
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
-                android:text="1. Penyimpanan 100% Lokal: API Key dan riwayat percakapan hanya disimpan di penyimpanan privat perangkat Anda dan tidak pernah dikirim ke server pihak ketiga selain Google Gemini API.\n2. Izin Overlay &amp; Layar: Tangkapan layar hanya diambil ketika Anda menyalakan fitur Live Screen Share secara manual.\n3. Kuota API: Gunakan API Key pribadi sesuai ketentuan layanan gratis maupun berbayar dari Google AI Studio."
-                android:textSize="12sp"
-                android:lineHeight="18dp"
-                android:textColor="#94A3B8" />
         </LinearLayout>
 
         <Button
@@ -281,7 +232,7 @@
             android:textStyle="bold"
             android:textSize="15sp"
             android:backgroundTint="#38BDF8"
-            android:textColor="#050810"
+            android:textColor="#04070F"
             android:layout_marginBottom="24dp" />
 
     </LinearLayout>

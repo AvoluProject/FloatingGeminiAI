@@ -1,21 +1,8 @@
 import os
 
 # ==============================================================================
-# SKRIP PEMBANGKIT PROYEK ANDROID: FLOAMINI v4.0 (iOS 26 LIQUID GLASS EDITION)
-# ==============================================================================
-# Fitur Utama:
-# 1. Dynamic Island Mode (iOS Style): Pil hitam elegan di bagian atas layar,
-#    tap untuk expand dengan fluid spring animation, tap di luar jendela atau
-#    tombol X untuk menutup kembali ke Dynamic Island.
-# 2. Kustomisasi Overlay Lengkap: Pilih Dynamic Island, Xiaomi Edge Pill, atau
-#    Classic Bubble; atur lebar pil, posisi vertikal/horizontal kamera, & transparansi.
-# 3. Tema iOS 26 Liquid Glass: Lapisan kaca berlapis specular highlight, efek
-#    background blur real-time (Android 12+), dan pengaturan ala iOS Settings.
-# 4. Halaman First Welcome + Panduan & Tes Token: Langkah mendapatkan API Key,
-#    tautan langsung Google AI Studio, tes koneksi token, hint, & ketentuan.
-# 5. Direct In-Place Update: Keystore permanen + auto-increment versionCode di
-#    GitHub Actions agar update berikutnya langsung menimpa APK tanpa uninstall.
-# 6. Persistent Multi-Turn Session + Live Screen Share + Menu Plus (+) + Force Stop.
+# SKRIP PEMBANGKIT PROYEK ANDROID: FLOAMINI v5.0
+# (GENUINE LIQUID GLASS + CUSTOM PILL + SIRI CONTROL CENTER MODE + SMART FREEZE)
 # ==============================================================================
 
 PROJECT_FILES = {
@@ -68,7 +55,7 @@ jobs:
       - name: Upload Floamini APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Floamini-v4.0-update-ready
+          name: Floamini-v5.0-update-ready
           path: app/build/outputs/apk/debug/app-debug.apk
 """,
 
@@ -106,7 +93,7 @@ android.nonTransitiveRClass=true
 """,
 
     # --------------------------------------------------------------------------
-    # 3. KONFIGURASI GRADLE MODULE (:app) - DIRECT UPDATE READY
+    # 3. KONFIGURASI GRADLE MODULE (:app) - SPRING PHYSICS + IN-PLACE UPDATE
     # --------------------------------------------------------------------------
     "app/build.gradle.kts": r"""plugins {
     id("com.android.application")
@@ -114,8 +101,8 @@ android.nonTransitiveRClass=true
 }
 
 val ciRunNumber = System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull() ?: 0
-val appVersionCode = 5 + ciRunNumber
-val appVersionName = "4.0.$ciRunNumber"
+val appVersionCode = 6 + ciRunNumber
+val appVersionName = "5.0.$ciRunNumber"
 
 android {
     namespace = "com.example.floatinggeminiai"
@@ -174,13 +161,14 @@ dependencies {
     implementation("androidx.appcompat:appcompat:1.6.1")
     implementation("com.google.android.material:material:1.11.0")
     implementation("androidx.constraintlayout:constraintlayout:2.1.4")
+    implementation("androidx.dynamicanimation:dynamicanimation:1.0.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
 }
 """,
 
     # --------------------------------------------------------------------------
-    # 4. ANDROID MANIFEST
+    # 4. ANDROID MANIFEST (OVERLAY + CONTROL CENTER TILE + SIRI TRIGGER)
     # --------------------------------------------------------------------------
     "app/src/main/AndroidManifest.xml": r"""<?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
@@ -213,9 +201,26 @@ dependencies {
             android:exported="false" />
 
         <activity
+            android:name=".SiriTriggerActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+
+        <activity
             android:name=".ScreenCapturePermissionActivity"
             android:exported="false"
             android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+
+        <service
+            android:name=".FloaminiTileService"
+            android:exported="true"
+            android:icon="@drawable/ic_sparkle"
+            android:label="Floamini AI"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
 
         <service
             android:name=".FloatingAssistantService"
@@ -224,7 +229,7 @@ dependencies {
             android:foregroundServiceType="specialUse|mediaProjection">
             <property
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
-                android:value="Floamini Dynamic Island AI Assistant" />
+                android:value="Floamini Liquid Glass AI Assistant" />
         </service>
 
     </application>
@@ -232,14 +237,14 @@ dependencies {
 """,
 
     # --------------------------------------------------------------------------
-    # 5. LAYOUT FIRST WELCOME SCREEN (iOS 26 LIQUID GLASS ONBOARDING)
+    # 5. LAYOUT FIRST WELCOME SCREEN
     # --------------------------------------------------------------------------
     "app/src/main/res/layout/activity_welcome.xml": r"""<?xml version="1.0" encoding="utf-8"?>
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#050810"
+    android:background="#04070F"
     android:fillViewport="true">
 
     <LinearLayout
@@ -248,7 +253,6 @@ dependencies {
         android:orientation="vertical"
         android:padding="20dp">
 
-        <!-- HERO WELCOME HEADER -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -257,13 +261,13 @@ dependencies {
             android:paddingVertical="18dp">
 
             <FrameLayout
-                android:layout_width="68dp"
-                android:layout_height="68dp"
+                android:layout_width="72dp"
+                android:layout_height="72dp"
                 android:background="@drawable/bg_dynamic_island">
 
                 <ImageView
-                    android:layout_width="32dp"
-                    android:layout_height="32dp"
+                    android:layout_width="34dp"
+                    android:layout_height="34dp"
                     android:layout_gravity="center"
                     android:src="@drawable/ic_sparkle"
                     app:tint="#38BDF8" />
@@ -276,7 +280,7 @@ dependencies {
                 android:paddingHorizontal="12dp"
                 android:paddingVertical="4dp"
                 android:background="@drawable/bg_badge_pill"
-                android:text="FLOAMINI v4.0 • iOS 26 LIQUID GLASS"
+                android:text="FLOAMINI • LIQUID GLASS &amp; SIRI MODE"
                 android:textSize="10sp"
                 android:textStyle="bold"
                 android:textColor="#38BDF8" />
@@ -295,14 +299,14 @@ dependencies {
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="6dp"
-                android:text="Asisten AI melayang bergaya Dynamic Island dengan kaca transparan Liquid Glass, memori sesi permanen, dan kemampuan melihat layar secara langsung."
+                android:text="Asisten AI melayang bergaya iOS 26 Liquid Glass dengan kustomisasi Dynamic Island, Mode Siri dari Control Center, serta Auto Smart Freeze hemat baterai."
                 android:textSize="13sp"
                 android:lineHeight="19dp"
                 android:textColor="#94A3B8"
                 android:gravity="center" />
         </LinearLayout>
 
-        <!-- KARTU 1: PANDUAN & LINK MENDAPATKAN GEMINI API KEY -->
+        <!-- KARTU 1: PANDUAN & LINK GEMINI API KEY -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -344,7 +348,7 @@ dependencies {
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="12dp"
-                android:text="1. Ketuk tombol Buka Google AI Studio di bawah ini.\n2. Masuk menggunakan akun Google Anda.\n3. Pilih tombol Create API Key lalu salin kode yang diawali huruf AIzaSy...\n4. Tempelkan API Key pada kolom di bawah dan tekan Tes Token."
+                android:text="1. Ketuk tombol Buka Google AI Studio di bawah ini.\n2. Masuk menggunakan akun Google Anda.\n3. Pilih Create API Key lalu salin kode yang diawali AIzaSy...\n4. Tempelkan API Key pada kolom di bawah dan tekan Tes Token."
                 android:textSize="12.5sp"
                 android:lineHeight="19dp"
                 android:textColor="#CBD5E1" />
@@ -413,7 +417,7 @@ dependencies {
             </LinearLayout>
         </LinearLayout>
 
-        <!-- KARTU 2: HINT & TIPS PENGGUNAAN FLOAMINI -->
+        <!-- KARTU 2: HINT & FITUR BARU -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -445,7 +449,7 @@ dependencies {
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginStart="10dp"
-                    android:text="Hint &amp; Panduan Fitur Utama"
+                    android:text="Hint &amp; Mode Interaksi Floamini"
                     android:textSize="16sp"
                     android:textStyle="bold"
                     android:textColor="#F8FAFC" />
@@ -455,58 +459,10 @@ dependencies {
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="12dp"
-                android:text="• Dynamic Island Interaktif: Ketuk pil hitam di atas layar untuk membuka jendela chat Liquid Glass. Ketuk area luar jendela atau tombol X untuk menutupnya kembali ke pil atas.\n\n• Selaraskan Kamera Depan: Gunakan slider Posisi Vertikal &amp; Horizontal di Pengaturan agar posisi Dynamic Island pas menyatu dengan kamera punch-hole HP Anda.\n\n• Live Screen Share: Ketuk ikon layar di bilah atas jendela chat agar Floamini bisa melihat dan menjawab soal, chat, atau artikel di layar secara real-time.\n\n• Memori Sesi Berkelanjutan: Sekali sesi berjalan, Floamini terus mengingat konteks obrolan meski jendela ditutup. Tekan tombol + lalu Reset jika ingin memulai topik baru.\n\n• Update Langsung Tanpa Uninstall: Setiap versi terbaru Floamini dapat langsung diinstal menimpa aplikasi lama tanpa menghapus data dan token Anda."
+                android:text="• Mode Siri (Control Center): Saat dipilih, layar bersih tanpa ikon melayang apa pun. Tarik panel Control Center / Quick Settings HP Anda dan ketuk tombol Floamini AI untuk memunculkan aura cahaya pinggir layar khas Siri iOS!\n\n• Pil Dynamic Island Polos &amp; Auto-Hide: Anda bisa memilih tampilan pil polos hitam pekat yang menyatu dengan kamera depan, serta mengaktifkan Auto-Hide agar pil menghilang otomatis saat diam.\n\n• Auto Smart Freeze: Saat layar mati atau idle, Floamini otomatis membekukan animasi dan membebaskan memori agar baterai tetap irit."
                 android:textSize="12.5sp"
                 android:lineHeight="18.5dp"
                 android:textColor="#CBD5E1" />
-        </LinearLayout>
-
-        <!-- KARTU 3: KETENTUAN PENGGUNAAN & PRIVASI -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:background="@drawable/bg_liquid_glass_card"
-            android:padding="18dp"
-            android:layout_marginBottom="20dp">
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:gravity="center_vertical">
-
-                <FrameLayout
-                    android:layout_width="32dp"
-                    android:layout_height="32dp"
-                    android:background="@drawable/bg_ios_icon_green">
-
-                    <ImageView
-                        android:layout_width="17dp"
-                        android:layout_height="17dp"
-                        android:layout_gravity="center"
-                        android:src="@drawable/ic_info_shield"
-                        app:tint="#FFFFFF" />
-                </FrameLayout>
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="10dp"
-                    android:text="Ketentuan &amp; Keamanan Privasi"
-                    android:textSize="16sp"
-                    android:textStyle="bold"
-                    android:textColor="#F8FAFC" />
-            </LinearLayout>
-
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
-                android:text="1. Penyimpanan 100% Lokal: API Key dan riwayat percakapan hanya disimpan di penyimpanan privat perangkat Anda dan tidak pernah dikirim ke server pihak ketiga selain Google Gemini API.\n2. Izin Overlay &amp; Layar: Tangkapan layar hanya diambil ketika Anda menyalakan fitur Live Screen Share secara manual.\n3. Kuota API: Gunakan API Key pribadi sesuai ketentuan layanan gratis maupun berbayar dari Google AI Studio."
-                android:textSize="12sp"
-                android:lineHeight="18dp"
-                android:textColor="#94A3B8" />
         </LinearLayout>
 
         <Button
@@ -517,7 +473,7 @@ dependencies {
             android:textStyle="bold"
             android:textSize="15sp"
             android:backgroundTint="#38BDF8"
-            android:textColor="#050810"
+            android:textColor="#04070F"
             android:layout_marginBottom="24dp" />
 
     </LinearLayout>
@@ -525,14 +481,14 @@ dependencies {
 """,
 
     # --------------------------------------------------------------------------
-    # 6. LAYOUT HALAMAN UTAMA (iOS 26 SETTINGS & CONTROL CENTER)
+    # 6. LAYOUT HALAMAN UTAMA (iOS 26 SETTINGS + SIRI CONTROL CENTER + FREEZE)
     # --------------------------------------------------------------------------
     "app/src/main/res/layout/activity_main.xml": r"""<?xml version="1.0" encoding="utf-8"?>
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#050810"
+    android:background="#04070F"
     android:fillViewport="true">
 
     <LinearLayout
@@ -541,7 +497,7 @@ dependencies {
         android:orientation="vertical"
         android:padding="18dp">
 
-        <!-- iOS LARGE TITLE NAVIGATION HEADER -->
+        <!-- iOS LARGE TITLE HEADER -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -582,7 +538,7 @@ dependencies {
                     android:id="@+id/tvAppVersionInfo"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="iOS 26 Liquid Glass • Dynamic Island AI"
+                    android:text="Liquid Glass • Siri Aura • Smart Freeze"
                     android:textSize="11.5sp"
                     android:textColor="#94A3B8" />
             </LinearLayout>
@@ -598,11 +554,11 @@ dependencies {
                 style="@style/Widget.Material3.Button.OutlinedButton" />
         </LinearLayout>
 
-        <!-- SECTION 1: KONTROL LAYANAN & SESI AKTIF -->
+        <!-- SECTION 1: KONTROL LAYANAN & CONTROL CENTER SHORTCUT -->
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="KONTROL FLOAMINI"
+            android:text="KONTROL &amp; SHORTCUT CONTROL CENTER"
             android:textSize="11sp"
             android:textStyle="bold"
             android:letterSpacing="0.06"
@@ -622,14 +578,30 @@ dependencies {
                 android:id="@+id/btnStartOverlay"
                 android:layout_width="match_parent"
                 android:layout_height="52dp"
-                android:text="Aktifkan Dynamic Island AI"
+                android:text="Aktifkan Floamini Assistant"
                 android:textStyle="bold"
                 android:textSize="14sp"
                 app:icon="@drawable/ic_dynamic_island"
                 app:iconGravity="textStart"
-                app:iconTint="#050810"
+                app:iconTint="#04070F"
                 android:backgroundTint="#38BDF8"
-                android:textColor="#050810" />
+                android:textColor="#04070F" />
+
+            <!-- Tombol Tambah Shortcut ke Control Center (Quick Settings) -->
+            <Button
+                android:id="@+id/btnAddControlCenterTile"
+                android:layout_width="match_parent"
+                android:layout_height="46dp"
+                android:layout_marginTop="10dp"
+                android:text="Tambah Tombol ke Control Center"
+                android:textSize="12.5sp"
+                android:textStyle="bold"
+                app:icon="@drawable/ic_siri_orb"
+                app:iconSize="18dp"
+                app:iconGravity="textStart"
+                app:iconTint="#C084FC"
+                android:backgroundTint="#1E1B4B"
+                android:textColor="#E9D5FF" />
 
             <LinearLayout
                 android:layout_width="match_parent"
@@ -697,11 +669,11 @@ dependencies {
             </LinearLayout>
         </LinearLayout>
 
-        <!-- SECTION 2: KUSTOMISASI DYNAMIC ISLAND & LIQUID GLASS (iOS STYLE) -->
+        <!-- SECTION 2: MODE TAMPILAN & KUSTOMISASI PIL DYNAMIC ISLAND -->
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="DYNAMIC ISLAND &amp; LIQUID GLASS"
+            android:text="MODE TAMPILAN &amp; KUSTOMISASI PIL"
             android:textSize="11sp"
             android:textStyle="bold"
             android:letterSpacing="0.06"
@@ -717,69 +689,52 @@ dependencies {
             android:padding="16dp"
             android:layout_marginBottom="18dp">
 
-            <LinearLayout
-                android:layout_width="match_parent"
+            <TextView
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:gravity="center_vertical"
-                android:layout_marginBottom="10dp">
-
-                <FrameLayout
-                    android:layout_width="28dp"
-                    android:layout_height="28dp"
-                    android:background="@drawable/bg_ios_icon_blue">
-
-                    <ImageView
-                        android:layout_width="16dp"
-                        android:layout_height="16dp"
-                        android:layout_gravity="center"
-                        android:src="@drawable/ic_dynamic_island"
-                        app:tint="#FFFFFF" />
-                </FrameLayout>
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="10dp"
-                    android:text="Gaya Tampilan Overlay"
-                    android:textSize="14sp"
-                    android:textStyle="bold"
-                    android:textColor="#F8FAFC" />
-            </LinearLayout>
+                android:text="Pilih Mode Pemicu Layar"
+                android:textSize="13.5sp"
+                android:textStyle="bold"
+                android:textColor="#F8FAFC" />
 
             <RadioGroup
                 android:id="@+id/rgOverlayStyle"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:layout_marginBottom="10dp">
+                android:orientation="vertical"
+                android:layout_marginTop="6dp">
 
                 <RadioButton
                     android:id="@+id/rbStyleDynamicIsland"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1.2"
-                    android:text="Dynamic Island"
-                    android:textSize="12sp"
+                    android:layout_width="match_parent"
+                    android:layout_height="36dp"
+                    android:text="Dynamic Island (Pil Melayang di Atas Layar)"
+                    android:textSize="12.5sp"
                     android:textColor="#F8FAFC"
                     android:checked="true" />
 
                 <RadioButton
+                    android:id="@+id/rbStyleSiriMode"
+                    android:layout_width="match_parent"
+                    android:layout_height="36dp"
+                    android:text="Mode Siri (Tersembunyi Total, Panggil via Control Center)"
+                    android:textSize="12.5sp"
+                    android:textColor="#E9D5FF" />
+
+                <RadioButton
                     android:id="@+id/rbStyleXiaomiEdge"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="Xiaomi Edge"
-                    android:textSize="12sp"
+                    android:layout_width="match_parent"
+                    android:layout_height="36dp"
+                    android:text="Xiaomi Edge Pill (Garis Tipis di Tepi Layar)"
+                    android:textSize="12.5sp"
                     android:textColor="#F8FAFC" />
 
                 <RadioButton
                     android:id="@+id/rbStyleClassicBubble"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="0.9"
-                    android:text="Bubble"
-                    android:textSize="12sp"
+                    android:layout_width="match_parent"
+                    android:layout_height="36dp"
+                    android:text="Classic Bubble (Gelembung Melayang Bebas)"
+                    android:textSize="12.5sp"
                     android:textColor="#F8FAFC" />
             </RadioGroup>
 
@@ -787,35 +742,100 @@ dependencies {
                 android:layout_width="match_parent"
                 android:layout_height="1dp"
                 android:background="#1E293B"
-                android:layout_marginVertical="8dp" />
+                android:layout_marginVertical="10dp" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Gaya Visual Pil Dynamic Island"
+                android:textSize="13sp"
+                android:textStyle="bold"
+                android:textColor="#F8FAFC" />
+
+            <RadioGroup
+                android:id="@+id/rgPillAppearance"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginTop="4dp">
+
+                <RadioButton
+                    android:id="@+id/rbPillStandard"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Lengkap"
+                    android:textSize="12sp"
+                    android:textColor="#E2E8F0"
+                    android:checked="true" />
+
+                <RadioButton
+                    android:id="@+id/rbPillPolos"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Polos (Hitam)"
+                    android:textSize="12sp"
+                    android:textColor="#E2E8F0" />
+
+                <RadioButton
+                    android:id="@+id/rbPillMinimal"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Ikon Saja"
+                    android:textSize="12sp"
+                    android:textColor="#E2E8F0" />
+            </RadioGroup>
+
+            <com.google.android.material.switchmaterial.SwitchMaterial
+                android:id="@+id/swAutoHidePill"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:text="Auto-Hide Pil (Menghilang Halus Setelah 3 Detik Diam)"
+                android:textColor="#E2E8F0"
+                android:textSize="12.5sp"
+                android:checked="false" />
+
+            <com.google.android.material.switchmaterial.SwitchMaterial
+                android:id="@+id/swSmartFreeze"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:text="Auto Smart Freeze (Hemat RAM &amp; Daya Saat Layar Mati/Idle)"
+                android:textColor="#34D399"
+                android:textSize="12.5sp"
+                android:checked="true" />
 
             <com.google.android.material.switchmaterial.SwitchMaterial
                 android:id="@+id/swTapOutsideClose"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Ketuk di Luar Jendela untuk Menutup (iOS Gesture)"
+                android:layout_marginTop="2dp"
+                android:text="Ketuk di Luar Jendela untuk Menutup"
                 android:textColor="#E2E8F0"
-                android:textSize="13sp"
+                android:textSize="12.5sp"
                 android:checked="true" />
 
             <com.google.android.material.switchmaterial.SwitchMaterial
                 android:id="@+id/swLiquidBlur"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"
-                android:text="Efek Refraksi &amp; Blur Kaca Liquid Glass"
+                android:layout_marginTop="2dp"
+                android:text="Liquid Glass Real Blur &amp; Specular Refraction"
                 android:textColor="#E2E8F0"
-                android:textSize="13sp"
+                android:textSize="12.5sp"
                 android:checked="true" />
 
             <com.google.android.material.switchmaterial.SwitchMaterial
                 android:id="@+id/swHapticFeedback"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"
+                android:layout_marginTop="2dp"
                 android:text="Getaran Taktil iOS (Haptic Engine)"
                 android:textColor="#E2E8F0"
-                android:textSize="13sp"
+                android:textSize="12.5sp"
                 android:checked="true" />
 
             <View
@@ -828,7 +848,7 @@ dependencies {
                 android:id="@+id/tvIslandWidthLabel"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Lebar Pil Dynamic Island: 168dp"
+                android:text="Lebar Pil Dynamic Island: 164dp"
                 android:textSize="12sp"
                 android:textColor="#CBD5E1" />
 
@@ -836,8 +856,8 @@ dependencies {
                 android:id="@+id/sbIslandWidth"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:max="120"
-                android:progress="48"
+                android:max="130"
+                android:progress="54"
                 android:layout_marginBottom="10dp" />
 
             <TextView
@@ -876,7 +896,7 @@ dependencies {
                 android:id="@+id/tvOpacityLabel"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Transparansi Liquid Glass: 82%"
+                android:text="Transparansi Liquid Glass: 80%"
                 android:textSize="12sp"
                 android:textColor="#CBD5E1" />
 
@@ -885,10 +905,10 @@ dependencies {
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:max="55"
-                android:progress="37" />
+                android:progress="35" />
         </LinearLayout>
 
-        <!-- SECTION 3: GEMINI API KEY & KECERDASAN AI -->
+        <!-- SECTION 3: GEMINI API KEY & KARAKTER AI -->
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -915,24 +935,10 @@ dependencies {
                 android:gravity="center_vertical"
                 android:layout_marginBottom="10dp">
 
-                <FrameLayout
-                    android:layout_width="28dp"
-                    android:layout_height="28dp"
-                    android:background="@drawable/bg_ios_icon_orange">
-
-                    <ImageView
-                        android:layout_width="16dp"
-                        android:layout_height="16dp"
-                        android:layout_gravity="center"
-                        android:src="@drawable/ic_key"
-                        app:tint="#FFFFFF" />
-                </FrameLayout>
-
                 <TextView
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:layout_marginStart="10dp"
                     android:text="Gemini API Token"
                     android:textSize="14sp"
                     android:textStyle="bold"
@@ -1080,7 +1086,7 @@ dependencies {
 """,
 
     # --------------------------------------------------------------------------
-    # 7. LAYOUT OVERLAY: DYNAMIC ISLAND + XIAOMI EDGE + LIQUID GLASS WINDOW
+    # 7. LAYOUT OVERLAY: DYNAMIC ISLAND (CUSTOM POLOS/LENGKAP) + LIQUID GLASS
     # --------------------------------------------------------------------------
     "app/src/main/res/layout/layout_floating_assistant.xml": r"""<?xml version="1.0" encoding="utf-8"?>
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
@@ -1088,10 +1094,10 @@ dependencies {
     android:layout_width="wrap_content"
     android:layout_height="wrap_content">
 
-    <!-- 1A. DYNAMIC ISLAND PILL (PIL HITAM PANJANG DI BAGIAN ATAS LAYAR) -->
+    <!-- 1A. DYNAMIC ISLAND PILL (MENDUKUNG MODE LENGKAP, POLOS, & IKON SAJA) -->
     <LinearLayout
         android:id="@+id/dynamicIslandView"
-        android:layout_width="168dp"
+        android:layout_width="164dp"
         android:layout_height="34dp"
         android:orientation="horizontal"
         android:gravity="center_vertical"
@@ -1142,7 +1148,7 @@ dependencies {
             app:tint="#38BDF8" />
     </FrameLayout>
 
-    <!-- 1C. XIAOMI EDGE PILL (GARIS SETENGAH LINGKARAN DI PINGGIR LAYAR) -->
+    <!-- 1C. XIAOMI EDGE PILL -->
     <FrameLayout
         android:id="@+id/xiaomiEdgeView"
         android:layout_width="18dp"
@@ -1158,27 +1164,27 @@ dependencies {
             android:background="@drawable/bg_xiaomi_inner_line" />
     </FrameLayout>
 
-    <!-- 2. JENDELA CHAT iOS 26 LIQUID GLASS (EXPANDED DARI DYNAMIC ISLAND) -->
+    <!-- 2. JENDELA CHAT GENUINE LIQUID GLASS -->
     <LinearLayout
         android:id="@+id/popupChatView"
-        android:layout_width="344dp"
-        android:layout_height="475dp"
+        android:layout_width="346dp"
+        android:layout_height="478dp"
         android:orientation="vertical"
         android:background="@drawable/bg_liquid_glass_window"
-        android:elevation="20dp"
+        android:elevation="22dp"
         android:visibility="gone">
 
-        <!-- LIQUID GLASS TOP HEADER BAR -->
+        <!-- LIQUID GLASS SPECULAR TOP HEADER BAR -->
         <LinearLayout
             android:id="@+id/glassTitleBar"
             android:layout_width="match_parent"
-            android:layout_height="44dp"
+            android:layout_height="46dp"
             android:orientation="horizontal"
             android:gravity="center_vertical"
             android:paddingHorizontal="12dp"
             android:background="@drawable/bg_liquid_glass_header">
 
-            <!-- Tombol X untuk Close kembali ke Dynamic Island / Bubble -->
+            <!-- Tombol X untuk Close -->
             <ImageView
                 android:id="@+id/btnCloseWindowX"
                 android:layout_width="28dp"
@@ -1187,7 +1193,7 @@ dependencies {
                 android:background="@drawable/bg_close_x_btn"
                 android:src="@drawable/ic_close_x"
                 app:tint="#F8FAFC"
-                android:contentDescription="Tutup ke Dynamic Island" />
+                android:contentDescription="Tutup" />
 
             <LinearLayout
                 android:layout_width="0dp"
@@ -1208,7 +1214,7 @@ dependencies {
                     android:layout_height="wrap_content"
                     android:layout_marginStart="6dp"
                     android:text="Floamini"
-                    android:textSize="13sp"
+                    android:textSize="13.5sp"
                     android:textStyle="bold"
                     android:textColor="#F8FAFC" />
 
@@ -1268,11 +1274,10 @@ dependencies {
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:background="#EB131B2E"
+            android:background="#EB111827"
             android:padding="10dp"
             android:visibility="gone">
 
-            <!-- Baris 1: Token, Gaya AI, Model AI -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -1356,7 +1361,6 @@ dependencies {
                 </LinearLayout>
             </LinearLayout>
 
-            <!-- Baris 2: Salin, Export, Reset, & Quick Force Stop -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -1465,7 +1469,6 @@ dependencies {
                 </LinearLayout>
             </LinearLayout>
 
-            <!-- Baris 3: Smart Quick Prompt Chips -->
             <HorizontalScrollView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -1526,7 +1529,6 @@ dependencies {
                 </LinearLayout>
             </HorizontalScrollView>
 
-            <!-- Input Token Gemini di dalam Drawer -->
             <LinearLayout
                 android:id="@+id/tokenInputRow"
                 android:layout_width="match_parent"
@@ -1578,7 +1580,7 @@ dependencies {
                 android:orientation="vertical" />
         </ScrollView>
 
-        <!-- INDIKATOR MENGETIK (TYPING STATUS) -->
+        <!-- INDIKATOR MENGETIK -->
         <LinearLayout
             android:id="@+id/typingIndicatorRow"
             android:layout_width="match_parent"
@@ -1604,7 +1606,7 @@ dependencies {
                 android:textColor="#7DD3FC" />
         </LinearLayout>
 
-        <!-- INPUT PESAN, TOMBOL KIRIM, & CORNER RESIZE HANDLE -->
+        <!-- INPUT PESAN, TOMBOL KIRIM, & RESIZE HANDLE -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -1655,11 +1657,10 @@ dependencies {
 """,
 
     # --------------------------------------------------------------------------
-    # 8. DRAWABLES: iOS 26 LIQUID GLASS, DYNAMIC ISLAND, & CUSTOM SVG VECTORS
+    # 8. DRAWABLES: GENUINE LIQUID GLASS, POLOS PILL, & CUSTOM SVG VECTORS
     # --------------------------------------------------------------------------
     "app/src/main/res/drawable/bg_dynamic_island.xml": r"""<?xml version="1.0" encoding="utf-8"?>
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-    <!-- Specular Outer Liquid Glass Rim -->
     <item>
         <shape android:shape="rectangle">
             <gradient
@@ -1670,18 +1671,25 @@ dependencies {
             <corners android:radius="100dp" />
         </shape>
     </item>
-    <!-- Pure Obsidian Dynamic Island Core -->
     <item
         android:left="1dp"
         android:top="1dp"
         android:right="1dp"
         android:bottom="1dp">
         <shape android:shape="rectangle">
-            <solid android:color="#F7030508" />
+            <solid android:color="#FA020305" />
             <corners android:radius="100dp" />
         </shape>
     </item>
 </layer-list>
+""",
+
+    "app/src/main/res/drawable/bg_dynamic_island_polos.xml": r"""<?xml version="1.0" encoding="utf-8"?>
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="#FF000000" />
+    <corners android:radius="100dp" />
+</shape>
 """,
 
     "app/src/main/res/drawable/bg_island_pulse_dot.xml": r"""<?xml version="1.0" encoding="utf-8"?>
@@ -1693,18 +1701,16 @@ dependencies {
 
     "app/src/main/res/drawable/bg_liquid_glass_card.xml": r"""<?xml version="1.0" encoding="utf-8"?>
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-    <!-- Lapisan Pantulan Cahaya Kaca (Specular Border) -->
     <item>
         <shape android:shape="rectangle">
             <gradient
                 android:angle="135"
-                android:startColor="#40FFFFFF"
-                android:centerColor="#1A38BDF8"
-                android:endColor="#1AFFFFFF" />
+                android:startColor="#59FFFFFF"
+                android:centerColor="#2638BDF8"
+                android:endColor="#26E879F9" />
             <corners android:radius="22dp" />
         </shape>
     </item>
-    <!-- Lapisan Inti Kaca Gelap Translucent -->
     <item
         android:left="1dp"
         android:top="1dp"
@@ -1713,8 +1719,8 @@ dependencies {
         <shape android:shape="rectangle">
             <gradient
                 android:angle="270"
-                android:startColor="#E6141C2E"
-                android:endColor="#E60B101D" />
+                android:startColor="#E6141D30"
+                android:endColor="#E60A0F1C" />
             <corners android:radius="21dp" />
         </shape>
     </item>
@@ -1723,30 +1729,30 @@ dependencies {
 
     "app/src/main/res/drawable/bg_liquid_glass_window.xml": r"""<?xml version="1.0" encoding="utf-8"?>
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-    <!-- Refraksi Tepi Liquid Glass -->
+    <!-- Lapisan 1: Refraksi Prisma Tepi Liquid Glass -->
     <item>
         <shape android:shape="rectangle">
             <gradient
                 android:angle="135"
-                android:startColor="#73FFFFFF"
-                android:centerColor="#407DD3FC"
-                android:endColor="#33FFFFFF" />
-            <corners android:radius="26dp" />
+                android:startColor="#A6FFFFFF"
+                android:centerColor="#597DD3FC"
+                android:endColor="#4DC084FC" />
+            <corners android:radius="28dp" />
         </shape>
     </item>
-    <!-- Permukaan Kaca Transparan Bergradasi -->
+    <!-- Lapisan 2: Inti Kaca Transparan Bergradasi dengan Pantulan Internal -->
     <item
-        android:left="1.2dp"
-        android:top="1.2dp"
-        android:right="1.2dp"
-        android:bottom="1.2dp">
+        android:left="1.4dp"
+        android:top="1.4dp"
+        android:right="1.4dp"
+        android:bottom="1.4dp">
         <shape android:shape="rectangle">
             <gradient
                 android:angle="270"
-                android:startColor="#D9151F34"
-                android:centerColor="#CC0D1424"
-                android:endColor="#D9090E1A" />
-            <corners android:radius="25dp" />
+                android:startColor="#CC18233A"
+                android:centerColor="#B80E1628"
+                android:endColor="#CC0A101E" />
+            <corners android:radius="26.5dp" />
         </shape>
     </item>
 </layer-list>
@@ -1758,24 +1764,24 @@ dependencies {
         <shape android:shape="rectangle">
             <gradient
                 android:angle="135"
-                android:startColor="#CC38BDF8"
-                android:centerColor="#80818CF8"
-                android:endColor="#CC38BDF8" />
-            <corners android:radius="26dp" />
+                android:startColor="#E638BDF8"
+                android:centerColor="#99818CF8"
+                android:endColor="#E6E879F9" />
+            <corners android:radius="28dp" />
         </shape>
     </item>
     <item
-        android:left="1.6dp"
-        android:top="1.6dp"
-        android:right="1.6dp"
-        android:bottom="1.6dp">
+        android:left="1.8dp"
+        android:top="1.8dp"
+        android:right="1.8dp"
+        android:bottom="1.8dp">
         <shape android:shape="rectangle">
             <gradient
                 android:angle="270"
-                android:startColor="#D9151F34"
-                android:centerColor="#CC0D1424"
-                android:endColor="#D9090E1A" />
-            <corners android:radius="24.5dp" />
+                android:startColor="#CC18233A"
+                android:centerColor="#B80E1628"
+                android:endColor="#CC0A101E" />
+            <corners android:radius="26dp" />
         </shape>
     </item>
 </layer-list>
@@ -1786,17 +1792,17 @@ dependencies {
     android:shape="rectangle">
     <gradient
         android:angle="270"
-        android:startColor="#40FFFFFF"
-        android:endColor="#12FFFFFF" />
-    <corners android:topLeftRadius="25dp" android:topRightRadius="25dp" />
+        android:startColor="#52FFFFFF"
+        android:endColor="#14FFFFFF" />
+    <corners android:topLeftRadius="26.5dp" android:topRightRadius="26.5dp" />
 </shape>
 """,
 
     "app/src/main/res/drawable/bg_close_x_btn.xml": r"""<?xml version="1.0" encoding="utf-8"?>
 <shape xmlns:android="http://schemas.android.com/apk/res/android"
     android:shape="oval">
-    <solid android:color="#26FFFFFF" />
-    <stroke android:width="0.8dp" android:color="#40FFFFFF" />
+    <solid android:color="#2EFFFFFF" />
+    <stroke android:width="0.8dp" android:color="#4DFFFFFF" />
 </shape>
 """,
 
@@ -1810,20 +1816,6 @@ dependencies {
     "app/src/main/res/drawable/bg_ios_icon_purple.xml": r"""<?xml version="1.0" encoding="utf-8"?>
 <shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
     <solid android:color="#7C3AED" />
-    <corners android:radius="8dp" />
-</shape>
-""",
-
-    "app/src/main/res/drawable/bg_ios_icon_green.xml": r"""<?xml version="1.0" encoding="utf-8"?>
-<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
-    <solid android:color="#059669" />
-    <corners android:radius="8dp" />
-</shape>
-""",
-
-    "app/src/main/res/drawable/bg_ios_icon_orange.xml": r"""<?xml version="1.0" encoding="utf-8"?>
-<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
-    <solid android:color="#D97706" />
     <corners android:radius="8dp" />
 </shape>
 """,
@@ -1873,15 +1865,15 @@ dependencies {
     "app/src/main/res/drawable/bg_plus_btn.xml": r"""<?xml version="1.0" encoding="utf-8"?>
 <shape xmlns:android="http://schemas.android.com/apk/res/android"
     android:shape="oval">
-    <solid android:color="#2E38BDF8" />
-    <stroke android:width="0.8dp" android:color="#4D7DD3FC" />
+    <solid android:color="#3338BDF8" />
+    <stroke android:width="0.8dp" android:color="#597DD3FC" />
 </shape>
 """,
 
     "app/src/main/res/drawable/bg_badge_pill.xml": r"""<?xml version="1.0" encoding="utf-8"?>
 <shape xmlns:android="http://schemas.android.com/apk/res/android"
     android:shape="rectangle">
-    <solid android:color="#2638BDF8" />
+    <solid android:color="#2E38BDF8" />
     <corners android:radius="10dp" />
 </shape>
 """,
@@ -1916,9 +1908,9 @@ dependencies {
     "app/src/main/res/drawable/bg_input_glass.xml": r"""<?xml version="1.0" encoding="utf-8"?>
 <shape xmlns:android="http://schemas.android.com/apk/res/android"
     android:shape="rectangle">
-    <solid android:color="#801E293B" />
+    <solid android:color="#8C1E293B" />
     <corners android:radius="16dp" />
-    <stroke android:width="1dp" android:color="#40FFFFFF" />
+    <stroke android:width="1dp" android:color="#4DFFFFFF" />
 </shape>
 """,
 
@@ -1926,7 +1918,7 @@ dependencies {
 <shape xmlns:android="http://schemas.android.com/apk/res/android"
     android:shape="oval">
     <solid android:color="#0284C7" />
-    <stroke android:width="0.8dp" android:color="#66FFFFFF" />
+    <stroke android:width="0.8dp" android:color="#73FFFFFF" />
 </shape>
 """,
 
@@ -1938,16 +1930,16 @@ dependencies {
         android:startColor="#E60284C7"
         android:endColor="#E62563EB" />
     <corners android:topLeftRadius="16dp" android:topRightRadius="16dp" android:bottomLeftRadius="16dp" android:bottomRightRadius="4dp" />
-    <stroke android:width="0.8dp" android:color="#4DFFFFFF" />
+    <stroke android:width="0.8dp" android:color="#59FFFFFF" />
 </shape>
 """,
 
     "app/src/main/res/drawable/bg_chat_bot.xml": r"""<?xml version="1.0" encoding="utf-8"?>
 <shape xmlns:android="http://schemas.android.com/apk/res/android"
     android:shape="rectangle">
-    <solid android:color="#CC1A2438" />
+    <solid android:color="#D91A2438" />
     <corners android:topLeftRadius="16dp" android:topRightRadius="16dp" android:bottomRightRadius="16dp" android:bottomLeftRadius="4dp" />
-    <stroke android:width="0.8dp" android:color="#33FFFFFF" />
+    <stroke android:width="0.8dp" android:color="#3BFFFFFF" />
 </shape>
 """,
 
@@ -1960,6 +1952,18 @@ dependencies {
     <path
         android:fillColor="#FFFFFF"
         android:pathData="M12,2L14.4,9.6L22,12L14.4,14.4L12,22L9.6,14.4L2,12L9.6,9.6L12,2Z" />
+</vector>
+""",
+
+    "app/src/main/res/drawable/ic_siri_orb.xml": r"""<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M12,2C6.48,2 2,6.48 2,12C2,17.52 6.48,22 12,22C17.52,22 22,17.52 22,12C22,6.48 17.52,2 12,2ZM12,18C8.69,18 6,15.31 6,12C6,8.69 8.69,6 12,6C15.31,6 18,8.69 18,12C18,15.31 15.31,18 12,18ZM12,8.5C10.07,8.5 8.5,10.07 8.5,12C8.5,13.93 10.07,15.5 12,15.5C13.93,15.5 15.5,13.93 15.5,12C15.5,10.07 13.93,8.5 12,8.5Z" />
 </vector>
 """,
 
@@ -1984,18 +1988,6 @@ dependencies {
     <path
         android:fillColor="#FFFFFF"
         android:pathData="M6,8H18C20.21,8 22,9.79 22,12C22,14.21 20.21,16 18,16H6C3.79,16 2,14.21 2,12C2,9.79 3.79,8 6,8ZM17.5,10.5C16.67,10.5 16,11.17 16,12C16,12.83 16.67,13.5 17.5,13.5C18.33,13.5 19,12.83 19,12C19,11.17 18.33,10.5 17.5,10.5Z" />
-</vector>
-""",
-
-    "app/src/main/res/drawable/ic_info_shield.xml": r"""<?xml version="1.0" encoding="utf-8"?>
-<vector xmlns:android="http://schemas.android.com/apk/res/android"
-    android:width="24dp"
-    android:height="24dp"
-    android:viewportWidth="24"
-    android:viewportHeight="24">
-    <path
-        android:fillColor="#FFFFFF"
-        android:pathData="M12,1L3,5V11C3,16.55 6.84,21.74 12,23C17.16,21.74 21,16.55 21,11V5L12,1ZM11,7H13V9H11V7ZM11,11H13V17H11V11Z" />
 </vector>
 """,
 
@@ -2144,7 +2136,202 @@ dependencies {
 """,
 
     # --------------------------------------------------------------------------
-    # 9. KODE KOTLIN: WELCOME ACTIVITY (FIRST WELCOME + API KEY GUIDE & TESTER)
+    # 9. CUSTOM VIEW: APPLE INTELLIGENCE / iOS SIRI EDGE GLOW AURA
+    # --------------------------------------------------------------------------
+    "app/src/main/java/com/example/floatinggeminiai/SiriEdgeGlowView.kt": r"""package com.example.floatinggeminiai
+
+import android.animation.ValueAnimator
+import android.content.Context
+import android.graphics.BlurMaskFilter
+import android.graphics.Canvas
+import android.graphics.Color
+import android.graphics.Matrix
+import android.graphics.Paint
+import android.graphics.RectF
+import android.graphics.SweepGradient
+import android.util.AttributeSet
+import android.view.View
+import android.view.animation.LinearInterpolator
+
+class SiriEdgeGlowView @JvmOverloads constructor(
+    context: Context,
+    attrs: AttributeSet? = null
+) : View(context, attrs) {
+
+    private val gradientColors = intArrayOf(
+        Color.parseColor("#38BDF8"),
+        Color.parseColor("#818CF8"),
+        Color.parseColor("#E879F9"),
+        Color.parseColor("#F472B6"),
+        Color.parseColor("#22D3EE"),
+        Color.parseColor("#38BDF8")
+    )
+
+    private val glowPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.STROKE
+        strokeWidth = 28f * resources.displayMetrics.density
+        maskFilter = BlurMaskFilter(24f * resources.displayMetrics.density, BlurMaskFilter.Blur.NORMAL)
+    }
+
+    private val coreRimPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.STROKE
+        strokeWidth = 4.5f * resources.displayMetrics.density
+    }
+
+    private var sweepGradient: SweepGradient? = null
+    private val shaderMatrix = Matrix()
+    private val screenRect = RectF()
+    private var currentAngle = 0f
+    private var pulseScale = 1f
+    private var rotationAnimator: ValueAnimator? = null
+
+    init {
+        setLayerType(LAYER_TYPE_SOFTWARE, null)
+    }
+
+    override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
+        super.onSizeChanged(w, h, oldw, oldh)
+        if (w > 0 && h > 0) {
+            sweepGradient = SweepGradient(w / 2f, h / 2f, gradientColors, null)
+            glowPaint.shader = sweepGradient
+            coreRimPaint.shader = sweepGradient
+            val inset = 4f * resources.displayMetrics.density
+            screenRect.set(inset, inset, w - inset, h - inset)
+        }
+    }
+
+    override fun onDraw(canvas: Canvas) {
+        super.onDraw(canvas)
+        val gradient = sweepGradient ?: return
+        shaderMatrix.setRotate(currentAngle, width / 2f, height / 2f)
+        gradient.setLocalMatrix(shaderMatrix)
+
+        val baseStroke = 24f * resources.displayMetrics.density
+        glowPaint.strokeWidth = baseStroke * pulseScale
+
+        val cornerRadius = 38f * resources.displayMetrics.density
+        canvas.drawRoundRect(screenRect, cornerRadius, cornerRadius, glowPaint)
+        canvas.drawRoundRect(screenRect, cornerRadius, cornerRadius, coreRimPaint)
+    }
+
+    fun startSiriAnimation() {
+        if (rotationAnimator?.isRunning == true) return
+        rotationAnimator = ValueAnimator.ofFloat(0f, 360f).apply {
+            duration = 2800L
+            repeatCount = ValueAnimator.INFINITE
+            interpolator = LinearInterpolator()
+            addUpdateListener { anim ->
+                currentAngle = anim.animatedValue as Float
+                val rad = Math.toRadians(currentAngle.toDouble() * 2.0)
+                pulseScale = 0.88f + (0.24f * ((Math.sin(rad).toFloat() + 1f) / 2f))
+                invalidate()
+            }
+            start()
+        }
+    }
+
+    fun stopAndFreezeAnimation() {
+        rotationAnimator?.cancel()
+        rotationAnimator = null
+    }
+
+    override fun onDetachedFromWindow() {
+        stopAndFreezeAnimation()
+        super.onDetachedFromWindow()
+    }
+}
+""",
+
+    # --------------------------------------------------------------------------
+    # 10. CONTROL CENTER TILE SERVICE & SIRI TRIGGER ACTIVITY
+    # --------------------------------------------------------------------------
+    "app/src/main/java/com/example/floatinggeminiai/FloaminiTileService.kt": r"""package com.example.floatinggeminiai
+
+import android.app.PendingIntent
+import android.content.Intent
+import android.os.Build
+import android.service.quicksettings.Tile
+import android.service.quicksettings.TileService
+
+class FloaminiTileService : TileService() {
+
+    override fun onStartListening() {
+        super.onStartListening()
+        qsTile?.apply {
+            state = Tile.STATE_ACTIVE
+            label = "Floamini AI"
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                subtitle = "Panggil Siri"
+            }
+            updateTile()
+        }
+    }
+
+    override fun onClick() {
+        super.onClick()
+        val triggerIntent = Intent(this, SiriTriggerActivity::class.java).apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+        }
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            val pendingIntent = PendingIntent.getActivity(
+                this,
+                2026,
+                triggerIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+            startActivityAndCollapse(pendingIntent)
+        } else {
+            @Suppress("DEPRECATION")
+            startActivityAndCollapse(triggerIntent)
+        }
+    }
+}
+""",
+
+    "app/src/main/java/com/example/floatinggeminiai/SiriTriggerActivity.kt": r"""package com.example.floatinggeminiai
+
+import android.app.Activity
+import android.content.Intent
+import android.net.Uri
+import android.os.Build
+import android.os.Bundle
+import android.provider.Settings
+import android.widget.Toast
+
+class SiriTriggerActivity : Activity() {
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+
+        if (!Settings.canDrawOverlays(this)) {
+            Toast.makeText(this, "Izinkan Floamini tampil di atas layar dulu", Toast.LENGTH_LONG).show()
+            val permIntent = Intent(
+                Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                Uri.parse("package:$packageName")
+            ).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            startActivity(permIntent)
+            finish()
+            return
+        }
+
+        val serviceIntent = Intent(this, FloatingAssistantService::class.java).apply {
+            action = FloatingAssistantService.ACTION_TRIGGER_SIRI
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            startForegroundService(serviceIntent)
+        } else {
+            startService(serviceIntent)
+        }
+        finish()
+    }
+}
+""",
+
+    # --------------------------------------------------------------------------
+    # 11. WELCOME ACTIVITY
     # --------------------------------------------------------------------------
     "app/src/main/java/com/example/floatinggeminiai/WelcomeActivity.kt": r"""package com.example.floatinggeminiai
 
@@ -2197,10 +2384,9 @@ class WelcomeActivity : AppCompatActivity() {
 
         btnOpenAiStudio.setOnClickListener {
             try {
-                val browserIntent = Intent(Intent.ACTION_VIEW, Uri.parse("https://aistudio.google.com/apikey"))
-                startActivity(browserIntent)
-            } catch (e: Exception) {
-                Toast.makeText(this, "Buka browser dan kunjungi aistudio.google.com/apikey", Toast.LENGTH_LONG).show()
+                startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://aistudio.google.com/apikey")))
+            } catch (_: Exception) {
+                Toast.makeText(this, "Kunjungi aistudio.google.com/apikey di browser", Toast.LENGTH_LONG).show()
             }
         }
 
@@ -2265,12 +2451,15 @@ class WelcomeActivity : AppCompatActivity() {
 """,
 
     # --------------------------------------------------------------------------
-    # 10. KODE KOTLIN: MAIN ACTIVITY (iOS 26 SETTINGS & CONTROL CENTER)
+    # 12. MAIN ACTIVITY (iOS 26 SETTINGS + CONTROL CENTER TILE REQUESTER)
     # --------------------------------------------------------------------------
     "app/src/main/java/com/example/floatinggeminiai/MainActivity.kt": r"""package com.example.floatinggeminiai
 
+import android.app.StatusBarManager
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.graphics.drawable.Icon
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -2306,6 +2495,7 @@ class MainActivity : AppCompatActivity() {
         val tvAppVersionInfo = findViewById<TextView>(R.id.tvAppVersionInfo)
         val btnOpenWelcomeGuide = findViewById<Button>(R.id.btnOpenWelcomeGuide)
         val btnStartOverlay = findViewById<Button>(R.id.btnStartOverlay)
+        val btnAddControlCenterTile = findViewById<Button>(R.id.btnAddControlCenterTile)
         val btnStopOverlay = findViewById<Button>(R.id.btnStopOverlay)
         val btnQuickForceStopMain = findViewById<Button>(R.id.btnQuickForceStopMain)
         tvSessionStatusMain = findViewById(R.id.tvSessionStatusMain)
@@ -2313,9 +2503,17 @@ class MainActivity : AppCompatActivity() {
 
         val rgOverlayStyle = findViewById<RadioGroup>(R.id.rgOverlayStyle)
         val rbStyleDynamicIsland = findViewById<RadioButton>(R.id.rbStyleDynamicIsland)
+        val rbStyleSiriMode = findViewById<RadioButton>(R.id.rbStyleSiriMode)
         val rbStyleXiaomiEdge = findViewById<RadioButton>(R.id.rbStyleXiaomiEdge)
         val rbStyleClassicBubble = findViewById<RadioButton>(R.id.rbStyleClassicBubble)
 
+        val rgPillAppearance = findViewById<RadioGroup>(R.id.rgPillAppearance)
+        val rbPillStandard = findViewById<RadioButton>(R.id.rbPillStandard)
+        val rbPillPolos = findViewById<RadioButton>(R.id.rbPillPolos)
+        val rbPillMinimal = findViewById<RadioButton>(R.id.rbPillMinimal)
+
+        val swAutoHidePill = findViewById<SwitchMaterial>(R.id.swAutoHidePill)
+        val swSmartFreeze = findViewById<SwitchMaterial>(R.id.swSmartFreeze)
         val swTapOutsideClose = findViewById<SwitchMaterial>(R.id.swTapOutsideClose)
         val swLiquidBlur = findViewById<SwitchMaterial>(R.id.swLiquidBlur)
         val swHapticFeedback = findViewById<SwitchMaterial>(R.id.swHapticFeedback)
@@ -2345,24 +2543,33 @@ class MainActivity : AppCompatActivity() {
 
         try {
             val pInfo = packageManager.getPackageInfo(packageName, 0)
-            tvAppVersionInfo.text = "v${pInfo.versionName} • iOS 26 Liquid Glass & Dynamic Island"
+            tvAppVersionInfo.text = "v${pInfo.versionName} • Liquid Glass & Siri Mode"
         } catch (_: Exception) {}
 
         etApiKey.setText(prefs.getString("api_key", ""))
         updateSessionStatsLabel()
 
         when (prefs.getString("overlay_style", "dynamic_island")) {
+            "siri_mode" -> rbStyleSiriMode.isChecked = true
             "xiaomi_edge" -> rbStyleXiaomiEdge.isChecked = true
             "classic_bubble" -> rbStyleClassicBubble.isChecked = true
             else -> rbStyleDynamicIsland.isChecked = true
         }
 
+        when (prefs.getString("pill_appearance", "standard")) {
+            "polos" -> rbPillPolos.isChecked = true
+            "minimal" -> rbPillMinimal.isChecked = true
+            else -> rbPillStandard.isChecked = true
+        }
+
+        swAutoHidePill.isChecked = prefs.getBoolean("auto_hide_pill", false)
+        swSmartFreeze.isChecked = prefs.getBoolean("smart_freeze", true)
         swTapOutsideClose.isChecked = prefs.getBoolean("tap_outside_close", true)
         swLiquidBlur.isChecked = prefs.getBoolean("liquid_blur", true)
         swHapticFeedback.isChecked = prefs.getBoolean("haptic_feedback", true)
 
-        val savedIslandW = prefs.getInt("island_width_dp", 168)
-        sbIslandWidth.progress = (savedIslandW - 120).coerceIn(0, 120)
+        val savedIslandW = prefs.getInt("island_width_dp", 164)
+        sbIslandWidth.progress = (savedIslandW - 110).coerceIn(0, 130)
         tvIslandWidthLabel.text = "Lebar Pil Dynamic Island: ${savedIslandW}dp"
 
         val savedIslandY = prefs.getInt("island_pos_y_dp", 12)
@@ -2373,7 +2580,7 @@ class MainActivity : AppCompatActivity() {
         sbIslandOffsetX.progress = (savedIslandX + 80).coerceIn(0, 160)
         tvIslandOffsetXLabel.text = "Geser Horizontal Kamera (X): ${savedIslandX}dp"
 
-        val savedOpacity = prefs.getInt("popup_opacity", 82)
+        val savedOpacity = prefs.getInt("popup_opacity", 80)
         sbOpacity.progress = (savedOpacity - 45).coerceIn(0, 55)
         tvOpacityLabel.text = "Transparansi Liquid Glass: ${savedOpacity}%"
 
@@ -2392,7 +2599,7 @@ class MainActivity : AppCompatActivity() {
 
         sbIslandWidth.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
-                tvIslandWidthLabel.text = "Lebar Pil Dynamic Island: ${progress + 120}dp"
+                tvIslandWidthLabel.text = "Lebar Pil Dynamic Island: ${progress + 110}dp"
             }
             override fun onStartTrackingTouch(seekBar: SeekBar?) {}
             override fun onStopTrackingTouch(seekBar: SeekBar?) {}
@@ -2424,9 +2631,15 @@ class MainActivity : AppCompatActivity() {
 
         fun saveAllPreferences() {
             val style = when (rgOverlayStyle.checkedRadioButtonId) {
+                R.id.rbStyleSiriMode -> "siri_mode"
                 R.id.rbStyleXiaomiEdge -> "xiaomi_edge"
                 R.id.rbStyleClassicBubble -> "classic_bubble"
                 else -> "dynamic_island"
+            }
+            val pillApp = when (rgPillAppearance.checkedRadioButtonId) {
+                R.id.rbPillPolos -> "polos"
+                R.id.rbPillMinimal -> "minimal"
+                else -> "standard"
             }
             val persona = when (rgPersona.checkedRadioButtonId) {
                 R.id.rbRingkas -> "ringkas"
@@ -2442,10 +2655,13 @@ class MainActivity : AppCompatActivity() {
             prefs.edit()
                 .putString("api_key", etApiKey.text.toString().trim())
                 .putString("overlay_style", style)
+                .putString("pill_appearance", pillApp)
+                .putBoolean("auto_hide_pill", swAutoHidePill.isChecked)
+                .putBoolean("smart_freeze", swSmartFreeze.isChecked)
                 .putBoolean("tap_outside_close", swTapOutsideClose.isChecked)
                 .putBoolean("liquid_blur", swLiquidBlur.isChecked)
                 .putBoolean("haptic_feedback", swHapticFeedback.isChecked)
-                .putInt("island_width_dp", sbIslandWidth.progress + 120)
+                .putInt("island_width_dp", sbIslandWidth.progress + 110)
                 .putInt("island_pos_y_dp", sbIslandPosY.progress)
                 .putInt("island_offset_x_dp", sbIslandOffsetX.progress - 80)
                 .putInt("popup_opacity", sbOpacity.progress + 45)
@@ -2463,11 +2679,37 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        btnOpenWelcomeGuide.setOnClickListener {
-            val welcomeIntent = Intent(this, WelcomeActivity::class.java).apply {
-                putExtra("from_settings", true)
+        btnAddControlCenterTile.setOnClickListener {
+            saveAllPreferences()
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                val statusBarManager = getSystemService(StatusBarManager::class.java)
+                statusBarManager.requestAddTileService(
+                    ComponentName(this, FloaminiTileService::class.java),
+                    "Floamini AI",
+                    Icon.createWithResource(this, R.drawable.ic_sparkle),
+                    mainExecutor
+                ) { resultCode ->
+                    runOnUiThread {
+                        if (resultCode == StatusBarManager.TILE_ADD_REQUEST_RESULT_TILE_ADDED ||
+                            resultCode == StatusBarManager.TILE_ADD_REQUEST_RESULT_TILE_ALREADY_ADDED
+                        ) {
+                            Toast.makeText(this, "Tombol Floamini AI siap di Control Center!", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                }
+            } else {
+                Toast.makeText(
+                    this,
+                    "Tarik panel Control Center / Quick Settings dari atas layar, tekan Edit, lalu seret tombol Floamini AI!",
+                    Toast.LENGTH_LONG
+                ).show()
             }
-            startActivity(welcomeIntent)
+        }
+
+        btnOpenWelcomeGuide.setOnClickListener {
+            startActivity(Intent(this, WelcomeActivity::class.java).apply {
+                putExtra("from_settings", true)
+            })
         }
 
         tvGetKeyShortcut.setOnClickListener {
@@ -2499,11 +2741,10 @@ class MainActivity : AppCompatActivity() {
             saveAllPreferences()
             if (!Settings.canDrawOverlays(this)) {
                 Toast.makeText(this, "Izinkan Floamini tampil di atas aplikasi lain", Toast.LENGTH_LONG).show()
-                val intent = Intent(
+                startActivity(Intent(
                     Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
                     Uri.parse("package:$packageName")
-                )
-                startActivity(intent)
+                ))
                 return@setOnClickListener
             }
 
@@ -2513,7 +2754,12 @@ class MainActivity : AppCompatActivity() {
             } else {
                 startService(serviceIntent)
             }
-            Toast.makeText(this, "Floamini aktif di layar", Toast.LENGTH_SHORT).show()
+            val modeText = if (rbStyleSiriMode.isChecked) {
+                "Mode Siri aktif! Panggil lewat tombol Floamini AI di Control Center."
+            } else {
+                "Floamini aktif di layar!"
+            }
+            Toast.makeText(this, modeText, Toast.LENGTH_SHORT).show()
         }
 
         btnStopOverlay.setOnClickListener {
@@ -2552,7 +2798,7 @@ class MainActivity : AppCompatActivity() {
 """,
 
     # --------------------------------------------------------------------------
-    # 11. ACTIVITY IZIN LIVE SCREEN SHARE (MEDIA PROJECTION)
+    # 13. SCREEN CAPTURE PERMISSION ACTIVITY
     # --------------------------------------------------------------------------
     "app/src/main/java/com/example/floatinggeminiai/ScreenCapturePermissionActivity.kt": r"""package com.example.floatinggeminiai
 
@@ -2589,7 +2835,7 @@ class ScreenCapturePermissionActivity : Activity() {
 """,
 
     # --------------------------------------------------------------------------
-    # 12. FLOATING ASSISTANT SERVICE (FLOAMINI: DYNAMIC ISLAND + LIQUID GLASS)
+    # 14. FLOATING ASSISTANT SERVICE (LIQUID GLASS + SIRI AURA + SMART FREEZE)
     # --------------------------------------------------------------------------
     "app/src/main/java/com/example/floatinggeminiai/FloatingAssistantService.kt": r"""package com.example.floatinggeminiai
 
@@ -2599,10 +2845,12 @@ import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.Service
+import android.content.BroadcastReceiver
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.ServiceInfo
 import android.graphics.Bitmap
 import android.graphics.Color
@@ -2629,7 +2877,6 @@ import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
 import android.view.animation.DecelerateInterpolator
-import android.view.animation.OvershootInterpolator
 import android.widget.Button
 import android.widget.EditText
 import android.widget.FrameLayout
@@ -2640,6 +2887,9 @@ import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.core.app.NotificationCompat
+import androidx.dynamicanimation.animation.DynamicAnimation
+import androidx.dynamicanimation.animation.SpringAnimation
+import androidx.dynamicanimation.animation.SpringForce
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -2665,17 +2915,25 @@ class FloatingAssistantService : Service() {
         const val ACTION_SCREEN_CAPTURE_RESULT = "ACTION_SCREEN_CAPTURE_RESULT"
         const val ACTION_RELOAD_SETTINGS = "ACTION_RELOAD_SETTINGS"
         const val ACTION_RESET_SESSION = "ACTION_RESET_SESSION"
+        const val ACTION_TRIGGER_SIRI = "ACTION_TRIGGER_SIRI"
         private const val KEY_SESSION_HISTORY = "session_history_json"
     }
 
     private lateinit var windowManager: WindowManager
     private lateinit var floatingView: View
     private lateinit var params: WindowManager.LayoutParams
+    private var isFloatingViewAttached = false
+
+    // Overlay khusus Siri Edge Glow Aura (Full Screen Non-Touchable Border)
+    private var siriGlowView: SiriEdgeGlowView? = null
+    private var isSiriAuraActive = false
+
     private val serviceJob = Job()
     private val serviceScope = CoroutineScope(Dispatchers.Main + serviceJob)
 
-    // Komponen UI Utama
+    // Komponen UI
     private lateinit var dynamicIslandView: LinearLayout
+    private lateinit var ivIslandSparkle: ImageView
     private lateinit var tvIslandLabel: TextView
     private lateinit var viewIslandPulseDot: View
     private lateinit var bubbleView: FrameLayout
@@ -2690,31 +2948,36 @@ class FloatingAssistantService : Service() {
     private lateinit var scrollChat: ScrollView
     private lateinit var chatContainer: LinearLayout
 
-    // State Posisi & Mode Overlay
-    private val edgeHandler = Handler(Looper.getMainLooper())
+    // Handler & Smart Freeze State
+    private val mainHandler = Handler(Looper.getMainLooper())
     private var snappedToRightEdge = false
     private var fullScreenWidth = 1080
     private var fullScreenHeight = 2400
+    private var isPillAutoHidden = false
+    private var isSmartFrozen = false
 
     // Pengaturan Dinamis
     private var prefOverlayStyle = "dynamic_island"
+    private var prefPillAppearance = "standard"
+    private var prefAutoHidePill = false
+    private var prefSmartFreeze = true
     private var prefTapOutsideClose = true
     private var prefLiquidBlur = true
     private var prefHapticFeedback = true
-    private var prefIslandWidthPx = 450
+    private var prefIslandWidthPx = 440
     private var prefIslandPosYPx = 32
     private var prefIslandOffsetXPx = 0
-    private var prefPopupAlpha = 0.86f
+    private var prefPopupAlpha = 0.84f
     private var prefBubbleSizePx = 148
     private var prefPersona = "asik"
     private var prefModel = "gemini-3-flash-preview"
 
-    // Data Model Pesan Sesi
+    // Data Sesi
     data class SessionMessage(val role: String, val text: String, val timestamp: String)
     private val chatHistory = mutableListOf<SessionMessage>()
     private var lastBotReply = ""
 
-    // MediaProjection untuk Live Screen Share
+    // Live Screen Share
     private var mediaProjection: MediaProjection? = null
     private var virtualDisplay: VirtualDisplay? = null
     private var imageReader: ImageReader? = null
@@ -2728,9 +2991,54 @@ class FloatingAssistantService : Service() {
         .readTimeout(35, TimeUnit.SECONDS)
         .build()
 
+    // Runnables untuk Auto-Hide, Xiaomi Edge, dan Auto Smart Freeze
+    private val autoHidePillRunnable = Runnable {
+        if (prefOverlayStyle == "dynamic_island" &&
+            prefAutoHidePill &&
+            dynamicIslandView.visibility == View.VISIBLE &&
+            popupChatView.visibility != View.VISIBLE
+        ) {
+            isPillAutoHidden = true
+            dynamicIslandView.animate()
+                .alpha(0.02f)
+                .scaleX(0.45f)
+                .scaleY(0.45f)
+                .setDuration(420)
+                .start()
+        }
+    }
+
     private val transformToXiaomiEdgeRunnable = Runnable {
         if (prefOverlayStyle == "xiaomi_edge" && bubbleView.visibility == View.VISIBLE) {
             enterXiaomiEdgeMode()
+        }
+    }
+
+    private val smartFreezeRunnable = Runnable {
+        if (prefSmartFreeze && popupChatView.visibility != View.VISIBLE) {
+            enterSmartFreezeState()
+        }
+    }
+
+    // Screen Off / Screen On Receiver untuk Auto Smart Freeze Instan
+    private val screenStateReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            when (intent?.action) {
+                Intent.ACTION_SCREEN_OFF -> {
+                    if (prefSmartFreeze) {
+                        if (popupChatView.visibility == View.VISIBLE) {
+                            popupChatView.visibility = View.GONE
+                        }
+                        dismissSiriAura()
+                        enterSmartFreezeState()
+                    }
+                }
+                Intent.ACTION_SCREEN_ON -> {
+                    if (isSmartFrozen && prefOverlayStyle != "siri_mode") {
+                        wakeFromSmartFreeze()
+                    }
+                }
+            }
         }
     }
 
@@ -2742,6 +3050,12 @@ class FloatingAssistantService : Service() {
         setupScreenMetrics()
         loadUserPreferences()
         setupFloatingOverlay()
+
+        val filter = IntentFilter().apply {
+            addAction(Intent.ACTION_SCREEN_OFF)
+            addAction(Intent.ACTION_SCREEN_ON)
+        }
+        registerReceiver(screenStateReceiver, filter)
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -2763,6 +3077,7 @@ class FloatingAssistantService : Service() {
             }
             ACTION_RELOAD_SETTINGS -> {
                 loadUserPreferences()
+                wakeFromSmartFreeze()
                 applyVisualPreferences()
                 if (popupChatView.visibility != View.VISIBLE) {
                     showCollapsedTriggerState()
@@ -2773,8 +3088,114 @@ class FloatingAssistantService : Service() {
                     resetConversationSession()
                 }
             }
+            ACTION_TRIGGER_SIRI -> {
+                triggerHaptic()
+                wakeFromSmartFreeze()
+                summonSiriExperience()
+            }
         }
         return START_STICKY
+    }
+
+    // ==========================================================================
+    // AUTO SMART FREEZE ENGINE (HEMAT MEMORI & DAYA SAAT IDLE / LAYAR MATI)
+    // ==========================================================================
+    private fun scheduleSmartFreeze() {
+        mainHandler.removeCallbacks(smartFreezeRunnable)
+        if (prefSmartFreeze) {
+            mainHandler.postDelayed(smartFreezeRunnable, 18_000L)
+        }
+    }
+
+    private fun enterSmartFreezeState() {
+        if (isSmartFrozen) return
+        isSmartFrozen = true
+        mainHandler.removeCallbacks(autoHidePillRunnable)
+        mainHandler.removeCallbacks(transformToXiaomiEdgeRunnable)
+
+        dynamicIslandView.animate().cancel()
+        bubbleView.animate().cancel()
+        xiaomiEdgeView.animate().cancel()
+        siriGlowView?.stopAndFreezeAnimation()
+
+        // Jika Mode Siri aktif, lepas view dari WindowManager agar 0% GPU/RAM saat idle
+        if (prefOverlayStyle == "siri_mode" && isFloatingViewAttached) {
+            try {
+                windowManager.removeViewImmediate(floatingView)
+                isFloatingViewAttached = false
+            } catch (_: Exception) {}
+        }
+
+        // Bersihkan buffer memori sementara saat idle
+        System.gc()
+    }
+
+    private fun wakeFromSmartFreeze() {
+        mainHandler.removeCallbacks(smartFreezeRunnable)
+        if (!isFloatingViewAttached && ::floatingView.isInitialized) {
+            try {
+                windowManager.addView(floatingView, params)
+                isFloatingViewAttached = true
+            } catch (_: Exception) {}
+        }
+        isSmartFrozen = false
+    }
+
+    // ==========================================================================
+    // SIRI EDGE GLOW AURA (DIPANGGIL DARI CONTROL CENTER SHORTCUT)
+    // ==========================================================================
+    private fun summonSiriExperience() {
+        showSiriAura()
+        openPopupChat(fromSiri = true)
+    }
+
+    private fun showSiriAura() {
+        if (isSiriAuraActive) return
+        isSiriAuraActive = true
+
+        val layoutFlag = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
+        } else {
+            @Suppress("DEPRECATION")
+            WindowManager.LayoutParams.TYPE_PHONE
+        }
+
+        val auraParams = WindowManager.LayoutParams(
+            WindowManager.LayoutParams.MATCH_PARENT,
+            WindowManager.LayoutParams.MATCH_PARENT,
+            layoutFlag,
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                    WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
+                    WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
+                    WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
+            PixelFormat.TRANSLUCENT
+        )
+
+        val glowView = SiriEdgeGlowView(this).apply {
+            alpha = 0f
+        }
+        siriGlowView = glowView
+        try {
+            windowManager.addView(glowView, auraParams)
+            glowView.startSiriAnimation()
+            glowView.animate().alpha(1f).setDuration(360).start()
+        } catch (_: Exception) {}
+    }
+
+    private fun dismissSiriAura() {
+        val glowView = siriGlowView ?: return
+        isSiriAuraActive = false
+        siriGlowView = null
+        glowView.animate()
+            .alpha(0f)
+            .setDuration(260)
+            .withEndAction {
+                glowView.stopAndFreezeAnimation()
+                try {
+                    windowManager.removeViewImmediate(glowView)
+                } catch (_: Exception) {}
+            }
+            .start()
     }
 
     private fun triggerHaptic() {
@@ -2804,13 +3225,16 @@ class FloatingAssistantService : Service() {
         val prefs = getSharedPreferences("gemini_prefs", Context.MODE_PRIVATE)
         val density = resources.displayMetrics.density
         prefOverlayStyle = prefs.getString("overlay_style", "dynamic_island") ?: "dynamic_island"
+        prefPillAppearance = prefs.getString("pill_appearance", "standard") ?: "standard"
+        prefAutoHidePill = prefs.getBoolean("auto_hide_pill", false)
+        prefSmartFreeze = prefs.getBoolean("smart_freeze", true)
         prefTapOutsideClose = prefs.getBoolean("tap_outside_close", true)
         prefLiquidBlur = prefs.getBoolean("liquid_blur", true)
         prefHapticFeedback = prefs.getBoolean("haptic_feedback", true)
-        prefIslandWidthPx = (prefs.getInt("island_width_dp", 168) * density).toInt()
+        prefIslandWidthPx = (prefs.getInt("island_width_dp", 164) * density).toInt()
         prefIslandPosYPx = (prefs.getInt("island_pos_y_dp", 12) * density).toInt()
         prefIslandOffsetXPx = (prefs.getInt("island_offset_x_dp", 0) * density).toInt()
-        prefPopupAlpha = (prefs.getInt("popup_opacity", 82) / 100f).coerceIn(0.45f, 1.0f)
+        prefPopupAlpha = (prefs.getInt("popup_opacity", 80) / 100f).coerceIn(0.45f, 1.0f)
         prefBubbleSizePx = (54 * density).toInt()
         prefPersona = prefs.getString("ai_persona", "asik") ?: "asik"
         prefModel = prefs.getString("ai_model", "gemini-3-flash-preview") ?: "gemini-3-flash-preview"
@@ -2821,6 +3245,27 @@ class FloatingAssistantService : Service() {
             val lp = dynamicIslandView.layoutParams
             lp.width = prefIslandWidthPx
             dynamicIslandView.layoutParams = lp
+
+            when (prefPillAppearance) {
+                "polos" -> {
+                    dynamicIslandView.setBackgroundResource(R.drawable.bg_dynamic_island_polos)
+                    ivIslandSparkle.visibility = View.GONE
+                    tvIslandLabel.visibility = View.GONE
+                    viewIslandPulseDot.visibility = View.GONE
+                }
+                "minimal" -> {
+                    dynamicIslandView.setBackgroundResource(R.drawable.bg_dynamic_island)
+                    ivIslandSparkle.visibility = View.VISIBLE
+                    tvIslandLabel.visibility = View.GONE
+                    viewIslandPulseDot.visibility = View.VISIBLE
+                }
+                else -> {
+                    dynamicIslandView.setBackgroundResource(R.drawable.bg_dynamic_island)
+                    ivIslandSparkle.visibility = View.VISIBLE
+                    tvIslandLabel.visibility = View.VISIBLE
+                    viewIslandPulseDot.visibility = View.VISIBLE
+                }
+            }
         }
         if (::popupChatView.isInitialized) {
             popupChatView.alpha = prefPopupAlpha
@@ -2850,7 +3295,7 @@ class FloatingAssistantService : Service() {
     }
 
     // ==========================================================================
-    // MEMORI SESI PERMANEN (ANTI-LUPA KONTEKS OBROLAN)
+    // MEMORI SESI PERMANEN
     // ==========================================================================
     private fun saveSessionHistory() {
         try {
@@ -2894,7 +3339,7 @@ class FloatingAssistantService : Service() {
 
         updateSessionCounterBadge()
         if (chatHistory.isEmpty()) {
-            val greeting = "Hai! Floamini sudah siap di Dynamic Island kamu. Sesi obrolan ini terus berjalan dan aku bakal ingat semua yang kita bahas!"
+            val greeting = "Hai! Floamini sudah siap menemani kamu. Obrolan di sesi ini terus tersimpan dan nyambung!"
             lastBotReply = greeting
             addChatMessage(greeting, currentTimeLabel(), isUser = false)
         }
@@ -2906,13 +3351,13 @@ class FloatingAssistantService : Service() {
         prefs.edit().remove(KEY_SESSION_HISTORY).apply()
         chatContainer.removeAllViews()
         updateSessionCounterBadge()
-        val resetMsg = "Sesi obrolan Floamini sudah di-reset bersih. Yuk mulai bahasan baru!"
+        val resetMsg = "Sesi obrolan Floamini sudah di-reset bersih. Yuk mulai topik baru!"
         lastBotReply = resetMsg
         addChatMessage(resetMsg, currentTimeLabel(), isUser = false)
     }
 
     private fun startForegroundNotification(withMediaProjection: Boolean) {
-        val channelId = "floamini_dynamic_island_channel"
+        val channelId = "floamini_liquid_glass_channel"
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
                 channelId,
@@ -2925,7 +3370,7 @@ class FloatingAssistantService : Service() {
 
         val notification: Notification = NotificationCompat.Builder(this, channelId)
             .setContentTitle("Floamini")
-            .setContentText(if (withMediaProjection) "Live Screen Vision aktif" else "Dynamic Island AI siap digunakan")
+            .setContentText(if (withMediaProjection) "Live Screen Vision aktif" else "Liquid Glass & Smart Freeze aktif")
             .setSmallIcon(android.R.drawable.ic_dialog_info)
             .build()
 
@@ -2977,8 +3422,10 @@ class FloatingAssistantService : Service() {
         }
 
         windowManager.addView(floatingView, params)
+        isFloatingViewAttached = true
 
         dynamicIslandView = floatingView.findViewById(R.id.dynamicIslandView)
+        ivIslandSparkle = floatingView.findViewById(R.id.ivIslandSparkle)
         tvIslandLabel = floatingView.findViewById(R.id.tvIslandLabel)
         viewIslandPulseDot = floatingView.findViewById(R.id.viewIslandPulseDot)
         bubbleView = floatingView.findViewById(R.id.bubbleView)
@@ -3025,9 +3472,7 @@ class FloatingAssistantService : Service() {
         restoreSessionHistory()
         showCollapsedTriggerState()
 
-        // ----------------------------------------------------------------------
-        // TAP DI LUAR JENDELA UNTUK MENUTUP KEMBALI KE DYNAMIC ISLAND / BUBBLE
-        // ----------------------------------------------------------------------
+        // Ketuk di luar jendela untuk menutup
         floatingView.setOnTouchListener { _, event ->
             if (event.action == MotionEvent.ACTION_OUTSIDE &&
                 popupChatView.visibility == View.VISIBLE &&
@@ -3059,6 +3504,7 @@ class FloatingAssistantService : Service() {
                 btnPlusMenu.animate().rotation(0f).setDuration(220).start()
             }
 
+            wakeFromSmartFreeze()
             triggerHaptic()
             val userTime = currentTimeLabel()
             addChatMessage(prompt, userTime, isUser = true)
@@ -3092,7 +3538,7 @@ class FloatingAssistantService : Service() {
         }
 
         // ----------------------------------------------------------------------
-        // 1. INTERAKSI DYNAMIC ISLAND (TAP UNTUK EXPAND + GESER HALUS)
+        // 1. INTERAKSI DYNAMIC ISLAND (SPRING PHYSICS + AUTO-HIDE REVEAL)
         // ----------------------------------------------------------------------
         dynamicIslandView.setOnTouchListener(object : View.OnTouchListener {
             private var initialX = 0
@@ -3103,30 +3549,40 @@ class FloatingAssistantService : Service() {
             override fun onTouch(v: View, event: MotionEvent): Boolean {
                 when (event.action) {
                     MotionEvent.ACTION_DOWN -> {
+                        wakeFromSmartFreeze()
+                        mainHandler.removeCallbacks(autoHidePillRunnable)
                         initialX = params.x
                         initialY = params.y
                         initialTouchX = event.rawX
                         initialTouchY = event.rawY
-                        dynamicIslandView.animate().scaleX(1.06f).scaleY(1.06f).setDuration(140).start()
+                        animateSpringScale(dynamicIslandView, 1.07f)
                         return true
                     }
                     MotionEvent.ACTION_MOVE -> {
                         val dx = (event.rawX - initialTouchX).toInt()
                         val dy = (event.rawY - initialTouchY).toInt()
                         if (abs(dx) > 12 || abs(dy) > 12) {
-                            params.x = (initialX + dx).coerceIn(16, (fullScreenWidth - prefIslandWidthPx - 16).coerceAtLeast(16))
+                            params.x = (initialX + dx).coerceIn(12, (fullScreenWidth - prefIslandWidthPx - 12).coerceAtLeast(12))
                             params.y = (initialY + dy).coerceIn(0, fullScreenHeight / 2)
                             windowManager.updateViewLayout(floatingView, params)
                         }
                         return true
                     }
                     MotionEvent.ACTION_UP -> {
-                        dynamicIslandView.animate().scaleX(1.0f).scaleY(1.0f).setDuration(140).start()
+                        animateSpringScale(dynamicIslandView, 1.0f)
                         val diffX = abs(event.rawX - initialTouchX)
                         val diffY = abs(event.rawY - initialTouchY)
                         if (diffX < 18 && diffY < 18) {
                             triggerHaptic()
-                            openPopupChat()
+                            if (isPillAutoHidden) {
+                                isPillAutoHidden = false
+                                dynamicIslandView.alpha = 1.0f
+                                openPopupChat(fromSiri = false)
+                            } else {
+                                openPopupChat(fromSiri = false)
+                            }
+                        } else {
+                            scheduleAutoHideAndFreeze()
                         }
                         return true
                     }
@@ -3136,7 +3592,7 @@ class FloatingAssistantService : Service() {
         })
 
         // ----------------------------------------------------------------------
-        // 2. INTERAKSI BUBBLE & XIAOMI EDGE PILL (JIKA DIPILIH DI PENGATURAN)
+        // 2. INTERAKSI BUBBLE & XIAOMI EDGE PILL
         // ----------------------------------------------------------------------
         bubbleView.setOnTouchListener(object : View.OnTouchListener {
             private var initialX = 0
@@ -3147,7 +3603,8 @@ class FloatingAssistantService : Service() {
             override fun onTouch(v: View, event: MotionEvent): Boolean {
                 when (event.action) {
                     MotionEvent.ACTION_DOWN -> {
-                        edgeHandler.removeCallbacks(transformToXiaomiEdgeRunnable)
+                        wakeFromSmartFreeze()
+                        mainHandler.removeCallbacks(transformToXiaomiEdgeRunnable)
                         initialX = params.x
                         initialY = params.y
                         initialTouchX = event.rawX
@@ -3165,7 +3622,7 @@ class FloatingAssistantService : Service() {
                         val diffY = abs(event.rawY - initialTouchY)
                         if (diffX < 15 && diffY < 15) {
                             triggerHaptic()
-                            openPopupChat()
+                            openPopupChat(fromSiri = false)
                         } else {
                             snapBubbleToNearestEdge()
                         }
@@ -3184,6 +3641,7 @@ class FloatingAssistantService : Service() {
             override fun onTouch(v: View, event: MotionEvent): Boolean {
                 when (event.action) {
                     MotionEvent.ACTION_DOWN -> {
+                        wakeFromSmartFreeze()
                         initialY = params.y
                         initialTouchX = event.rawX
                         initialTouchY = event.rawY
@@ -3199,7 +3657,7 @@ class FloatingAssistantService : Service() {
                         val swipedInward = (snappedToRightEdge && diffX < -45) || (!snappedToRightEdge && diffX > 45)
                         triggerHaptic()
                         if (swipedInward) {
-                            openPopupChat()
+                            openPopupChat(fromSiri = false)
                         } else {
                             exitXiaomiEdgeMode()
                         }
@@ -3277,7 +3735,6 @@ class FloatingAssistantService : Service() {
             }
         })
 
-        // Tombol X untuk Close kembali ke Dynamic Island / Bubble
         btnCloseWindowX.setOnClickListener {
             triggerHaptic()
             closePopupChat()
@@ -3395,72 +3852,114 @@ class FloatingAssistantService : Service() {
     }
 
     // ==========================================================================
-    // FLUID SPRING ANIMATIONS: DYNAMIC ISLAND <-> LIQUID GLASS WINDOW
+    // ANDROIDX REAL SPRING ANIMATION & LIQUID GLASS TRANSITIONS
     // ==========================================================================
+    private fun animateSpringScale(target: View, finalScale: Float) {
+        SpringAnimation(target, DynamicAnimation.SCALE_X, finalScale).apply {
+            spring.dampingRatio = SpringForce.DAMPING_RATIO_LOW_BOUNCY
+            spring.stiffness = SpringForce.STIFFNESS_MEDIUM
+            start()
+        }
+        SpringAnimation(target, DynamicAnimation.SCALE_Y, finalScale).apply {
+            spring.dampingRatio = SpringForce.DAMPING_RATIO_LOW_BOUNCY
+            spring.stiffness = SpringForce.STIFFNESS_MEDIUM
+            start()
+        }
+    }
+
+    private fun scheduleAutoHideAndFreeze() {
+        mainHandler.removeCallbacks(autoHidePillRunnable)
+        if (prefAutoHidePill && prefOverlayStyle == "dynamic_island") {
+            mainHandler.postDelayed(autoHidePillRunnable, 3000L)
+        }
+        scheduleSmartFreeze()
+    }
+
     private fun showCollapsedTriggerState() {
-        edgeHandler.removeCallbacks(transformToXiaomiEdgeRunnable)
+        mainHandler.removeCallbacks(transformToXiaomiEdgeRunnable)
+        mainHandler.removeCallbacks(autoHidePillRunnable)
+        dismissSiriAura()
+
         popupChatView.visibility = View.GONE
         dynamicIslandView.visibility = View.GONE
         bubbleView.visibility = View.GONE
         xiaomiEdgeView.visibility = View.GONE
+        isPillAutoHidden = false
 
         params.flags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
                 WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN
         applyWindowBlur(enabled = false)
 
         when (prefOverlayStyle) {
+            "siri_mode" -> {
+                // Mode Siri: layar bersih total saat idle, langsung aktifkan Smart Freeze
+                if (isFloatingViewAttached) {
+                    windowManager.updateViewLayout(floatingView, params)
+                }
+                if (prefSmartFreeze) {
+                    enterSmartFreezeState()
+                }
+            }
             "xiaomi_edge" -> {
+                wakeFromSmartFreeze()
                 bubbleView.visibility = View.VISIBLE
                 bubbleView.alpha = 1.0f
                 params.x = if (snappedToRightEdge) (fullScreenWidth - prefBubbleSizePx) else 0
                 params.y = fullScreenHeight / 3
                 windowManager.updateViewLayout(floatingView, params)
-                edgeHandler.postDelayed(transformToXiaomiEdgeRunnable, 2500L)
+                mainHandler.postDelayed(transformToXiaomiEdgeRunnable, 2500L)
+                scheduleSmartFreeze()
             }
             "classic_bubble" -> {
+                wakeFromSmartFreeze()
                 bubbleView.visibility = View.VISIBLE
                 bubbleView.alpha = 1.0f
                 params.x = if (snappedToRightEdge) (fullScreenWidth - prefBubbleSizePx) else 0
                 params.y = fullScreenHeight / 3
                 windowManager.updateViewLayout(floatingView, params)
+                scheduleSmartFreeze()
             }
             else -> {
+                wakeFromSmartFreeze()
                 dynamicIslandView.visibility = View.VISIBLE
-                dynamicIslandView.scaleX = 0.7f
-                dynamicIslandView.scaleY = 0.7f
-                dynamicIslandView.alpha = 0f
+                dynamicIslandView.scaleX = 0.72f
+                dynamicIslandView.scaleY = 0.72f
+                dynamicIslandView.alpha = 1.0f
                 params.x = (((fullScreenWidth - prefIslandWidthPx) / 2) + prefIslandOffsetXPx)
                     .coerceIn(12, (fullScreenWidth - prefIslandWidthPx - 12).coerceAtLeast(12))
                 params.y = prefIslandPosYPx
                 windowManager.updateViewLayout(floatingView, params)
 
-                dynamicIslandView.animate()
-                    .scaleX(1.0f)
-                    .scaleY(1.0f)
-                    .alpha(1.0f)
-                    .setDuration(300)
-                    .setInterpolator(OvershootInterpolator(1.1f))
-                    .start()
+                animateSpringScale(dynamicIslandView, 1.0f)
+                scheduleAutoHideAndFreeze()
             }
         }
     }
 
-    private fun openPopupChat() {
-        edgeHandler.removeCallbacks(transformToXiaomiEdgeRunnable)
+    private fun openPopupChat(fromSiri: Boolean) {
+        wakeFromSmartFreeze()
+        mainHandler.removeCallbacks(transformToXiaomiEdgeRunnable)
+        mainHandler.removeCallbacks(autoHidePillRunnable)
+
         dynamicIslandView.visibility = View.GONE
         xiaomiEdgeView.visibility = View.GONE
         bubbleView.visibility = View.GONE
 
         popupChatView.visibility = View.VISIBLE
         popupChatView.pivotX = popupChatView.layoutParams.width / 2f
-        popupChatView.pivotY = 0f
-        popupChatView.scaleX = 0.45f
-        popupChatView.scaleY = 0.22f
+        popupChatView.pivotY = if (fromSiri) popupChatView.layoutParams.height.toFloat() else 0f
+        popupChatView.scaleX = 0.55f
+        popupChatView.scaleY = 0.35f
         popupChatView.alpha = 0f
 
         val popupW = popupChatView.layoutParams.width
+        val popupH = popupChatView.layoutParams.height
         params.x = ((fullScreenWidth - popupW) / 2).coerceIn(16, (fullScreenWidth - popupW - 16).coerceAtLeast(16))
-        params.y = (prefIslandPosYPx + (14 * resources.displayMetrics.density).toInt()).coerceIn(24, fullScreenHeight / 4)
+        params.y = if (fromSiri) {
+            ((fullScreenHeight - popupH) / 2).coerceIn(32, fullScreenHeight / 3)
+        } else {
+            (prefIslandPosYPx + (14 * resources.displayMetrics.density).toInt()).coerceIn(24, fullScreenHeight / 4)
+        }
         params.flags = WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
                 WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH or
                 WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN
@@ -3469,20 +3968,18 @@ class FloatingAssistantService : Service() {
         windowManager.updateViewLayout(floatingView, params)
 
         popupChatView.animate()
-            .scaleX(1.0f)
-            .scaleY(1.0f)
             .alpha(prefPopupAlpha)
-            .setDuration(340)
-            .setInterpolator(OvershootInterpolator(0.85f))
+            .setDuration(260)
             .start()
+        animateSpringScale(popupChatView, 1.0f)
     }
 
     private fun closePopupChat() {
         popupChatView.animate()
-            .scaleX(0.42f)
-            .scaleY(0.18f)
+            .scaleX(0.45f)
+            .scaleY(0.22f)
             .alpha(0f)
-            .setDuration(210)
+            .setDuration(200)
             .setInterpolator(DecelerateInterpolator())
             .withEndAction {
                 showCollapsedTriggerState()
@@ -3495,7 +3992,7 @@ class FloatingAssistantService : Service() {
             try {
                 if (enabled) {
                     params.flags = params.flags or WindowManager.LayoutParams.FLAG_BLUR_BEHIND
-                    params.blurBehindRadius = 26
+                    params.blurBehindRadius = 38
                 } else {
                     params.flags = params.flags and WindowManager.LayoutParams.FLAG_BLUR_BEHIND.inv()
                     params.blurBehindRadius = 0
@@ -3521,9 +4018,10 @@ class FloatingAssistantService : Service() {
         }
         animator.start()
         if (prefOverlayStyle == "xiaomi_edge") {
-            edgeHandler.removeCallbacks(transformToXiaomiEdgeRunnable)
-            edgeHandler.postDelayed(transformToXiaomiEdgeRunnable, 2500L)
+            mainHandler.removeCallbacks(transformToXiaomiEdgeRunnable)
+            mainHandler.postDelayed(transformToXiaomiEdgeRunnable, 2500L)
         }
+        scheduleSmartFreeze()
     }
 
     private fun enterXiaomiEdgeMode() {
@@ -3539,20 +4037,23 @@ class FloatingAssistantService : Service() {
         params.x = if (snappedToRightEdge) (fullScreenWidth - pillWidthPx) else 0
         windowManager.updateViewLayout(floatingView, params)
         xiaomiEdgeView.animate().alpha(0.45f).setDuration(400).start()
+        scheduleSmartFreeze()
     }
 
     private fun exitXiaomiEdgeMode() {
-        edgeHandler.removeCallbacks(transformToXiaomiEdgeRunnable)
+        mainHandler.removeCallbacks(transformToXiaomiEdgeRunnable)
         xiaomiEdgeView.visibility = View.GONE
         bubbleView.visibility = View.VISIBLE
         bubbleView.alpha = 1.0f
         params.x = if (snappedToRightEdge) (fullScreenWidth - prefBubbleSizePx) else 0
         windowManager.updateViewLayout(floatingView, params)
-        edgeHandler.postDelayed(transformToXiaomiEdgeRunnable, 2500L)
+        mainHandler.postDelayed(transformToXiaomiEdgeRunnable, 2500L)
+        scheduleSmartFreeze()
     }
 
     private fun performQuickForceStop() {
         Toast.makeText(this, "Menghentikan paksa Floamini...", Toast.LENGTH_SHORT).show()
+        dismissSiriAura()
         stopMediaProjection()
         val appInfoIntent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
             data = Uri.parse("package:$packageName")
@@ -3584,7 +4085,7 @@ class FloatingAssistantService : Service() {
             lineHeight = (19 * resources.displayMetrics.density).toInt()
             setTextColor(Color.parseColor("#F8FAFC"))
             setPadding(28, 18, 28, 18)
-            maxWidth = (250 * resources.displayMetrics.density).toInt()
+            maxWidth = (252 * resources.displayMetrics.density).toInt()
             setBackgroundResource(if (isUser) R.drawable.bg_chat_user else R.drawable.bg_chat_bot)
 
             setOnClickListener {
@@ -3619,7 +4120,7 @@ class FloatingAssistantService : Service() {
     }
 
     // ==========================================================================
-    // LIVE SCREEN SHARE (MEDIA PROJECTION + ANDROID 14 CALLBACK SAFE)
+    // LIVE SCREEN SHARE
     // ==========================================================================
     private fun startMediaProjection(resultCode: Int, data: Intent) {
         startForegroundNotification(withMediaProjection = true)
@@ -3701,13 +4202,13 @@ class FloatingAssistantService : Service() {
             croppedBitmap.recycle()
 
             Base64.encodeToString(outputStream.toByteArray(), Base64.NO_WRAP)
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             null
         }
     }
 
     // ==========================================================================
-    // KONEKSI GEMINI API (MEMORI SESI + GAYA ASIK + TANPA SIMBOL MARKDOWN)
+    // KONEKSI GEMINI API
     // ==========================================================================
     private fun buildSystemInstructionText(): String {
         val memoryRule = "Penting: Selalu ingat dan hubungkan seluruh konteks percakapan sebelumnya dalam sesi ini agar obrolan tetap nyambung dan tidak pernah lupa apa yang sedang dibahas."
@@ -3791,10 +4292,14 @@ class FloatingAssistantService : Service() {
 
     override fun onDestroy() {
         super.onDestroy()
-        edgeHandler.removeCallbacks(transformToXiaomiEdgeRunnable)
+        try { unregisterReceiver(screenStateReceiver) } catch (_: Exception) {}
+        mainHandler.removeCallbacks(transformToXiaomiEdgeRunnable)
+        mainHandler.removeCallbacks(autoHidePillRunnable)
+        mainHandler.removeCallbacks(smartFreezeRunnable)
+        dismissSiriAura()
         stopMediaProjection()
         serviceJob.cancel()
-        if (::floatingView.isInitialized) {
+        if (isFloatingViewAttached && ::floatingView.isInitialized) {
             try {
                 windowManager.removeView(floatingView)
             } catch (_: Exception) {}
@@ -3812,7 +4317,7 @@ def generate_project():
         with open(filepath, "w", encoding="utf-8") as f:
             f.write(content.strip() + "\n")
         print(f"Berhasil membuat/memperbarui: {filepath}")
-    print("\nProyek Floamini v4.0 (iOS 26 Liquid Glass & Dynamic Island) siap di-push ke GitHub!")
+    print("\nProyek Floamini v5.0 (Liquid Glass, Siri Mode, Custom Pill & Smart Freeze) siap di-push ke GitHub!")
 
 if __name__ == "__main__":
     generate_project()

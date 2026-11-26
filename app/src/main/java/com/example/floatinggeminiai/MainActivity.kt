@@ -1,7 +1,10 @@
 package com.example.floatinggeminiai
 
+import android.app.StatusBarManager
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.graphics.drawable.Icon
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -37,6 +40,7 @@ class MainActivity : AppCompatActivity() {
         val tvAppVersionInfo = findViewById<TextView>(R.id.tvAppVersionInfo)
         val btnOpenWelcomeGuide = findViewById<Button>(R.id.btnOpenWelcomeGuide)
         val btnStartOverlay = findViewById<Button>(R.id.btnStartOverlay)
+        val btnAddControlCenterTile = findViewById<Button>(R.id.btnAddControlCenterTile)
         val btnStopOverlay = findViewById<Button>(R.id.btnStopOverlay)
         val btnQuickForceStopMain = findViewById<Button>(R.id.btnQuickForceStopMain)
         tvSessionStatusMain = findViewById(R.id.tvSessionStatusMain)
@@ -44,9 +48,17 @@ class MainActivity : AppCompatActivity() {
 
         val rgOverlayStyle = findViewById<RadioGroup>(R.id.rgOverlayStyle)
         val rbStyleDynamicIsland = findViewById<RadioButton>(R.id.rbStyleDynamicIsland)
+        val rbStyleSiriMode = findViewById<RadioButton>(R.id.rbStyleSiriMode)
         val rbStyleXiaomiEdge = findViewById<RadioButton>(R.id.rbStyleXiaomiEdge)
         val rbStyleClassicBubble = findViewById<RadioButton>(R.id.rbStyleClassicBubble)
 
+        val rgPillAppearance = findViewById<RadioGroup>(R.id.rgPillAppearance)
+        val rbPillStandard = findViewById<RadioButton>(R.id.rbPillStandard)
+        val rbPillPolos = findViewById<RadioButton>(R.id.rbPillPolos)
+        val rbPillMinimal = findViewById<RadioButton>(R.id.rbPillMinimal)
+
+        val swAutoHidePill = findViewById<SwitchMaterial>(R.id.swAutoHidePill)
+        val swSmartFreeze = findViewById<SwitchMaterial>(R.id.swSmartFreeze)
         val swTapOutsideClose = findViewById<SwitchMaterial>(R.id.swTapOutsideClose)
         val swLiquidBlur = findViewById<SwitchMaterial>(R.id.swLiquidBlur)
         val swHapticFeedback = findViewById<SwitchMaterial>(R.id.swHapticFeedback)
@@ -76,24 +88,33 @@ class MainActivity : AppCompatActivity() {
 
         try {
             val pInfo = packageManager.getPackageInfo(packageName, 0)
-            tvAppVersionInfo.text = "v${pInfo.versionName} • iOS 26 Liquid Glass & Dynamic Island"
+            tvAppVersionInfo.text = "v${pInfo.versionName} • Liquid Glass & Siri Mode"
         } catch (_: Exception) {}
 
         etApiKey.setText(prefs.getString("api_key", ""))
         updateSessionStatsLabel()
 
         when (prefs.getString("overlay_style", "dynamic_island")) {
+            "siri_mode" -> rbStyleSiriMode.isChecked = true
             "xiaomi_edge" -> rbStyleXiaomiEdge.isChecked = true
             "classic_bubble" -> rbStyleClassicBubble.isChecked = true
             else -> rbStyleDynamicIsland.isChecked = true
         }
 
+        when (prefs.getString("pill_appearance", "standard")) {
+            "polos" -> rbPillPolos.isChecked = true
+            "minimal" -> rbPillMinimal.isChecked = true
+            else -> rbPillStandard.isChecked = true
+        }
+
+        swAutoHidePill.isChecked = prefs.getBoolean("auto_hide_pill", false)
+        swSmartFreeze.isChecked = prefs.getBoolean("smart_freeze", true)
         swTapOutsideClose.isChecked = prefs.getBoolean("tap_outside_close", true)
         swLiquidBlur.isChecked = prefs.getBoolean("liquid_blur", true)
         swHapticFeedback.isChecked = prefs.getBoolean("haptic_feedback", true)
 
-        val savedIslandW = prefs.getInt("island_width_dp", 168)
-        sbIslandWidth.progress = (savedIslandW - 120).coerceIn(0, 120)
+        val savedIslandW = prefs.getInt("island_width_dp", 164)
+        sbIslandWidth.progress = (savedIslandW - 110).coerceIn(0, 130)
         tvIslandWidthLabel.text = "Lebar Pil Dynamic Island: ${savedIslandW}dp"
 
         val savedIslandY = prefs.getInt("island_pos_y_dp", 12)
@@ -104,7 +125,7 @@ class MainActivity : AppCompatActivity() {
         sbIslandOffsetX.progress = (savedIslandX + 80).coerceIn(0, 160)
         tvIslandOffsetXLabel.text = "Geser Horizontal Kamera (X): ${savedIslandX}dp"
 
-        val savedOpacity = prefs.getInt("popup_opacity", 82)
+        val savedOpacity = prefs.getInt("popup_opacity", 80)
         sbOpacity.progress = (savedOpacity - 45).coerceIn(0, 55)
         tvOpacityLabel.text = "Transparansi Liquid Glass: ${savedOpacity}%"
 
@@ -123,7 +144,7 @@ class MainActivity : AppCompatActivity() {
 
         sbIslandWidth.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
-                tvIslandWidthLabel.text = "Lebar Pil Dynamic Island: ${progress + 120}dp"
+                tvIslandWidthLabel.text = "Lebar Pil Dynamic Island: ${progress + 110}dp"
             }
             override fun onStartTrackingTouch(seekBar: SeekBar?) {}
             override fun onStopTrackingTouch(seekBar: SeekBar?) {}
@@ -155,9 +176,15 @@ class MainActivity : AppCompatActivity() {
 
         fun saveAllPreferences() {
             val style = when (rgOverlayStyle.checkedRadioButtonId) {
+                R.id.rbStyleSiriMode -> "siri_mode"
                 R.id.rbStyleXiaomiEdge -> "xiaomi_edge"
                 R.id.rbStyleClassicBubble -> "classic_bubble"
                 else -> "dynamic_island"
+            }
+            val pillApp = when (rgPillAppearance.checkedRadioButtonId) {
+                R.id.rbPillPolos -> "polos"
+                R.id.rbPillMinimal -> "minimal"
+                else -> "standard"
             }
             val persona = when (rgPersona.checkedRadioButtonId) {
                 R.id.rbRingkas -> "ringkas"
@@ -173,10 +200,13 @@ class MainActivity : AppCompatActivity() {
             prefs.edit()
                 .putString("api_key", etApiKey.text.toString().trim())
                 .putString("overlay_style", style)
+                .putString("pill_appearance", pillApp)
+                .putBoolean("auto_hide_pill", swAutoHidePill.isChecked)
+                .putBoolean("smart_freeze", swSmartFreeze.isChecked)
                 .putBoolean("tap_outside_close", swTapOutsideClose.isChecked)
                 .putBoolean("liquid_blur", swLiquidBlur.isChecked)
                 .putBoolean("haptic_feedback", swHapticFeedback.isChecked)
-                .putInt("island_width_dp", sbIslandWidth.progress + 120)
+                .putInt("island_width_dp", sbIslandWidth.progress + 110)
                 .putInt("island_pos_y_dp", sbIslandPosY.progress)
                 .putInt("island_offset_x_dp", sbIslandOffsetX.progress - 80)
                 .putInt("popup_opacity", sbOpacity.progress + 45)
@@ -194,11 +224,37 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        btnOpenWelcomeGuide.setOnClickListener {
-            val welcomeIntent = Intent(this, WelcomeActivity::class.java).apply {
-                putExtra("from_settings", true)
+        btnAddControlCenterTile.setOnClickListener {
+            saveAllPreferences()
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                val statusBarManager = getSystemService(StatusBarManager::class.java)
+                statusBarManager.requestAddTileService(
+                    ComponentName(this, FloaminiTileService::class.java),
+                    "Floamini AI",
+                    Icon.createWithResource(this, R.drawable.ic_sparkle),
+                    mainExecutor
+                ) { resultCode ->
+                    runOnUiThread {
+                        if (resultCode == StatusBarManager.TILE_ADD_REQUEST_RESULT_TILE_ADDED ||
+                            resultCode == StatusBarManager.TILE_ADD_REQUEST_RESULT_TILE_ALREADY_ADDED
+                        ) {
+                            Toast.makeText(this, "Tombol Floamini AI siap di Control Center!", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                }
+            } else {
+                Toast.makeText(
+                    this,
+                    "Tarik panel Control Center / Quick Settings dari atas layar, tekan Edit, lalu seret tombol Floamini AI!",
+                    Toast.LENGTH_LONG
+                ).show()
             }
-            startActivity(welcomeIntent)
+        }
+
+        btnOpenWelcomeGuide.setOnClickListener {
+            startActivity(Intent(this, WelcomeActivity::class.java).apply {
+                putExtra("from_settings", true)
+            })
         }
 
         tvGetKeyShortcut.setOnClickListener {
@@ -230,11 +286,10 @@ class MainActivity : AppCompatActivity() {
             saveAllPreferences()
             if (!Settings.canDrawOverlays(this)) {
                 Toast.makeText(this, "Izinkan Floamini tampil di atas aplikasi lain", Toast.LENGTH_LONG).show()
-                val intent = Intent(
+                startActivity(Intent(
                     Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
                     Uri.parse("package:$packageName")
-                )
-                startActivity(intent)
+                ))
                 return@setOnClickListener
             }
 
@@ -244,7 +299,12 @@ class MainActivity : AppCompatActivity() {
             } else {
                 startService(serviceIntent)
             }
-            Toast.makeText(this, "Floamini aktif di layar", Toast.LENGTH_SHORT).show()
+            val modeText = if (rbStyleSiriMode.isChecked) {
+                "Mode Siri aktif! Panggil lewat tombol Floamini AI di Control Center."
+            } else {
+                "Floamini aktif di layar!"
+            }
+            Toast.makeText(this, modeText, Toast.LENGTH_SHORT).show()
         }
 
         btnStopOverlay.setOnClickListener {

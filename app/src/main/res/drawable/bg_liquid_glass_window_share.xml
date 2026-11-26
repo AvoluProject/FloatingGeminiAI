@@ -4,24 +4,24 @@
         <shape android:shape="rectangle">
             <gradient
                 android:angle="135"
-                android:startColor="#CC38BDF8"
-                android:centerColor="#80818CF8"
-                android:endColor="#CC38BDF8" />
-            <corners android:radius="26dp" />
+                android:startColor="#E638BDF8"
+                android:centerColor="#99818CF8"
+                android:endColor="#E6E879F9" />
+            <corners android:radius="28dp" />
         </shape>
     </item>
     <item
-        android:left="1.6dp"
-        android:top="1.6dp"
-        android:right="1.6dp"
-        android:bottom="1.6dp">
+        android:left="1.8dp"
+        android:top="1.8dp"
+        android:right="1.8dp"
+        android:bottom="1.8dp">
         <shape android:shape="rectangle">
             <gradient
                 android:angle="270"
-                android:startColor="#D9151F34"
-                android:centerColor="#CC0D1424"
-                android:endColor="#D9090E1A" />
-            <corners android:radius="24.5dp" />
+                android:startColor="#CC18233A"
+                android:centerColor="#B80E1628"
+                android:endColor="#CC0A101E" />
+            <corners android:radius="26dp" />
         </shape>
     </item>
 </layer-list>

@@ -49,10 +49,9 @@ class WelcomeActivity : AppCompatActivity() {
 
         btnOpenAiStudio.setOnClickListener {
             try {
-                val browserIntent = Intent(Intent.ACTION_VIEW, Uri.parse("https://aistudio.google.com/apikey"))
-                startActivity(browserIntent)
-            } catch (e: Exception) {
-                Toast.makeText(this, "Buka browser dan kunjungi aistudio.google.com/apikey", Toast.LENGTH_LONG).show()
+                startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://aistudio.google.com/apikey")))
+            } catch (_: Exception) {
+                Toast.makeText(this, "Kunjungi aistudio.google.com/apikey di browser", Toast.LENGTH_LONG).show()
             }
         }
 

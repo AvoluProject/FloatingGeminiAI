@@ -1,17 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-    <!-- Lapisan Pantulan Cahaya Kaca (Specular Border) -->
     <item>
         <shape android:shape="rectangle">
             <gradient
                 android:angle="135"
-                android:startColor="#40FFFFFF"
-                android:centerColor="#1A38BDF8"
-                android:endColor="#1AFFFFFF" />
+                android:startColor="#59FFFFFF"
+                android:centerColor="#2638BDF8"
+                android:endColor="#26E879F9" />
             <corners android:radius="22dp" />
         </shape>
     </item>
-    <!-- Lapisan Inti Kaca Gelap Translucent -->
     <item
         android:left="1dp"
         android:top="1dp"
@@ -20,8 +18,8 @@
         <shape android:shape="rectangle">
             <gradient
                 android:angle="270"
-                android:startColor="#E6141C2E"
-                android:endColor="#E60B101D" />
+                android:startColor="#E6141D30"
+                android:endColor="#E60A0F1C" />
             <corners android:radius="21dp" />
         </shape>
     </item>

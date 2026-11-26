@@ -29,9 +29,26 @@
             android:exported="false" />
 
         <activity
+            android:name=".SiriTriggerActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+
+        <activity
             android:name=".ScreenCapturePermissionActivity"
             android:exported="false"
             android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+
+        <service
+            android:name=".FloaminiTileService"
+            android:exported="true"
+            android:icon="@drawable/ic_sparkle"
+            android:label="Floamini AI"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
 
         <service
             android:name=".FloatingAssistantService"
@@ -40,7 +57,7 @@
             android:foregroundServiceType="specialUse|mediaProjection">
             <property
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
-                android:value="Floamini Dynamic Island AI Assistant" />
+                android:value="Floamini Liquid Glass AI Assistant" />
         </service>
 
     </application>
