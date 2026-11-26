@@ -3,15 +3,9 @@ import os
 # ==============================================================================
 # SKRIP PEMBANGKIT PROYEK ANDROID: FLOATING GEMINI AI ASSISTANT
 # ==============================================================================
-# Cara Penggunaan:
-# 1. Simpan file ini sebagai `setup_project.py` di dalam folder kosong.
-# 2. Jalankan perintah: `python setup_project.py`
-# 3. Semua struktur folder Android, Gradle, Kotlin, XML, dan GitHub Workflow
-#    akan otomatis terbuat dan siap di-push ke GitHub untuk di-build menjadi APK!
-# ==============================================================================
 
 PROJECT_FILES = {
-    # 1. GITHUB ACTIONS WORKFLOW (Otomatis Build APK saat Push ke GitHub)
+    # 1. GITHUB ACTIONS WORKFLOW (Menggunakan Gradle 8.5 agar kompatibel dengan AGP 8.2.2)
     ".github/workflows/build_apk.yml": """name: Build Android Debug APK
 
 on:
@@ -35,8 +29,10 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Setup Gradle
+      - name: Setup Gradle 8.5
         uses: gradle/actions/setup-gradle@v3
+        with:
+          gradle-version: '8.5'
 
       - name: Build Debug APK
         run: gradle assembleDebug
