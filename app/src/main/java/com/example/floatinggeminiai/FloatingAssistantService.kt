@@ -494,9 +494,7 @@ class FloatingAssistantService : Service() {
 
             val partsArray = JSONArray().apply {
                 put(JSONObject().apply {
-                    put("text", "Jawab dengan sangat singkat, padat, langsung ke inti pertanyaan tanpa basa-basi, dan JANGAN gunakan simbol markdown seperti tanda bintang (* atau **).
-
-Pertanyaan: $prompt")
+                    put("text", "Jawab dengan sangat singkat, padat, langsung ke inti pertanyaan tanpa basa-basi, dan JANGAN gunakan simbol markdown seperti tanda bintang (* atau **).\\n\\nPertanyaan: $prompt")
                 })
                 if (screenBase64 != null) {
                     put(JSONObject().apply {
