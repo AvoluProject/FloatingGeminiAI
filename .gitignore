@@ -1,0 +1,11 @@
+*.iml
+.gradle/
+/local.properties
+/.idea/
+/captures/
+.externalNativeBuild/
+.cxx/
+build/
+app/build/
+build_termux.sh
+*.apk

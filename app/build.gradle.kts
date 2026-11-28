@@ -4,8 +4,8 @@ plugins {
 }
 
 val ciRunNumber = System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull() ?: 0
-val appVersionCode = 25 + ciRunNumber
-val appVersionName = "7.0.$ciRunNumber"
+val appVersionCode = 30 + ciRunNumber
+val appVersionName = "7.1.$ciRunNumber"
 
 android {
     namespace = "com.example.floatinggeminiai"

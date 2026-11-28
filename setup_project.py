@@ -1,8 +1,25 @@
+   
 import os
 
 PROJECT_FILES = {
     # --------------------------------------------------------------------------
-    # 1. GITHUB ACTIONS WORKFLOW (OPSIONAL JIKA PUSH KE GITHUB)
+    # 0. GITIGNORE (MENCEGAH FILE LOKAL TERMUX TERUNGGAH KE GITHUB)
+    # --------------------------------------------------------------------------
+    ".gitignore": r"""*.iml
+.gradle/
+/local.properties
+/.idea/
+/captures/
+.externalNativeBuild/
+.cxx/
+build/
+app/build/
+build_termux.sh
+*.apk
+""",
+
+    # --------------------------------------------------------------------------
+    # 1. GITHUB ACTIONS WORKFLOW (AUTO BUILD APK DI SERVER GITHUB)
     # --------------------------------------------------------------------------
     ".github/workflows/build_apk.yml": r"""name: Build Floamini OS APK
 
@@ -17,6 +34,11 @@ jobs:
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
+
+      - name: Clean Termux Local Overrides
+        run: |
+          rm -f local.properties
+          sed -i '/aapt2FromMavenOverride/d' gradle.properties
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
@@ -44,7 +66,7 @@ jobs:
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Floamini-OS-v7.0-LiquidGlass
+          name: Floamini-OS-v7.1-LiquidGlass
           path: app/build/outputs/apk/debug/app-debug.apk
 """,
 
@@ -90,8 +112,8 @@ android.nonTransitiveRClass=true
 }
 
 val ciRunNumber = System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull() ?: 0
-val appVersionCode = 25 + ciRunNumber
-val appVersionName = "7.0.$ciRunNumber"
+val appVersionCode = 30 + ciRunNumber
+val appVersionName = "7.1.$ciRunNumber"
 
 android {
     namespace = "com.example.floatinggeminiai"
@@ -459,7 +481,7 @@ enum class AiProvider(
 
 data class ChatMessage(
     val id: String = System.nanoTime().toString(),
-    val role: String, // "user" or "assistant"
+    val role: String,
     val content: String,
     val providerTag: String = "",
     val timestamp: Long = System.currentTimeMillis()
@@ -1355,13 +1377,6 @@ import androidx.dynamicanimation.animation.FloatValueHolder
 import androidx.dynamicanimation.animation.SpringAnimation
 import androidx.dynamicanimation.animation.SpringForce
 
-/**
- * LiquidGlassFrameLayout — Terinspirasi langsung dari Kyant0/AndroidLiquidGlass:
- * - Signed Distance Field (SDF) Rounded-Box Lens Refraction
- * - Physical RGB Chromatic Dispersion di sepanjang bevel kaca
- * - Interactive Gel-Press Bulge & Angle-Aware Specular Rim Highlight
- * - Mendukung varian REGULAR (readability-first untuk UI/Navbar) dan CLEAR (Dynamic Island)
- */
 class LiquidGlassFrameLayout @JvmOverloads constructor(
     context: Context,
     attrs: AttributeSet? = null,
@@ -1445,59 +1460,49 @@ class LiquidGlassFrameLayout @JvmOverloads constructor(
                 "uniform float uIsDark;",
                 "uniform float uClearVariant;",
                 "float sdRoundedBox(float2 p, float2 b, float r) {",
-                "float2 q = abs(p) - b + float2(r);",
-                "return min(max(q.x, q.y), 0.0) + length(max(q, float2(0.0))) - r;",
+                "    float2 q = abs(p) - b + float2(r);",
+                "    return min(max(q.x, q.y), 0.0) + length(max(q, float2(0.0))) - r;",
                 "}",
                 "half4 main(float2 fragCoord) {",
-                "float2 center = uResolution * 0.5;",
-                "float maxR = min(center.x, center.y);",
-                "float radius = clamp(uCornerRadius, 1.0, maxR);",
-                "float2 halfSize = center - float2(0.75);",
-                "float2 p = fragCoord - center;",
-                "float d = sdRoundedBox(p, halfSize, radius);",
-                "if (d > 0.0) {",
-                "return half4(0.0);",
-                "}",
-                "// Surface normal via SDF gradient",
-                "float2 eps = float2(1.5, 0.0);",
-                "float2 grad = float2(",
-                "sdRoundedBox(p + eps.xy, halfSize, radius) - sdRoundedBox(p - eps.xy, halfSize, radius),",
-                "sdRoundedBox(p + eps.yx, halfSize, radius) - sdRoundedBox(p - eps.yx, halfSize, radius)",
-                ");",
-                "float2 normal = normalize(grad + float2(0.0001));",
-                "// Convex lens profile along bevel rim",
-                "float edgeDist = -d;",
-                "float rimFactor = clamp(1.0 - (edgeDist / max(uBevelWidth, 1.0)), 0.0, 1.0);",
-                "float lensCurve = pow(rimFactor, 2.2);",
-                "// Interactive gel-press bulge around touch",
-                "float touchDist = length(fragCoord - uTouchPos);",
-                "float gelBulge = uPressProgress * exp(-touchDist * 0.011);",
-                "// Directional specular light + dynamic touch shift",
-                "float2 touchOffset = (uTouchPos - center) * 0.0016 * uPressProgress;",
-                "float2 lightDir = normalize(float2(-0.62, -0.78) + touchOffset);",
-                "float topSpec = pow(max(dot(normal, lightDir), 0.0), 2.6) * (0.35 + 0.65 * lensCurve);",
-                "float bottomRim = pow(max(dot(normal, -lightDir), 0.0), 3.4) * lensCurve * 0.52;",
-                "// Physical RGB chromatic dispersion along bevel normal",
-                "float angle = atan(normal.y, normal.x) + uTime * 0.45;",
-                "float3 dispersion = float3(",
-                "0.5 + 0.5 * sin(angle),",
-                "0.5 + 0.5 * sin(angle + 2.09439),",
-                "0.5 + 0.5 * sin(angle + 4.18879)",
-                ") * lensCurve * uDispersionStrength;",
-                "// Adaptive Dark/Light & Regular/Clear base glass material",
-                "float3 baseDark = mix(float3(0.068, 0.102, 0.185), float3(0.015, 0.022, 0.038), uClearVariant);",
-                "float3 baseLight = mix(float3(0.92, 0.95, 0.99), float3(0.96, 0.98, 1.0), uClearVariant);",
-                "float3 baseCol = mix(baseLight, baseDark, uIsDark);",
-                "// Micro-grain dithering",
-                "float grain = (fract(sin(dot(fragCoord, float2(12.9898, 78.233))) * 43758.5453) - 0.5) * 0.015;",
-                "float3 rgb = baseCol",
-                "+ dispersion",
-                "+ float3(0.76, 0.90, 1.0) * (topSpec * uSpecularIntensity + gelBulge * 0.25)",
-                "+ float3(0.68, 0.54, 1.0) * bottomRim",
-                "+ float3(grain);",
-                "float targetAlpha = mix(0.84, 0.76, uClearVariant);",
-                "float alpha = clamp(targetAlpha + lensCurve * 0.15 + topSpec * 0.20, 0.0, 0.97);",
-                "return half4(half3(rgb * alpha), half(alpha));",
+                "    float2 center = uResolution * 0.5;",
+                "    float maxR = min(center.x, center.y);",
+                "    float radius = clamp(uCornerRadius, 1.0, maxR);",
+                "    float2 halfSize = center - float2(0.75);",
+                "    float2 p = fragCoord - center;",
+                "    float d = sdRoundedBox(p, halfSize, radius);",
+                "    if (d > 0.0) { return half4(0.0); }",
+                "    float2 eps = float2(1.5, 0.0);",
+                "    float2 grad = float2(",
+                "        sdRoundedBox(p + eps.xy, halfSize, radius) - sdRoundedBox(p - eps.xy, halfSize, radius),",
+                "        sdRoundedBox(p + eps.yx, halfSize, radius) - sdRoundedBox(p - eps.yx, halfSize, radius)",
+                "    );",
+                "    float2 normal = normalize(grad + float2(0.0001));",
+                "    float edgeDist = -d;",
+                "    float rimFactor = clamp(1.0 - (edgeDist / max(uBevelWidth, 1.0)), 0.0, 1.0);",
+                "    float lensCurve = pow(rimFactor, 2.2);",
+                "    float touchDist = length(fragCoord - uTouchPos);",
+                "    float gelBulge = uPressProgress * exp(-touchDist * 0.011);",
+                "    float2 touchOffset = (uTouchPos - center) * 0.0016 * uPressProgress;",
+                "    float2 lightDir = normalize(float2(-0.62, -0.78) + touchOffset);",
+                "    float topSpec = pow(max(dot(normal, lightDir), 0.0), 2.6) * (0.35 + 0.65 * lensCurve);",
+                "    float bottomRim = pow(max(dot(normal, -lightDir), 0.0), 3.4) * lensCurve * 0.52;",
+                "    float angle = atan(normal.y, normal.x) + uTime * 0.45;",
+                "    float3 dispersion = float3(",
+                "        0.5 + 0.5 * sin(angle),",
+                "        0.5 + 0.5 * sin(angle + 2.09439),",
+                "        0.5 + 0.5 * sin(angle + 4.18879)",
+                "    ) * lensCurve * uDispersionStrength;",
+                "    float3 baseDark = mix(float3(0.068, 0.102, 0.185), float3(0.015, 0.022, 0.038), uClearVariant);",
+                "    float3 baseLight = mix(float3(0.92, 0.95, 0.99), float3(0.96, 0.98, 1.0), uClearVariant);",
+                "    float3 baseCol = mix(baseLight, baseDark, uIsDark);",
+                "    float grain = (fract(sin(dot(fragCoord, float2(12.9898, 78.233))) * 43758.5453) - 0.5) * 0.015;",
+                "    float3 rgb = baseCol + dispersion",
+                "        + float3(0.76, 0.90, 1.0) * (topSpec * uSpecularIntensity + gelBulge * 0.25)",
+                "        + float3(0.68, 0.54, 1.0) * bottomRim",
+                "        + float3(grain);",
+                "    float targetAlpha = mix(0.84, 0.76, uClearVariant);",
+                "    float alpha = clamp(targetAlpha + lensCurve * 0.15 + topSpec * 0.20, 0.0, 0.97);",
+                "    return half4(half3(rgb * alpha), half(alpha));",
                 "}"
             ).joinToString("\n")
 
@@ -1676,11 +1681,6 @@ class LiquidGlassFrameLayout @JvmOverloads constructor(
     }
 }
 
-/**
- * LiquidGlassBottomNavBar — Floating Bottom Navigation Bar bergaya iOS 26 / Kyant0 Liquid Glass
- * Dilengkapi kapsul indikator kaca cair (Liquid Droplet) yang meluncur dengan fisika pegas
- * disertai chromatic edge dispersion saat berpindah tab.
- */
 class LiquidGlassBottomNavBar @JvmOverloads constructor(
     context: Context,
     attrs: AttributeSet? = null,
@@ -1734,6 +1734,7 @@ class LiquidGlassBottomNavBar @JvmOverloads constructor(
         itemsRow.removeAllViews()
         tabViews.clear()
         val d = resources.displayMetrics.density
+        val isDark = (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
 
         tabs.forEachIndexed { index, tab ->
             val tabBox = LinearLayout(context).apply {
@@ -1747,14 +1748,20 @@ class LiquidGlassBottomNavBar @JvmOverloads constructor(
 
             val iconView = ImageView(context).apply {
                 setImageResource(tab.iconRes)
-                setColorFilter(if (index == 0) Color.parseColor("#38BDF8") else Color.parseColor("#94A3B8"))
+                setColorFilter(
+                    if (index == 0) Color.parseColor("#38BDF8")
+                    else if (isDark) Color.parseColor("#94A3B8") else Color.parseColor("#475569")
+                )
             }
 
             val labelView = TextView(context).apply {
                 text = tab.label
                 textSize = 10.5f
                 typeface = if (index == 0) Typeface.DEFAULT_BOLD else Typeface.DEFAULT
-                setTextColor(if (index == 0) Color.parseColor("#F8FAFC") else Color.parseColor("#94A3B8"))
+                setTextColor(
+                    if (index == 0) (if (isDark) Color.parseColor("#F8FAFC") else Color.parseColor("#0284C7"))
+                    else if (isDark) Color.parseColor("#94A3B8") else Color.parseColor("#475569")
+                )
                 gravity = Gravity.CENTER
                 setPadding(0, (3 * d).toInt(), 0, 0)
             }
@@ -1788,7 +1795,7 @@ class LiquidGlassBottomNavBar @JvmOverloads constructor(
                 else if (isDark) Color.parseColor("#94A3B8") else Color.parseColor("#475569")
             )
             label.setTextColor(
-                if (active) Color.parseColor("#F8FAFC")
+                if (active) (if (isDark) Color.parseColor("#F8FAFC") else Color.parseColor("#0284C7"))
                 else if (isDark) Color.parseColor("#94A3B8") else Color.parseColor("#475569")
             )
             label.typeface = if (active) Typeface.DEFAULT_BOLD else Typeface.DEFAULT
@@ -2067,7 +2074,7 @@ class VoiceWaveformView @JvmOverloads constructor(
                         android:id="@+id/tvMainTitle"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Floamini OS"
+                        android:text="Floamini OS v7.1"
                         android:textSize="24sp"
                         android:textStyle="bold"
                         android:textColor="#F8FAFC" />
@@ -3237,6 +3244,8 @@ class VoiceWaveformView @JvmOverloads constructor(
                     android:textColor="#F8FAFC"
                     android:textColorHint="#64748B"
                     android:textSize="12.5sp"
+                    android:inputType="textCapSentences|textMultiLine"
+                    android:imeOptions="actionSend"
                     android:maxLines="3"
                     android:paddingHorizontal="12dp"
                     android:background="@drawable/bg_input_glass" />
@@ -4195,6 +4204,7 @@ import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
+import android.view.inputmethod.EditorInfo
 import android.widget.EditText
 import android.widget.FrameLayout
 import android.widget.ImageView
@@ -4254,7 +4264,6 @@ class FloatingAssistantService : Service() {
     private val mainHandler = Handler(Looper.getMainLooper())
     private var activeGenerationJob: Job? = null
 
-    // UI References
     private lateinit var dynamicIslandGlassHost: LiquidGlassFrameLayout
     private lateinit var dynamicIslandView: LinearLayout
     private lateinit var ivIslandSparkle: ImageView
@@ -4290,7 +4299,6 @@ class FloatingAssistantService : Service() {
     private var activeModel = "gemini-2.5-flash"
     private var pendingAttachment: ProcessedAttachment? = null
 
-    // Preferences Cache
     private var prefOverlayStyle = "dynamic_island"
     private var prefPillAppearance = "lengkap"
     private var prefAutoHidePill = false
@@ -4305,7 +4313,6 @@ class FloatingAssistantService : Service() {
     private var fullScreenWidth = 1080
     private var fullScreenHeight = 2400
 
-    // MediaProjection Screen Vision
     private var mediaProjection: MediaProjection? = null
     private var virtualDisplay: VirtualDisplay? = null
     private var imageReader: ImageReader? = null
@@ -4511,7 +4518,6 @@ class FloatingAssistantService : Service() {
         windowManager.addView(floatingView, params)
         isFloatingViewAttached = true
 
-        // Bind Views
         dynamicIslandGlassHost = floatingView.findViewById(R.id.dynamicIslandGlassHost)
         dynamicIslandView = floatingView.findViewById(R.id.dynamicIslandView)
         ivIslandSparkle = floatingView.findViewById(R.id.ivIslandSparkle)
@@ -4536,7 +4542,15 @@ class FloatingAssistantService : Service() {
         val glassTitleBar = floatingView.findViewById<LinearLayout>(R.id.glassTitleBar)
         val smartToolsDrawer = floatingView.findViewById<LinearLayout>(R.id.smartToolsDrawer)
 
-        // Tap outside popup to collapse back to Dynamic Island / Bubble
+        etPromptInput.setOnEditorActionListener { _, actionId, _ ->
+            if (actionId == EditorInfo.IME_ACTION_SEND) {
+                btnSendOrStop.performClick()
+                true
+            } else {
+                false
+            }
+        }
+
         floatingView.setOnTouchListener { _, event ->
             if (event.action == MotionEvent.ACTION_OUTSIDE && popupChatView.visibility == View.VISIBLE) {
                 showCollapsedTriggerState()
@@ -4546,7 +4560,6 @@ class FloatingAssistantService : Service() {
             }
         }
 
-        // Dynamic Island Touch & Drag
         dynamicIslandGlassHost.setOnTouchListener(object : View.OnTouchListener {
             private var initialX = 0
             private var initialY = 0
@@ -4592,7 +4605,6 @@ class FloatingAssistantService : Service() {
             }
         })
 
-        // Classic & Xiaomi Bubble Touch + Edge Snap
         bubbleView.setOnTouchListener(object : View.OnTouchListener {
             private var initialX = 0
             private var initialY = 0
@@ -4642,7 +4654,6 @@ class FloatingAssistantService : Service() {
             openPopupChat(fromSiri = false)
         }
 
-        // Drag Floating Window via Glass Title Bar
         glassTitleBar.setOnTouchListener(object : View.OnTouchListener {
             private var initialX = 0
             private var initialY = 0
@@ -4675,7 +4686,6 @@ class FloatingAssistantService : Service() {
             }
         })
 
-        // Corner Resize Handle
         floatingView.findViewById<ImageView>(R.id.btnResizeHandle).setOnTouchListener(object : View.OnTouchListener {
             private var startW = 0
             private var startH = 0
@@ -4710,7 +4720,6 @@ class FloatingAssistantService : Service() {
             }
         })
 
-        // Header Buttons
         floatingView.findViewById<ImageView>(R.id.btnClosePopup).setOnClickListener {
             triggerHaptic()
             showCollapsedTriggerState()
@@ -4756,7 +4765,6 @@ class FloatingAssistantService : Service() {
             }
         }
 
-        // Smart Drawer Chips
         floatingView.findViewById<TextView>(R.id.chipSwitchProvider).setOnClickListener {
             val all = AiProvider.entries
             val nextIdx = (all.indexOf(activeProvider) + 1) % all.size
@@ -4821,10 +4829,8 @@ class FloatingAssistantService : Service() {
             override fun afterTextChanged(s: Editable?) {}
         })
 
-        // Quick Action Prompts
         setupQuickPromptChips()
 
-        // Composer Buttons
         floatingView.findViewById<ImageView>(R.id.btnAttachFile).setOnClickListener {
             val pick = Intent(this, FilePickerProxyActivity::class.java).apply {
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
@@ -4973,6 +4979,18 @@ class FloatingAssistantService : Service() {
         }
     }
 
+    private fun regenerateLastResponse() {
+        val lastUserIdx = currentThread.messages.indexOfLast { it.role == "user" }
+        if (lastUserIdx < 0) return
+        val lastUserPrompt = currentThread.messages[lastUserIdx].content
+        while (currentThread.messages.size > lastUserIdx) {
+            currentThread.messages.removeAt(currentThread.messages.lastIndex)
+        }
+        repo.saveThread(currentThread)
+        renderCurrentThreadMessages()
+        sendUserPrompt(lastUserPrompt)
+    }
+
     private fun sendUserPrompt(rawPrompt: String) {
         etPromptInput.setText("")
         val attachment = pendingAttachment
@@ -5083,7 +5101,7 @@ class FloatingAssistantService : Service() {
                 currentThread.messages.add(assistantMsg)
                 repo.saveThread(currentThread)
                 repo.recordUsage(chosenProv.displayName, finalClean.length)
-                scrollChatToBottom()
+                renderCurrentThreadMessages()
             }
         }
     }
@@ -5118,13 +5136,13 @@ class FloatingAssistantService : Service() {
             )
             return
         }
-        for (m in currentThread.messages) {
-            appendMessageBubble(m)
+        currentThread.messages.forEachIndexed { idx, m ->
+            appendMessageBubble(m, isLastAssistant = (idx == currentThread.messages.lastIndex && m.role == "assistant"))
         }
         scrollChatToBottom()
     }
 
-    private fun appendMessageBubble(msg: ChatMessage) {
+    private fun appendMessageBubble(msg: ChatMessage, isLastAssistant: Boolean = false) {
         val d = resources.displayMetrics.density
         val isUser = msg.role == "user"
 
@@ -5184,6 +5202,7 @@ class FloatingAssistantService : Service() {
                 text = "Salin"
                 textSize = 10f
                 setTextColor(Color.parseColor("#94A3B8"))
+                setPadding(0, 0, (12 * d).toInt(), 0)
                 setOnClickListener {
                     val cm = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                     cm.setPrimaryClip(ClipData.newPlainText("Floamini", msg.content))
@@ -5192,6 +5211,15 @@ class FloatingAssistantService : Service() {
             }
             actionRow.addView(btnSpeak)
             actionRow.addView(btnCopy)
+            if (isLastAssistant) {
+                val btnRegen = TextView(this).apply {
+                    text = "Ulangi"
+                    textSize = 10f
+                    setTextColor(Color.parseColor("#38BDF8"))
+                    setOnClickListener { regenerateLastResponse() }
+                }
+                actionRow.addView(btnRegen)
+            }
             wrapper.addView(actionRow)
         }
 
@@ -5239,9 +5267,6 @@ class FloatingAssistantService : Service() {
         }
     }
 
-    // ==========================================================================
-    // OVERLAY TRANSITIONS, SIRI MODE, SMART FREEZE & BLUR
-    // ==========================================================================
     private fun showCollapsedTriggerState() {
         mainHandler.removeCallbacks(transformToXiaomiEdgeRunnable)
         mainHandler.removeCallbacks(autoHidePillRunnable)
@@ -5338,6 +5363,7 @@ class FloatingAssistantService : Service() {
 
         applyWindowBlur(enabled = prefLiquidBlur)
         windowManager.updateViewLayout(floatingView, params)
+        etPromptInput.requestFocus()
 
         popupChatView.animate()
             .alpha(prefPopupAlpha)
@@ -5464,9 +5490,6 @@ class FloatingAssistantService : Service() {
         floatingView.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
     }
 
-    // ==========================================================================
-    // MEDIA PROJECTION LIVE VISION & FILE ATTACHMENT
-    // ==========================================================================
     private fun startMediaProjectionCapture(resultCode: Int, data: Intent) {
         stopMediaProjection()
         startForegroundNotification(withMediaProjection = true)
@@ -5577,19 +5600,12 @@ def generate_project():
             f.write(content.strip() + "\n")
         print(f"Berhasil membuat: {filepath}")
 
-    termux_aapt2 = "/data/data/com.termux/files/usr/bin/aapt2"
-    termux_sdk = os.path.expanduser("~/android-sdk")
-    if os.path.exists(termux_aapt2):
-        with open("gradle.properties", "a", encoding="utf-8") as gp:
-            gp.write(f"\nandroid.aapt2FromMavenOverride={termux_aapt2}\n")
-        print(f"Termux ARM64 aapt2 override aktif: {termux_aapt2}")
+    for stale_file in ["local.properties", "build_termux.sh"]:
+        if os.path.exists(stale_file):
+            os.remove(stale_file)
+            print(f"Membersihkan file lokal: {stale_file}")
 
-    if os.path.exists(termux_sdk):
-        with open("local.properties", "w", encoding="utf-8") as lp:
-            lp.write(f"sdk.dir={termux_sdk}\n")
-        print(f"Termux local.properties aktif: {termux_sdk}")
-
-    print("\nProyek Floamini OS v7.0 (Full Kyant0 Liquid Glass UI & Navbar) selesai dibuat!")
+    print("\nProyek Floamini OS v7.1 (GitHub Actions Ready) selesai diperbarui!")
 
 
 if __name__ == "__main__":

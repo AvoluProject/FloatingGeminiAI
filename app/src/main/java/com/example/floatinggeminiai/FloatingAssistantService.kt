@@ -33,6 +33,7 @@ import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
+import android.view.inputmethod.EditorInfo
 import android.widget.EditText
 import android.widget.FrameLayout
 import android.widget.ImageView
@@ -92,7 +93,6 @@ class FloatingAssistantService : Service() {
     private val mainHandler = Handler(Looper.getMainLooper())
     private var activeGenerationJob: Job? = null
 
-    // UI References
     private lateinit var dynamicIslandGlassHost: LiquidGlassFrameLayout
     private lateinit var dynamicIslandView: LinearLayout
     private lateinit var ivIslandSparkle: ImageView
@@ -128,7 +128,6 @@ class FloatingAssistantService : Service() {
     private var activeModel = "gemini-2.5-flash"
     private var pendingAttachment: ProcessedAttachment? = null
 
-    // Preferences Cache
     private var prefOverlayStyle = "dynamic_island"
     private var prefPillAppearance = "lengkap"
     private var prefAutoHidePill = false
@@ -143,7 +142,6 @@ class FloatingAssistantService : Service() {
     private var fullScreenWidth = 1080
     private var fullScreenHeight = 2400
 
-    // MediaProjection Screen Vision
     private var mediaProjection: MediaProjection? = null
     private var virtualDisplay: VirtualDisplay? = null
     private var imageReader: ImageReader? = null
@@ -349,7 +347,6 @@ class FloatingAssistantService : Service() {
         windowManager.addView(floatingView, params)
         isFloatingViewAttached = true
 
-        // Bind Views
         dynamicIslandGlassHost = floatingView.findViewById(R.id.dynamicIslandGlassHost)
         dynamicIslandView = floatingView.findViewById(R.id.dynamicIslandView)
         ivIslandSparkle = floatingView.findViewById(R.id.ivIslandSparkle)
@@ -374,7 +371,15 @@ class FloatingAssistantService : Service() {
         val glassTitleBar = floatingView.findViewById<LinearLayout>(R.id.glassTitleBar)
         val smartToolsDrawer = floatingView.findViewById<LinearLayout>(R.id.smartToolsDrawer)
 
-        // Tap outside popup to collapse back to Dynamic Island / Bubble
+        etPromptInput.setOnEditorActionListener { _, actionId, _ ->
+            if (actionId == EditorInfo.IME_ACTION_SEND) {
+                btnSendOrStop.performClick()
+                true
+            } else {
+                false
+            }
+        }
+
         floatingView.setOnTouchListener { _, event ->
             if (event.action == MotionEvent.ACTION_OUTSIDE && popupChatView.visibility == View.VISIBLE) {
                 showCollapsedTriggerState()
@@ -384,7 +389,6 @@ class FloatingAssistantService : Service() {
             }
         }
 
-        // Dynamic Island Touch & Drag
         dynamicIslandGlassHost.setOnTouchListener(object : View.OnTouchListener {
             private var initialX = 0
             private var initialY = 0
@@ -430,7 +434,6 @@ class FloatingAssistantService : Service() {
             }
         })
 
-        // Classic & Xiaomi Bubble Touch + Edge Snap
         bubbleView.setOnTouchListener(object : View.OnTouchListener {
             private var initialX = 0
             private var initialY = 0
@@ -480,7 +483,6 @@ class FloatingAssistantService : Service() {
             openPopupChat(fromSiri = false)
         }
 
-        // Drag Floating Window via Glass Title Bar
         glassTitleBar.setOnTouchListener(object : View.OnTouchListener {
             private var initialX = 0
             private var initialY = 0
@@ -513,7 +515,6 @@ class FloatingAssistantService : Service() {
             }
         })
 
-        // Corner Resize Handle
         floatingView.findViewById<ImageView>(R.id.btnResizeHandle).setOnTouchListener(object : View.OnTouchListener {
             private var startW = 0
             private var startH = 0
@@ -548,7 +549,6 @@ class FloatingAssistantService : Service() {
             }
         })
 
-        // Header Buttons
         floatingView.findViewById<ImageView>(R.id.btnClosePopup).setOnClickListener {
             triggerHaptic()
             showCollapsedTriggerState()
@@ -594,7 +594,6 @@ class FloatingAssistantService : Service() {
             }
         }
 
-        // Smart Drawer Chips
         floatingView.findViewById<TextView>(R.id.chipSwitchProvider).setOnClickListener {
             val all = AiProvider.entries
             val nextIdx = (all.indexOf(activeProvider) + 1) % all.size
@@ -659,10 +658,8 @@ class FloatingAssistantService : Service() {
             override fun afterTextChanged(s: Editable?) {}
         })
 
-        // Quick Action Prompts
         setupQuickPromptChips()
 
-        // Composer Buttons
         floatingView.findViewById<ImageView>(R.id.btnAttachFile).setOnClickListener {
             val pick = Intent(this, FilePickerProxyActivity::class.java).apply {
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
@@ -811,6 +808,18 @@ class FloatingAssistantService : Service() {
         }
     }
 
+    private fun regenerateLastResponse() {
+        val lastUserIdx = currentThread.messages.indexOfLast { it.role == "user" }
+        if (lastUserIdx < 0) return
+        val lastUserPrompt = currentThread.messages[lastUserIdx].content
+        while (currentThread.messages.size > lastUserIdx) {
+            currentThread.messages.removeAt(currentThread.messages.lastIndex)
+        }
+        repo.saveThread(currentThread)
+        renderCurrentThreadMessages()
+        sendUserPrompt(lastUserPrompt)
+    }
+
     private fun sendUserPrompt(rawPrompt: String) {
         etPromptInput.setText("")
         val attachment = pendingAttachment
@@ -921,7 +930,7 @@ class FloatingAssistantService : Service() {
                 currentThread.messages.add(assistantMsg)
                 repo.saveThread(currentThread)
                 repo.recordUsage(chosenProv.displayName, finalClean.length)
-                scrollChatToBottom()
+                renderCurrentThreadMessages()
             }
         }
     }
@@ -956,13 +965,13 @@ class FloatingAssistantService : Service() {
             )
             return
         }
-        for (m in currentThread.messages) {
-            appendMessageBubble(m)
+        currentThread.messages.forEachIndexed { idx, m ->
+            appendMessageBubble(m, isLastAssistant = (idx == currentThread.messages.lastIndex && m.role == "assistant"))
         }
         scrollChatToBottom()
     }
 
-    private fun appendMessageBubble(msg: ChatMessage) {
+    private fun appendMessageBubble(msg: ChatMessage, isLastAssistant: Boolean = false) {
         val d = resources.displayMetrics.density
         val isUser = msg.role == "user"
 
@@ -1022,6 +1031,7 @@ class FloatingAssistantService : Service() {
                 text = "Salin"
                 textSize = 10f
                 setTextColor(Color.parseColor("#94A3B8"))
+                setPadding(0, 0, (12 * d).toInt(), 0)
                 setOnClickListener {
                     val cm = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                     cm.setPrimaryClip(ClipData.newPlainText("Floamini", msg.content))
@@ -1030,6 +1040,15 @@ class FloatingAssistantService : Service() {
             }
             actionRow.addView(btnSpeak)
             actionRow.addView(btnCopy)
+            if (isLastAssistant) {
+                val btnRegen = TextView(this).apply {
+                    text = "Ulangi"
+                    textSize = 10f
+                    setTextColor(Color.parseColor("#38BDF8"))
+                    setOnClickListener { regenerateLastResponse() }
+                }
+                actionRow.addView(btnRegen)
+            }
             wrapper.addView(actionRow)
         }
 
@@ -1077,9 +1096,6 @@ class FloatingAssistantService : Service() {
         }
     }
 
-    // ==========================================================================
-    // OVERLAY TRANSITIONS, SIRI MODE, SMART FREEZE & BLUR
-    // ==========================================================================
     private fun showCollapsedTriggerState() {
         mainHandler.removeCallbacks(transformToXiaomiEdgeRunnable)
         mainHandler.removeCallbacks(autoHidePillRunnable)
@@ -1176,6 +1192,7 @@ class FloatingAssistantService : Service() {
 
         applyWindowBlur(enabled = prefLiquidBlur)
         windowManager.updateViewLayout(floatingView, params)
+        etPromptInput.requestFocus()
 
         popupChatView.animate()
             .alpha(prefPopupAlpha)
@@ -1302,9 +1319,6 @@ class FloatingAssistantService : Service() {
         floatingView.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
     }
 
-    // ==========================================================================
-    // MEDIA PROJECTION LIVE VISION & FILE ATTACHMENT
-    // ==========================================================================
     private fun startMediaProjectionCapture(resultCode: Int, data: Intent) {
         stopMediaProjection()
         startForegroundNotification(withMediaProjection = true)

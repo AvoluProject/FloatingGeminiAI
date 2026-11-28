@@ -106,7 +106,7 @@ enum class AiProvider(
 
 data class ChatMessage(
     val id: String = System.nanoTime().toString(),
-    val role: String, // "user" or "assistant"
+    val role: String,
     val content: String,
     val providerTag: String = "",
     val timestamp: Long = System.currentTimeMillis()

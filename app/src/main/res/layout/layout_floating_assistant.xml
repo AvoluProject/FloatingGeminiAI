@@ -393,6 +393,8 @@
                     android:textColor="#F8FAFC"
                     android:textColorHint="#64748B"
                     android:textSize="12.5sp"
+                    android:inputType="textCapSentences|textMultiLine"
+                    android:imeOptions="actionSend"
                     android:maxLines="3"
                     android:paddingHorizontal="12dp"
                     android:background="@drawable/bg_input_glass" />

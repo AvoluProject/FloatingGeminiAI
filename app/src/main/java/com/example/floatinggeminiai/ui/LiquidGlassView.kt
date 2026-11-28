@@ -26,13 +26,6 @@ import androidx.dynamicanimation.animation.FloatValueHolder
 import androidx.dynamicanimation.animation.SpringAnimation
 import androidx.dynamicanimation.animation.SpringForce
 
-/**
- * LiquidGlassFrameLayout — Terinspirasi langsung dari Kyant0/AndroidLiquidGlass:
- * - Signed Distance Field (SDF) Rounded-Box Lens Refraction
- * - Physical RGB Chromatic Dispersion di sepanjang bevel kaca
- * - Interactive Gel-Press Bulge & Angle-Aware Specular Rim Highlight
- * - Mendukung varian REGULAR (readability-first untuk UI/Navbar) dan CLEAR (Dynamic Island)
- */
 class LiquidGlassFrameLayout @JvmOverloads constructor(
     context: Context,
     attrs: AttributeSet? = null,
@@ -116,59 +109,49 @@ class LiquidGlassFrameLayout @JvmOverloads constructor(
                 "uniform float uIsDark;",
                 "uniform float uClearVariant;",
                 "float sdRoundedBox(float2 p, float2 b, float r) {",
-                "float2 q = abs(p) - b + float2(r);",
-                "return min(max(q.x, q.y), 0.0) + length(max(q, float2(0.0))) - r;",
+                "    float2 q = abs(p) - b + float2(r);",
+                "    return min(max(q.x, q.y), 0.0) + length(max(q, float2(0.0))) - r;",
                 "}",
                 "half4 main(float2 fragCoord) {",
-                "float2 center = uResolution * 0.5;",
-                "float maxR = min(center.x, center.y);",
-                "float radius = clamp(uCornerRadius, 1.0, maxR);",
-                "float2 halfSize = center - float2(0.75);",
-                "float2 p = fragCoord - center;",
-                "float d = sdRoundedBox(p, halfSize, radius);",
-                "if (d > 0.0) {",
-                "return half4(0.0);",
-                "}",
-                "// Surface normal via SDF gradient",
-                "float2 eps = float2(1.5, 0.0);",
-                "float2 grad = float2(",
-                "sdRoundedBox(p + eps.xy, halfSize, radius) - sdRoundedBox(p - eps.xy, halfSize, radius),",
-                "sdRoundedBox(p + eps.yx, halfSize, radius) - sdRoundedBox(p - eps.yx, halfSize, radius)",
-                ");",
-                "float2 normal = normalize(grad + float2(0.0001));",
-                "// Convex lens profile along bevel rim",
-                "float edgeDist = -d;",
-                "float rimFactor = clamp(1.0 - (edgeDist / max(uBevelWidth, 1.0)), 0.0, 1.0);",
-                "float lensCurve = pow(rimFactor, 2.2);",
-                "// Interactive gel-press bulge around touch",
-                "float touchDist = length(fragCoord - uTouchPos);",
-                "float gelBulge = uPressProgress * exp(-touchDist * 0.011);",
-                "// Directional specular light + dynamic touch shift",
-                "float2 touchOffset = (uTouchPos - center) * 0.0016 * uPressProgress;",
-                "float2 lightDir = normalize(float2(-0.62, -0.78) + touchOffset);",
-                "float topSpec = pow(max(dot(normal, lightDir), 0.0), 2.6) * (0.35 + 0.65 * lensCurve);",
-                "float bottomRim = pow(max(dot(normal, -lightDir), 0.0), 3.4) * lensCurve * 0.52;",
-                "// Physical RGB chromatic dispersion along bevel normal",
-                "float angle = atan(normal.y, normal.x) + uTime * 0.45;",
-                "float3 dispersion = float3(",
-                "0.5 + 0.5 * sin(angle),",
-                "0.5 + 0.5 * sin(angle + 2.09439),",
-                "0.5 + 0.5 * sin(angle + 4.18879)",
-                ") * lensCurve * uDispersionStrength;",
-                "// Adaptive Dark/Light & Regular/Clear base glass material",
-                "float3 baseDark = mix(float3(0.068, 0.102, 0.185), float3(0.015, 0.022, 0.038), uClearVariant);",
-                "float3 baseLight = mix(float3(0.92, 0.95, 0.99), float3(0.96, 0.98, 1.0), uClearVariant);",
-                "float3 baseCol = mix(baseLight, baseDark, uIsDark);",
-                "// Micro-grain dithering",
-                "float grain = (fract(sin(dot(fragCoord, float2(12.9898, 78.233))) * 43758.5453) - 0.5) * 0.015;",
-                "float3 rgb = baseCol",
-                "+ dispersion",
-                "+ float3(0.76, 0.90, 1.0) * (topSpec * uSpecularIntensity + gelBulge * 0.25)",
-                "+ float3(0.68, 0.54, 1.0) * bottomRim",
-                "+ float3(grain);",
-                "float targetAlpha = mix(0.84, 0.76, uClearVariant);",
-                "float alpha = clamp(targetAlpha + lensCurve * 0.15 + topSpec * 0.20, 0.0, 0.97);",
-                "return half4(half3(rgb * alpha), half(alpha));",
+                "    float2 center = uResolution * 0.5;",
+                "    float maxR = min(center.x, center.y);",
+                "    float radius = clamp(uCornerRadius, 1.0, maxR);",
+                "    float2 halfSize = center - float2(0.75);",
+                "    float2 p = fragCoord - center;",
+                "    float d = sdRoundedBox(p, halfSize, radius);",
+                "    if (d > 0.0) { return half4(0.0); }",
+                "    float2 eps = float2(1.5, 0.0);",
+                "    float2 grad = float2(",
+                "        sdRoundedBox(p + eps.xy, halfSize, radius) - sdRoundedBox(p - eps.xy, halfSize, radius),",
+                "        sdRoundedBox(p + eps.yx, halfSize, radius) - sdRoundedBox(p - eps.yx, halfSize, radius)",
+                "    );",
+                "    float2 normal = normalize(grad + float2(0.0001));",
+                "    float edgeDist = -d;",
+                "    float rimFactor = clamp(1.0 - (edgeDist / max(uBevelWidth, 1.0)), 0.0, 1.0);",
+                "    float lensCurve = pow(rimFactor, 2.2);",
+                "    float touchDist = length(fragCoord - uTouchPos);",
+                "    float gelBulge = uPressProgress * exp(-touchDist * 0.011);",
+                "    float2 touchOffset = (uTouchPos - center) * 0.0016 * uPressProgress;",
+                "    float2 lightDir = normalize(float2(-0.62, -0.78) + touchOffset);",
+                "    float topSpec = pow(max(dot(normal, lightDir), 0.0), 2.6) * (0.35 + 0.65 * lensCurve);",
+                "    float bottomRim = pow(max(dot(normal, -lightDir), 0.0), 3.4) * lensCurve * 0.52;",
+                "    float angle = atan(normal.y, normal.x) + uTime * 0.45;",
+                "    float3 dispersion = float3(",
+                "        0.5 + 0.5 * sin(angle),",
+                "        0.5 + 0.5 * sin(angle + 2.09439),",
+                "        0.5 + 0.5 * sin(angle + 4.18879)",
+                "    ) * lensCurve * uDispersionStrength;",
+                "    float3 baseDark = mix(float3(0.068, 0.102, 0.185), float3(0.015, 0.022, 0.038), uClearVariant);",
+                "    float3 baseLight = mix(float3(0.92, 0.95, 0.99), float3(0.96, 0.98, 1.0), uClearVariant);",
+                "    float3 baseCol = mix(baseLight, baseDark, uIsDark);",
+                "    float grain = (fract(sin(dot(fragCoord, float2(12.9898, 78.233))) * 43758.5453) - 0.5) * 0.015;",
+                "    float3 rgb = baseCol + dispersion",
+                "        + float3(0.76, 0.90, 1.0) * (topSpec * uSpecularIntensity + gelBulge * 0.25)",
+                "        + float3(0.68, 0.54, 1.0) * bottomRim",
+                "        + float3(grain);",
+                "    float targetAlpha = mix(0.84, 0.76, uClearVariant);",
+                "    float alpha = clamp(targetAlpha + lensCurve * 0.15 + topSpec * 0.20, 0.0, 0.97);",
+                "    return half4(half3(rgb * alpha), half(alpha));",
                 "}"
             ).joinToString("\n")
 
@@ -347,11 +330,6 @@ class LiquidGlassFrameLayout @JvmOverloads constructor(
     }
 }
 
-/**
- * LiquidGlassBottomNavBar — Floating Bottom Navigation Bar bergaya iOS 26 / Kyant0 Liquid Glass
- * Dilengkapi kapsul indikator kaca cair (Liquid Droplet) yang meluncur dengan fisika pegas
- * disertai chromatic edge dispersion saat berpindah tab.
- */
 class LiquidGlassBottomNavBar @JvmOverloads constructor(
     context: Context,
     attrs: AttributeSet? = null,
@@ -405,6 +383,7 @@ class LiquidGlassBottomNavBar @JvmOverloads constructor(
         itemsRow.removeAllViews()
         tabViews.clear()
         val d = resources.displayMetrics.density
+        val isDark = (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
 
         tabs.forEachIndexed { index, tab ->
             val tabBox = LinearLayout(context).apply {
@@ -418,14 +397,20 @@ class LiquidGlassBottomNavBar @JvmOverloads constructor(
 
             val iconView = ImageView(context).apply {
                 setImageResource(tab.iconRes)
-                setColorFilter(if (index == 0) Color.parseColor("#38BDF8") else Color.parseColor("#94A3B8"))
+                setColorFilter(
+                    if (index == 0) Color.parseColor("#38BDF8")
+                    else if (isDark) Color.parseColor("#94A3B8") else Color.parseColor("#475569")
+                )
             }
 
             val labelView = TextView(context).apply {
                 text = tab.label
                 textSize = 10.5f
                 typeface = if (index == 0) Typeface.DEFAULT_BOLD else Typeface.DEFAULT
-                setTextColor(if (index == 0) Color.parseColor("#F8FAFC") else Color.parseColor("#94A3B8"))
+                setTextColor(
+                    if (index == 0) (if (isDark) Color.parseColor("#F8FAFC") else Color.parseColor("#0284C7"))
+                    else if (isDark) Color.parseColor("#94A3B8") else Color.parseColor("#475569")
+                )
                 gravity = Gravity.CENTER
                 setPadding(0, (3 * d).toInt(), 0, 0)
             }
@@ -459,7 +444,7 @@ class LiquidGlassBottomNavBar @JvmOverloads constructor(
                 else if (isDark) Color.parseColor("#94A3B8") else Color.parseColor("#475569")
             )
             label.setTextColor(
-                if (active) Color.parseColor("#F8FAFC")
+                if (active) (if (isDark) Color.parseColor("#F8FAFC") else Color.parseColor("#0284C7"))
                 else if (isDark) Color.parseColor("#94A3B8") else Color.parseColor("#475569")
             )
             label.typeface = if (active) Typeface.DEFAULT_BOLD else Typeface.DEFAULT
