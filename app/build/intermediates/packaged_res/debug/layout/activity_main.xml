@@ -1,0 +1,701 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/mainRootFrame"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#050811">
+
+    <!-- AMBIENT AURORA BACKDROP FOR LIQUID GLASS REFRACTION -->
+    <View
+        android:layout_width="290dp"
+        android:layout_height="290dp"
+        android:layout_gravity="top|start"
+        android:layout_marginStart="-70dp"
+        android:layout_marginTop="-40dp"
+        android:alpha="0.32"
+        android:background="@drawable/bg_ambient_orb_cyan" />
+
+    <View
+        android:layout_width="320dp"
+        android:layout_height="320dp"
+        android:layout_gravity="bottom|end"
+        android:layout_marginEnd="-80dp"
+        android:layout_marginBottom="40dp"
+        android:alpha="0.26"
+        android:background="@drawable/bg_ambient_orb_purple" />
+
+    <!-- SCROLLABLE CONTENT PAGES -->
+    <ScrollView
+        android:id="@+id/mainScrollView"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:fillViewport="true"
+        android:clipToPadding="false"
+        android:paddingTop="40dp"
+        android:paddingBottom="108dp"
+        android:paddingHorizontal="16dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <!-- TOP HEADER BAR -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginBottom="16dp">
+
+                <com.example.floatinggeminiai.ui.LiquidGlassFrameLayout
+                    android:id="@+id/glassHeaderBadge"
+                    android:layout_width="46dp"
+                    android:layout_height="46dp">
+
+                    <ImageView
+                        android:layout_width="24dp"
+                        android:layout_height="24dp"
+                        android:layout_gravity="center"
+                        android:src="@drawable/ic_sparkle"
+                        app:tint="#38BDF8" />
+                </com.example.floatinggeminiai.ui.LiquidGlassFrameLayout>
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_marginStart="12dp"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:id="@+id/tvMainTitle"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Floamini OS"
+                        android:textSize="24sp"
+                        android:textStyle="bold"
+                        android:textColor="#F8FAFC" />
+
+                    <TextView
+                        android:id="@+id/tvMainSubtitle"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Kyant0 Liquid Glass • Multi-AI Overlay"
+                        android:textSize="12sp"
+                        android:textColor="#94A3B8" />
+                </LinearLayout>
+
+                <Button
+                    android:id="@+id/btnOpenWelcome"
+                    android:layout_width="wrap_content"
+                    android:layout_height="38dp"
+                    android:text="Panduan"
+                    android:textAllCaps="false"
+                    android:textSize="12sp"
+                    android:textColor="#38BDF8"
+                    android:background="@drawable/bg_chip_glass" />
+            </LinearLayout>
+
+            <!-- ============================================================== -->
+            <!-- TAB 0: BERANDA (CONTROL HUB) -->
+            <!-- ============================================================== -->
+            <LinearLayout
+                android:id="@+id/pageHome"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical">
+
+                <!-- LIQUID GLASS STATUS & LAUNCHER CARD -->
+                <com.example.floatinggeminiai.ui.LiquidGlassFrameLayout
+                    android:id="@+id/glassCardHero"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="14dp">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="18dp">
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal"
+                            android:gravity="center_vertical"
+                            android:layout_marginBottom="12dp">
+
+                            <TextView
+                                android:id="@+id/tvActiveEngineSummary"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:text="Engine: Google Gemini (gemini-2.5-flash)"
+                                android:textSize="13sp"
+                                android:textStyle="bold"
+                                android:textColor="#E2E8F0" />
+
+                            <TextView
+                                android:id="@+id/tvPermissionBadge"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Overlay: Cek"
+                                android:textSize="11sp"
+                                android:textStyle="bold"
+                                android:textColor="#38BDF8"
+                                android:paddingHorizontal="10dp"
+                                android:paddingVertical="4dp"
+                                android:background="@drawable/bg_chip_glass" />
+                        </LinearLayout>
+
+                        <Button
+                            android:id="@+id/btnGrantOverlay"
+                            android:layout_width="match_parent"
+                            android:layout_height="44dp"
+                            android:text="1. Beri Izin Tampil di Atas Aplikasi Lain"
+                            android:textAllCaps="false"
+                            android:textColor="#F8FAFC"
+                            android:backgroundTint="#1E293B"
+                            android:layout_marginBottom="8dp" />
+
+                        <Button
+                            android:id="@+id/btnStartService"
+                            android:layout_width="match_parent"
+                            android:layout_height="48dp"
+                            android:text="2. Aktifkan Floamini Liquid Overlay"
+                            android:textAllCaps="false"
+                            android:textStyle="bold"
+                            android:textColor="#020617"
+                            android:backgroundTint="#38BDF8"
+                            android:layout_marginBottom="8dp" />
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal">
+
+                            <Button
+                                android:id="@+id/btnSummonSiriNow"
+                                android:layout_width="0dp"
+                                android:layout_height="42dp"
+                                android:layout_weight="1"
+                                android:layout_marginEnd="6dp"
+                                android:text="Panggil Siri Aura"
+                                android:textAllCaps="false"
+                                android:textSize="12sp"
+                                android:textColor="#E879F9"
+                                android:background="@drawable/bg_chip_glass" />
+
+                            <Button
+                                android:id="@+id/btnForceStopService"
+                                android:layout_width="0dp"
+                                android:layout_height="42dp"
+                                android:layout_weight="1"
+                                android:layout_marginStart="6dp"
+                                android:text="Quick Force Stop"
+                                android:textAllCaps="false"
+                                android:textSize="12sp"
+                                android:textColor="#FCA5A5"
+                                android:background="@drawable/bg_chip_glass" />
+                        </LinearLayout>
+                    </LinearLayout>
+                </com.example.floatinggeminiai.ui.LiquidGlassFrameLayout>
+
+                <!-- LIQUID GLASS USAGE & TELEMETRY CARD -->
+                <com.example.floatinggeminiai.ui.LiquidGlassFrameLayout
+                    android:id="@+id/glassCardStats"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="14dp">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="18dp">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="STATISTIK PENGGUNAAN &amp; PRIVASI"
+                            android:textSize="11sp"
+                            android:textStyle="bold"
+                            android:textColor="#38BDF8"
+                            android:layout_marginBottom="6dp" />
+
+                        <TextView
+                            android:id="@+id/tvUsageStats"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="Total Permintaan: 0 kali"
+                            android:textSize="13sp"
+                            android:textColor="#CBD5E1"
+                            android:layout_marginBottom="10dp" />
+
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="Semua API Key dienkripsi lokal dengan AES256-GCM. Layar &amp; clipboard tidak pernah dibaca tanpa ketukan Anda."
+                            android:textSize="11.5sp"
+                            android:textColor="#94A3B8" />
+                    </LinearLayout>
+                </com.example.floatinggeminiai.ui.LiquidGlassFrameLayout>
+            </LinearLayout>
+
+            <!-- ============================================================== -->
+            <!-- TAB 1: AI & KEYS (MULTI-PROVIDER VAULT) -->
+            <!-- ============================================================== -->
+            <LinearLayout
+                android:id="@+id/pageAiProviders"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:visibility="gone">
+
+                <com.example.floatinggeminiai.ui.LiquidGlassFrameLayout
+                    android:id="@+id/glassCardProvider"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="14dp">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="18dp">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="MULTI-AI PROVIDER &amp; ENCRYPTED VAULT"
+                            android:textSize="11sp"
+                            android:textStyle="bold"
+                            android:textColor="#38BDF8"
+                            android:layout_marginBottom="10dp" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Pilih Provider AI (11 Engine Didukung)"
+                            android:textSize="12sp"
+                            android:textColor="#94A3B8"
+                            android:layout_marginBottom="4dp" />
+
+                        <Spinner
+                            android:id="@+id/spinnerProvider"
+                            android:layout_width="match_parent"
+                            android:layout_height="44dp"
+                            android:background="@drawable/bg_input_glass"
+                            android:paddingHorizontal="12dp"
+                            android:layout_marginBottom="10dp" />
+
+                        <TextView
+                            android:id="@+id/tvProviderKeyStatus"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="Status Vault: Belum diisi"
+                            android:textSize="12sp"
+                            android:textColor="#38BDF8"
+                            android:layout_marginBottom="6dp" />
+
+                        <EditText
+                            android:id="@+id/etProviderApiKey"
+                            android:layout_width="match_parent"
+                            android:layout_height="46dp"
+                            android:hint="Tempel API Key Provider terpilih..."
+                            android:textColor="#F8FAFC"
+                            android:textColorHint="#64748B"
+                            android:textSize="13sp"
+                            android:inputType="textPassword"
+                            android:paddingHorizontal="14dp"
+                            android:background="@drawable/bg_input_glass"
+                            android:layout_marginBottom="8dp" />
+
+                        <LinearLayout
+                            android:id="@+id/layoutCustomEndpoint"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical"
+                            android:visibility="gone"
+                            android:layout_marginBottom="8dp">
+
+                            <EditText
+                                android:id="@+id/etCustomBaseUrl"
+                                android:layout_width="match_parent"
+                                android:layout_height="44dp"
+                                android:hint="Custom Base URL (mis. https://api.openai.com/v1)"
+                                android:textColor="#F8FAFC"
+                                android:textColorHint="#64748B"
+                                android:textSize="12.5sp"
+                                android:paddingHorizontal="12dp"
+                                android:background="@drawable/bg_input_glass"
+                                android:layout_marginBottom="6dp" />
+
+                            <EditText
+                                android:id="@+id/etCustomModelId"
+                                android:layout_width="match_parent"
+                                android:layout_height="44dp"
+                                android:hint="Custom Model ID (mis. gpt-4o-mini)"
+                                android:textColor="#F8FAFC"
+                                android:textColorHint="#64748B"
+                                android:textSize="12.5sp"
+                                android:paddingHorizontal="12dp"
+                                android:background="@drawable/bg_input_glass" />
+                        </LinearLayout>
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal"
+                            android:layout_marginBottom="10dp">
+
+                            <Button
+                                android:id="@+id/btnSaveProviderKey"
+                                android:layout_width="0dp"
+                                android:layout_height="42dp"
+                                android:layout_weight="1"
+                                android:layout_marginEnd="6dp"
+                                android:text="Simpan ke Vault"
+                                android:textAllCaps="false"
+                                android:textSize="12sp"
+                                android:textStyle="bold"
+                                android:textColor="#020617"
+                                android:backgroundTint="#38BDF8" />
+
+                            <Button
+                                android:id="@+id/btnTestProviderConnection"
+                                android:layout_width="0dp"
+                                android:layout_height="42dp"
+                                android:layout_weight="1"
+                                android:layout_marginStart="6dp"
+                                android:text="Tes Koneksi"
+                                android:textAllCaps="false"
+                                android:textSize="12sp"
+                                android:textColor="#F8FAFC"
+                                android:background="@drawable/bg_chip_glass" />
+                        </LinearLayout>
+
+                        <TextView
+                            android:id="@+id/tvTestConnectionResult"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text=""
+                            android:textSize="12sp"
+                            android:textColor="#34D399"
+                            android:visibility="gone"
+                            android:layout_marginBottom="8dp" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Model Aktif"
+                            android:textSize="12sp"
+                            android:textColor="#94A3B8"
+                            android:layout_marginBottom="4dp" />
+
+                        <Spinner
+                            android:id="@+id/spinnerModel"
+                            android:layout_width="match_parent"
+                            android:layout_height="44dp"
+                            android:background="@drawable/bg_input_glass"
+                            android:paddingHorizontal="12dp"
+                            android:layout_marginBottom="10dp" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Kepribadian &amp; Gaya Bicara AI"
+                            android:textSize="12sp"
+                            android:textColor="#94A3B8"
+                            android:layout_marginBottom="4dp" />
+
+                        <Spinner
+                            android:id="@+id/spinnerPersonality"
+                            android:layout_width="match_parent"
+                            android:layout_height="44dp"
+                            android:background="@drawable/bg_input_glass"
+                            android:paddingHorizontal="12dp"
+                            android:layout_marginBottom="10dp" />
+
+                        <EditText
+                            android:id="@+id/etCustomPersona"
+                            android:layout_width="match_parent"
+                            android:layout_height="68dp"
+                            android:hint="Instruksi sistem tambahan (opsional)..."
+                            android:textColor="#F8FAFC"
+                            android:textColorHint="#64748B"
+                            android:textSize="12.5sp"
+                            android:gravity="top"
+                            android:padding="12dp"
+                            android:background="@drawable/bg_input_glass" />
+                    </LinearLayout>
+                </com.example.floatinggeminiai.ui.LiquidGlassFrameLayout>
+            </LinearLayout>
+
+            <!-- ============================================================== -->
+            <!-- TAB 2: OVERLAY & LIQUID GLASS STUDIO -->
+            <!-- ============================================================== -->
+            <LinearLayout
+                android:id="@+id/pageOverlayGlass"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:visibility="gone">
+
+                <com.example.floatinggeminiai.ui.LiquidGlassFrameLayout
+                    android:id="@+id/glassCardOverlay"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="14dp">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="18dp">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="DYNAMIC ISLAND, SIRI &amp; KYANT0 LIQUID GLASS"
+                            android:textSize="11sp"
+                            android:textStyle="bold"
+                            android:textColor="#38BDF8"
+                            android:layout_marginBottom="10dp" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Mode Pemicu Overlay"
+                            android:textSize="12sp"
+                            android:textColor="#94A3B8"
+                            android:layout_marginBottom="4dp" />
+
+                        <Spinner
+                            android:id="@+id/spinnerOverlayStyle"
+                            android:layout_width="match_parent"
+                            android:layout_height="44dp"
+                            android:background="@drawable/bg_input_glass"
+                            android:paddingHorizontal="12dp"
+                            android:layout_marginBottom="10dp" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Tampilan Pil Dynamic Island"
+                            android:textSize="12sp"
+                            android:textColor="#94A3B8"
+                            android:layout_marginBottom="4dp" />
+
+                        <Spinner
+                            android:id="@+id/spinnerPillAppearance"
+                            android:layout_width="match_parent"
+                            android:layout_height="44dp"
+                            android:background="@drawable/bg_input_glass"
+                            android:paddingHorizontal="12dp"
+                            android:layout_marginBottom="10dp" />
+
+                        <Switch
+                            android:id="@+id/switchAutoHidePill"
+                            android:layout_width="match_parent"
+                            android:layout_height="42dp"
+                            android:text="Auto-Hide Pil Setelah 3 Detik Diam"
+                            android:textColor="#E2E8F0"
+                            android:textSize="13sp" />
+
+                        <Switch
+                            android:id="@+id/switchSmartFreeze"
+                            android:layout_width="match_parent"
+                            android:layout_height="42dp"
+                            android:text="Auto Smart Freeze (Hemat RAM &amp; Baterai)"
+                            android:textColor="#E2E8F0"
+                            android:textSize="13sp"
+                            android:checked="true" />
+
+                        <Switch
+                            android:id="@+id/switchLiquidBlur"
+                            android:layout_width="match_parent"
+                            android:layout_height="42dp"
+                            android:text="Real Window Blur &amp; Chromatic Dispersion"
+                            android:textColor="#E2E8F0"
+                            android:textSize="13sp"
+                            android:checked="true" />
+
+                        <TextView
+                            android:id="@+id/tvIslandWidthLabel"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Lebar Pil Dynamic Island: 164dp"
+                            android:textSize="12sp"
+                            android:textColor="#94A3B8"
+                            android:layout_marginTop="8dp" />
+
+                        <SeekBar
+                            android:id="@+id/seekIslandWidth"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:max="180"
+                            android:progress="64" />
+
+                        <TextView
+                            android:id="@+id/tvIslandYLabel"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Posisi Vertikal Atas (Y): 12dp"
+                            android:textSize="12sp"
+                            android:textColor="#94A3B8"
+                            android:layout_marginTop="6dp" />
+
+                        <SeekBar
+                            android:id="@+id/seekIslandY"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:max="120"
+                            android:progress="12" />
+
+                        <TextView
+                            android:id="@+id/tvIslandXLabel"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Geser Horizontal Kamera (X): 0dp"
+                            android:textSize="12sp"
+                            android:textColor="#94A3B8"
+                            android:layout_marginTop="6dp" />
+
+                        <SeekBar
+                            android:id="@+id/seekIslandX"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:max="240"
+                            android:progress="120" />
+
+                        <TextView
+                            android:id="@+id/tvOpacityLabel"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Transparansi Jendela Glass: 92%"
+                            android:textSize="12sp"
+                            android:textColor="#94A3B8"
+                            android:layout_marginTop="6dp" />
+
+                        <SeekBar
+                            android:id="@+id/seekPopupOpacity"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:max="45"
+                            android:progress="37" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Tema Adaptif UI"
+                            android:textSize="12sp"
+                            android:textColor="#94A3B8"
+                            android:layout_marginTop="8dp"
+                            android:layout_marginBottom="4dp" />
+
+                        <Spinner
+                            android:id="@+id/spinnerThemeMode"
+                            android:layout_width="match_parent"
+                            android:layout_height="44dp"
+                            android:background="@drawable/bg_input_glass"
+                            android:paddingHorizontal="12dp"
+                            android:layout_marginBottom="10dp" />
+
+                        <Button
+                            android:id="@+id/btnAddControlCenterTile"
+                            android:layout_width="match_parent"
+                            android:layout_height="44dp"
+                            android:text="Tambah Tombol Siri ke Control Center"
+                            android:textAllCaps="false"
+                            android:textSize="12.5sp"
+                            android:textColor="#38BDF8"
+                            android:background="@drawable/bg_chip_glass" />
+                    </LinearLayout>
+                </com.example.floatinggeminiai.ui.LiquidGlassFrameLayout>
+            </LinearLayout>
+
+            <!-- ============================================================== -->
+            <!-- TAB 3: TOOLS & DATA -->
+            <!-- ============================================================== -->
+            <LinearLayout
+                android:id="@+id/pageToolsData"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:visibility="gone">
+
+                <com.example.floatinggeminiai.ui.LiquidGlassFrameLayout
+                    android:id="@+id/glassCardTools"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="14dp">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="18dp">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="QUICK NOTES &amp; PROMPT LIBRARY"
+                            android:textSize="11sp"
+                            android:textStyle="bold"
+                            android:textColor="#38BDF8"
+                            android:layout_marginBottom="8dp" />
+
+                        <EditText
+                            android:id="@+id/etMainQuickNotes"
+                            android:layout_width="match_parent"
+                            android:layout_height="110dp"
+                            android:hint="Tulis catatan cepat yang juga bisa diakses dari jendela melayang..."
+                            android:textColor="#F8FAFC"
+                            android:textColorHint="#64748B"
+                            android:textSize="13sp"
+                            android:gravity="top"
+                            android:padding="12dp"
+                            android:background="@drawable/bg_input_glass"
+                            android:layout_marginBottom="10dp" />
+
+                        <Button
+                            android:id="@+id/btnSaveQuickNotes"
+                            android:layout_width="match_parent"
+                            android:layout_height="42dp"
+                            android:text="Simpan Catatan Cepat"
+                            android:textAllCaps="false"
+                            android:textSize="12.5sp"
+                            android:textColor="#020617"
+                            android:backgroundTint="#38BDF8"
+                            android:layout_marginBottom="12dp" />
+
+                        <Button
+                            android:id="@+id/btnClearAllHistory"
+                            android:layout_width="match_parent"
+                            android:layout_height="42dp"
+                            android:text="Hapus Semua Riwayat Percakapan"
+                            android:textAllCaps="false"
+                            android:textSize="12.5sp"
+                            android:textColor="#FCA5A5"
+                            android:background="@drawable/bg_chip_glass" />
+                    </LinearLayout>
+                </com.example.floatinggeminiai.ui.LiquidGlassFrameLayout>
+            </LinearLayout>
+
+        </LinearLayout>
+    </ScrollView>
+
+    <!-- KYANT0 FLOATING LIQUID GLASS BOTTOM NAVBAR -->
+    <com.example.floatinggeminiai.ui.LiquidGlassBottomNavBar
+        android:id="@+id/liquidBottomNavBar"
+        android:layout_width="match_parent"
+        android:layout_height="72dp"
+        android:layout_gravity="bottom"
+        android:layout_marginHorizontal="16dp"
+        android:layout_marginBottom="16dp"
+        android:elevation="20dp" />
+
+</FrameLayout>

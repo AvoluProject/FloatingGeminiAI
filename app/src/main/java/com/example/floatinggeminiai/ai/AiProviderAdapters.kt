@@ -1,450 +1,371 @@
 package com.example.floatinggeminiai.ai
 
 import com.example.floatinggeminiai.security.SecureVault
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.flow
-import kotlinx.coroutines.flow.flowOn
-import kotlinx.coroutines.isActive
+import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONArray
 import org.json.JSONObject
-import java.io.IOException
+import java.io.BufferedReader
+import java.io.InputStreamReader
 import java.util.concurrent.TimeUnit
 
-interface AiProviderAdapter {
-    fun streamChat(payload: AiRequestPayload): Flow<StreamEvent>
-    suspend fun testConnection(apiKey: String, model: String, customBaseUrl: String = ""): Pair<Boolean, String>
-}
+class AiEngine(private val vault: SecureVault) {
 
-object AiEngineRegistry {
+    private val client = OkHttpClient.Builder()
+        .connectTimeout(25, TimeUnit.SECONDS)
+        .readTimeout(90, TimeUnit.SECONDS)
+        .writeTimeout(30, TimeUnit.SECONDS)
+        .build()
 
-    private fun buildClient(timeoutSec: Long): OkHttpClient {
-        return OkHttpClient.Builder()
-            .connectTimeout(timeoutSec.coerceAtLeast(15L), TimeUnit.SECONDS)
-            .readTimeout(timeoutSec.coerceAtLeast(30L), TimeUnit.SECONDS)
-            .writeTimeout(25L, TimeUnit.SECONDS)
-            .build()
-    }
-
-    fun getAdapter(provider: AiProviderType): AiProviderAdapter {
-        return when (provider) {
-            AiProviderType.GEMINI -> GeminiAdapter(::buildClient)
-            AiProviderType.CLAUDE -> ClaudeAdapter(::buildClient)
-            else -> OpenAiCompatibleAdapter(provider, ::buildClient)
-        }
-    }
-
-    /**
-     * AI Auto-Router: Memilih provider terbaik secara otomatis berdasarkan tugas & ketersediaan API Key.
-     */
-    fun resolveAutoRoute(
-        vault: SecureVault,
-        fallbackProvider: AiProviderType,
-        prompt: String,
-        hasImages: Boolean
-    ): AiProviderType {
-        val configured = vault.getConfiguredProviders()
-        if (configured.isEmpty()) return fallbackProvider
+    fun resolveAutoRouter(prompt: String, hasVisualAttachment: Boolean): Pair<AiProvider, String> {
+        val configured = AiProvider.entries.filter { vault.hasApiKey(it.id) }
+        if (configured.isEmpty()) return Pair(AiProvider.GEMINI, AiProvider.GEMINI.models.first())
 
         val lower = prompt.lowercase()
-        if (hasImages) {
-            val visionPriority = listOf(AiProviderType.GEMINI, AiProviderType.OPENAI, AiProviderType.CLAUDE, AiProviderType.GROK, AiProviderType.OPENROUTER)
-            visionPriority.firstOrNull { it in configured }?.let { return it }
+        if (hasVisualAttachment) {
+            val visionProv = configured.firstOrNull { it.supportsVision } ?: configured.first()
+            return Pair(visionProv, visionProv.models.first())
         }
-
-        val isCoding = listOf("kode", "code", "bug", "error", "kotlin", "python", "java", "script", "gradle", "sql", "html").any { lower.contains(it) }
-        if (isCoding) {
-            val codePriority = listOf(AiProviderType.DEEPSEEK, AiProviderType.CLAUDE, AiProviderType.QWEN, AiProviderType.OPENAI, AiProviderType.GEMINI)
-            codePriority.firstOrNull { it in configured }?.let { return it }
+        if (lower.contains("terbaru") || lower.contains("berita") || lower.contains("hari ini") || lower.contains("harga")) {
+            configured.find { it == AiProvider.PERPLEXITY }?.let { return Pair(it, it.models.first()) }
         }
-
-        val isWebSearch = listOf("berita", "terbaru", "hari ini", "harga", "siapa", "kapan", "news", "latest", "2026").any { lower.contains(it) }
-        if (isWebSearch && AiProviderType.PERPLEXITY in configured) {
-            return AiProviderType.PERPLEXITY
+        if (lower.contains("kode") || lower.contains("code") || lower.contains("bug") || lower.contains("kotlin") || lower.contains("python")) {
+            configured.find { it == AiProvider.DEEPSEEK || it == AiProvider.CLAUDE }?.let {
+                return Pair(it, it.models.first())
+            }
         }
-
-        if (prompt.length < 90 && AiProviderType.GROQ in configured) {
-            return AiProviderType.GROQ
+        configured.find { it == AiProvider.GROQ || it == AiProvider.GEMINI }?.let {
+            return Pair(it, it.models.first())
         }
-
-        return if (fallbackProvider in configured) fallbackProvider else configured.first()
+        val chosen = configured.first()
+        val model = if (chosen == AiProvider.CUSTOM) vault.getCustomModelId() else chosen.models.first()
+        return Pair(chosen, model)
     }
-}
 
-// ==============================================================================
-// ADAPTER 1: GOOGLE GEMINI (SSE STREAMING + MULTIMODAL VISION/PDF)
-// ==============================================================================
-class GeminiAdapter(
-    private val clientFactory: (Long) -> OkHttpClient
-) : AiProviderAdapter {
+    suspend fun testConnection(provider: AiProvider, model: String): Result<String> = withContext(Dispatchers.IO) {
+        val apiKey = vault.getApiKey(provider.id)
+        if (apiKey.isEmpty()) {
+            return@withContext Result.failure(IllegalStateException("API Key ${provider.displayName} masih kosong."))
+        }
+        val start = System.currentTimeMillis()
+        var responseText = ""
+        val result = streamChat(
+            provider = provider,
+            model = model,
+            systemPrompt = "Jawab hanya dengan kata: OK terhubung.",
+            history = listOf(ChatMessage(role = "user", content = "Tes koneksi")),
+            imageBase64List = emptyList(),
+            onChunk = { chunk -> responseText += chunk }
+        )
+        val latency = System.currentTimeMillis() - start
+        result.map { "${provider.displayName} aktif (${latency}ms): ${responseText.trim().take(60)}" }
+    }
 
-    override fun streamChat(payload: AiRequestPayload): Flow<StreamEvent> = flow {
-        val url = "${payload.provider.defaultBaseUrl}/models/${payload.model}:streamGenerateContent?alt=sse&key=${payload.apiKey}"
+    suspend fun streamChat(
+        provider: AiProvider,
+        model: String,
+        systemPrompt: String,
+        history: List<ChatMessage>,
+        imageBase64List: List<String>,
+        onChunk: suspend (String) -> Unit
+    ): Result<String> = withContext(Dispatchers.IO) {
+        val apiKey = vault.getApiKey(provider.id)
+        if (apiKey.isEmpty()) {
+            return@withContext Result.failure(
+                IllegalStateException("API Key untuk ${provider.displayName} belum diisi. Silakan isi di tab AI & Keys.")
+            )
+        }
+
+        var lastError: Throwable? = null
+        for (attempt in 1..2) {
+            try {
+                val fullText = when (provider) {
+                    AiProvider.GEMINI -> executeGeminiStream(apiKey, model, systemPrompt, history, imageBase64List, onChunk)
+                    AiProvider.CLAUDE -> executeClaudeStream(apiKey, model, systemPrompt, history, imageBase64List, onChunk)
+                    else -> executeOpenAiCompatibleStream(provider, apiKey, model, systemPrompt, history, imageBase64List, onChunk)
+                }
+                return@withContext Result.success(fullText)
+            } catch (ce: CancellationException) {
+                throw ce
+            } catch (t: Throwable) {
+                lastError = t
+                if (attempt < 2) delay(700L)
+            }
+        }
+        Result.failure(lastError ?: RuntimeException("Gagal menghubungi ${provider.displayName}"))
+    }
+
+    private suspend fun executeGeminiStream(
+        apiKey: String,
+        model: String,
+        systemPrompt: String,
+        history: List<ChatMessage>,
+        imageBase64List: List<String>,
+        onChunk: suspend (String) -> Unit
+    ): String {
+        val url = "${AiProvider.GEMINI.defaultBaseUrl}/models/$model:streamGenerateContent?alt=sse&key=$apiKey"
         val contentsArray = JSONArray()
 
-        for (msg in payload.history) {
-            contentsArray.put(JSONObject().apply {
-                put("role", if (msg.role == "user") "user" else "model")
-                put("parts", JSONArray().apply {
-                    put(JSONObject().apply { put("text", msg.text) })
-                })
-            })
-        }
-
-        val userParts = JSONArray().apply {
-            put(JSONObject().apply { put("text", payload.userPrompt) })
-            for (imgB64 in payload.imageBase64List) {
-                put(JSONObject().apply {
-                    put("inlineData", JSONObject().apply {
-                        put("mimeType", "image/jpeg")
-                        put("data", imgB64)
-                    })
-                })
-            }
-        }
-        contentsArray.put(JSONObject().apply {
-            put("role", "user")
-            put("parts", userParts)
-        })
-
-        val bodyJson = JSONObject().apply {
-            put("systemInstruction", JSONObject().apply {
-                put("parts", JSONArray().apply {
-                    put(JSONObject().apply { put("text", payload.systemInstruction) })
-                })
-            })
-            put("contents", contentsArray)
-        }
-
-        executeSseWithRetry(
-            client = clientFactory(payload.timeoutSeconds),
-            requestBuilder = {
-                Request.Builder()
-                    .url(url)
-                    .post(bodyJson.toString().toRequestBody("application/json; charset=utf-8".toMediaType()))
-                    .build()
-            },
-            extractChunk = { jsonLine ->
-                val obj = JSONObject(jsonLine)
-                val candidates = obj.optJSONArray("candidates")
-                val parts = candidates?.optJSONObject(0)?.optJSONObject("content")?.optJSONArray("parts")
-                parts?.optJSONObject(0)?.optString("text", "") ?: ""
-            },
-            onEvent = { emit(it) }
-        )
-    }.flowOn(Dispatchers.IO)
-
-    override suspend fun testConnection(apiKey: String, model: String, customBaseUrl: String): Pair<Boolean, String> {
-        return try {
-            val req = Request.Builder()
-                .url("https://generativelanguage.googleapis.com/v1beta/models?key=$apiKey")
-                .get()
-                .build()
-            clientFactory(15L).newCall(req).execute().use { res ->
-                if (res.isSuccessful) true to "Gemini terhubung ($model)"
-                else false to "Gagal HTTP ${res.code}"
-            }
-        } catch (e: Exception) {
-            false to "Koneksi gagal: ${e.localizedMessage}"
-        }
-    }
-}
-
-// ==============================================================================
-// ADAPTER 2: ANTHROPIC CLAUDE (/v1/messages SSE STREAMING + VISION)
-// ==============================================================================
-class ClaudeAdapter(
-    private val clientFactory: (Long) -> OkHttpClient
-) : AiProviderAdapter {
-
-    override fun streamChat(payload: AiRequestPayload): Flow<StreamEvent> = flow {
-        val url = "${payload.provider.defaultBaseUrl}/messages"
-        val messagesArray = JSONArray()
-
-        for (msg in payload.history) {
-            messagesArray.put(JSONObject().apply {
-                put("role", if (msg.role == "user") "user" else "assistant")
-                put("content", msg.text)
-            })
-        }
-
-        if (payload.imageBase64List.isEmpty()) {
-            messagesArray.put(JSONObject().apply {
-                put("role", "user")
-                put("content", payload.userPrompt)
-            })
-        } else {
-            val contentBlocks = JSONArray()
-            for (imgB64 in payload.imageBase64List) {
-                contentBlocks.put(JSONObject().apply {
-                    put("type", "image")
-                    put("source", JSONObject().apply {
-                        put("type", "base64")
-                        put("media_type", "image/jpeg")
-                        put("data", imgB64)
-                    })
-                })
-            }
-            contentBlocks.put(JSONObject().apply {
-                put("type", "text")
-                put("text", payload.userPrompt)
-            })
-            messagesArray.put(JSONObject().apply {
-                put("role", "user")
-                put("content", contentBlocks)
-            })
-        }
-
-        val bodyJson = JSONObject().apply {
-            put("model", payload.model)
-            put("max_tokens", 2048)
-            put("stream", true)
-            put("system", payload.systemInstruction)
-            put("messages", messagesArray)
-        }
-
-        executeSseWithRetry(
-            client = clientFactory(payload.timeoutSeconds),
-            requestBuilder = {
-                Request.Builder()
-                    .url(url)
-                    .addHeader("x-api-key", payload.apiKey)
-                    .addHeader("anthropic-version", "2023-06-01")
-                    .addHeader("content-type", "application/json")
-                    .post(bodyJson.toString().toRequestBody("application/json; charset=utf-8".toMediaType()))
-                    .build()
-            },
-            extractChunk = { jsonLine ->
-                val obj = JSONObject(jsonLine)
-                if (obj.optString("type") == "content_block_delta") {
-                    obj.optJSONObject("delta")?.optString("text", "") ?: ""
-                } else {
-                    ""
+        val recentHistory = history.takeLast(24)
+        recentHistory.forEachIndexed { idx, msg ->
+            val role = if (msg.role == "assistant") "model" else "user"
+            val parts = JSONArray()
+            parts.put(JSONObject().put("text", msg.content))
+            if (idx == recentHistory.lastIndex && role == "user" && imageBase64List.isNotEmpty()) {
+                for (b64 in imageBase64List) {
+                    parts.put(
+                        JSONObject().put(
+                            "inlineData",
+                            JSONObject()
+                                .put("mimeType", "image/jpeg")
+                                .put("data", b64)
+                        )
+                    )
                 }
-            },
-            onEvent = { emit(it) }
-        )
-    }.flowOn(Dispatchers.IO)
-
-    override suspend fun testConnection(apiKey: String, model: String, customBaseUrl: String): Pair<Boolean, String> {
-        return try {
-            val body = JSONObject().apply {
-                put("model", model)
-                put("max_tokens", 8)
-                put("messages", JSONArray().apply {
-                    put(JSONObject().apply {
-                        put("role", "user")
-                        put("content", "Hi")
-                    })
-                })
             }
-            val req = Request.Builder()
-                .url("https://api.anthropic.com/v1/messages")
-                .addHeader("x-api-key", apiKey)
-                .addHeader("anthropic-version", "2023-06-01")
-                .post(body.toString().toRequestBody("application/json; charset=utf-8".toMediaType()))
-                .build()
-            clientFactory(15L).newCall(req).execute().use { res ->
-                if (res.isSuccessful) true to "Claude terhubung ($model)"
-                else false to "Gagal HTTP ${res.code}"
-            }
-        } catch (e: Exception) {
-            false to "Koneksi gagal: ${e.localizedMessage}"
+            contentsArray.put(JSONObject().put("role", role).put("parts", parts))
         }
+
+        val bodyJson = JSONObject().apply {
+            put("systemInstruction", JSONObject().put("parts", JSONArray().put(JSONObject().put("text", systemPrompt))))
+            put("contents", contentsArray)
+            put("generationConfig", JSONObject().put("temperature", 0.75))
+        }
+
+        val request = Request.Builder()
+            .url(url)
+            .post(bodyJson.toString().toRequestBody("application/json; charset=utf-8".toMediaType()))
+            .build()
+
+        val sb = StringBuilder()
+        client.newCall(request).execute().use { response ->
+            if (!response.isSuccessful) {
+                val errBody = response.body?.string().orEmpty()
+                throw RuntimeException("Gemini HTTP ${response.code}: ${extractErrorMessage(errBody)}")
+            }
+            val stream = response.body?.byteStream() ?: throw RuntimeException("Stream kosong")
+            BufferedReader(InputStreamReader(stream)).use { reader ->
+                var line: String?
+                while (reader.readLine().also { line = it } != null) {
+                    val trimmed = line?.trim().orEmpty()
+                    if (trimmed.startsWith("data:")) {
+                        val payload = trimmed.removePrefix("data:").trim()
+                        if (payload == "[DONE]" || payload.isEmpty()) continue
+                        try {
+                            val json = JSONObject(payload)
+                            val candidates = json.optJSONArray("candidates") ?: continue
+                            if (candidates.length() > 0) {
+                                val parts = candidates.getJSONObject(0)
+                                    .optJSONObject("content")
+                                    ?.optJSONArray("parts")
+                                if (parts != null) {
+                                    for (i in 0 until parts.length()) {
+                                        val piece = parts.getJSONObject(i).optString("text", "")
+                                        if (piece.isNotEmpty()) {
+                                            sb.append(piece)
+                                            onChunk(piece)
+                                        }
+                                    }
+                                }
+                            }
+                        } catch (_: Exception) {
+                        }
+                    }
+                }
+            }
+        }
+        return sb.toString()
     }
-}
 
-// ==============================================================================
-// ADAPTER 3: OPENAI & COMPATIBLE PROVIDERS (OPENAI, DEEPSEEK, GROK, GROQ,
-// OPENROUTER, MISTRAL, QWEN, PERPLEXITY, CUSTOM)
-// ==============================================================================
-class OpenAiCompatibleAdapter(
-    private val provider: AiProviderType,
-    private val clientFactory: (Long) -> OkHttpClient
-) : AiProviderAdapter {
+    private suspend fun executeClaudeStream(
+        apiKey: String,
+        model: String,
+        systemPrompt: String,
+        history: List<ChatMessage>,
+        imageBase64List: List<String>,
+        onChunk: suspend (String) -> Unit
+    ): String {
+        val url = "${AiProvider.CLAUDE.defaultBaseUrl}/messages"
+        val messagesArray = JSONArray()
+        val recentHistory = history.takeLast(20)
 
-    private fun resolveEndpoint(customBaseUrl: String): String {
-        val base = if (provider == AiProviderType.CUSTOM && customBaseUrl.isNotBlank()) {
-            customBaseUrl.trimEnd('/')
+        recentHistory.forEachIndexed { idx, msg ->
+            val role = if (msg.role == "assistant") "assistant" else "user"
+            if (idx == recentHistory.lastIndex && role == "user" && imageBase64List.isNotEmpty()) {
+                val contentArr = JSONArray()
+                for (b64 in imageBase64List) {
+                    contentArr.put(
+                        JSONObject()
+                            .put("type", "image")
+                            .put(
+                                "source",
+                                JSONObject()
+                                    .put("type", "base64")
+                                    .put("media_type", "image/jpeg")
+                                    .put("data", b64)
+                            )
+                    )
+                }
+                contentArr.put(JSONObject().put("type", "text").put("text", msg.content))
+                messagesArray.put(JSONObject().put("role", role).put("content", contentArr))
+            } else {
+                messagesArray.put(JSONObject().put("role", role).put("content", msg.content))
+            }
+        }
+
+        val bodyJson = JSONObject().apply {
+            put("model", model)
+            put("max_tokens", 2048)
+            put("system", systemPrompt)
+            put("messages", messagesArray)
+            put("stream", true)
+        }
+
+        val request = Request.Builder()
+            .url(url)
+            .addHeader("x-api-key", apiKey)
+            .addHeader("anthropic-version", "2023-06-01")
+            .post(bodyJson.toString().toRequestBody("application/json; charset=utf-8".toMediaType()))
+            .build()
+
+        val sb = StringBuilder()
+        client.newCall(request).execute().use { response ->
+            if (!response.isSuccessful) {
+                val errBody = response.body?.string().orEmpty()
+                throw RuntimeException("Claude HTTP ${response.code}: ${extractErrorMessage(errBody)}")
+            }
+            val stream = response.body?.byteStream() ?: throw RuntimeException("Stream kosong")
+            BufferedReader(InputStreamReader(stream)).use { reader ->
+                var line: String?
+                while (reader.readLine().also { line = it } != null) {
+                    val trimmed = line?.trim().orEmpty()
+                    if (trimmed.startsWith("data:")) {
+                        val payload = trimmed.removePrefix("data:").trim()
+                        if (payload.isEmpty() || payload == "[DONE]") continue
+                        try {
+                            val json = JSONObject(payload)
+                            if (json.optString("type") == "content_block_delta") {
+                                val text = json.optJSONObject("delta")?.optString("text", "").orEmpty()
+                                if (text.isNotEmpty()) {
+                                    sb.append(text)
+                                    onChunk(text)
+                                }
+                            }
+                        } catch (_: Exception) {
+                        }
+                    }
+                }
+            }
+        }
+        return sb.toString()
+    }
+
+    private suspend fun executeOpenAiCompatibleStream(
+        provider: AiProvider,
+        apiKey: String,
+        model: String,
+        systemPrompt: String,
+        history: List<ChatMessage>,
+        imageBase64List: List<String>,
+        onChunk: suspend (String) -> Unit
+    ): String {
+        val baseUrl = if (provider == AiProvider.CUSTOM) {
+            vault.getCustomBaseUrl().trimEnd('/')
         } else {
             provider.defaultBaseUrl.trimEnd('/')
         }
-        return if (base.endsWith("/chat/completions")) base else "$base/chat/completions"
-    }
-
-    override fun streamChat(payload: AiRequestPayload): Flow<StreamEvent> = flow {
-        val endpoint = resolveEndpoint(payload.customBaseUrl)
-        val messagesArray = JSONArray().apply {
-            put(JSONObject().apply {
-                put("role", "system")
-                put("content", payload.systemInstruction)
-            })
-            for (msg in payload.history) {
-                put(JSONObject().apply {
-                    put("role", if (msg.role == "user") "user" else "assistant")
-                    put("content", msg.text)
-                })
-            }
+        val resolvedModel = if (provider == AiProvider.CUSTOM && model == "custom-model") {
+            vault.getCustomModelId().ifEmpty { model }
+        } else {
+            model
         }
 
-        if (payload.imageBase64List.isNotEmpty() && provider.supportsVision) {
-            val contentArray = JSONArray().apply {
-                put(JSONObject().apply {
-                    put("type", "text")
-                    put("text", payload.userPrompt)
-                })
-                for (imgB64 in payload.imageBase64List) {
-                    put(JSONObject().apply {
-                        put("type", "image_url")
-                        put("image_url", JSONObject().apply {
-                            put("url", "data:image/jpeg;base64,$imgB64")
-                        })
-                    })
+        val messagesArray = JSONArray()
+        messagesArray.put(JSONObject().put("role", "system").put("content", systemPrompt))
+
+        val recentHistory = history.takeLast(20)
+        recentHistory.forEachIndexed { idx, msg ->
+            val role = if (msg.role == "assistant") "assistant" else "user"
+            if (idx == recentHistory.lastIndex && role == "user" && imageBase64List.isNotEmpty() && provider.supportsVision) {
+                val contentParts = JSONArray()
+                contentParts.put(JSONObject().put("type", "text").put("text", msg.content))
+                for (b64 in imageBase64List) {
+                    contentParts.put(
+                        JSONObject()
+                            .put("type", "image_url")
+                            .put("image_url", JSONObject().put("url", "data:image/jpeg;base64,$b64"))
+                    )
                 }
+                messagesArray.put(JSONObject().put("role", role).put("content", contentParts))
+            } else {
+                messagesArray.put(JSONObject().put("role", role).put("content", msg.content))
             }
-            messagesArray.put(JSONObject().apply {
-                put("role", "user")
-                put("content", contentArray)
-            })
-        } else {
-            messagesArray.put(JSONObject().apply {
-                put("role", "user")
-                put("content", payload.userPrompt)
-            })
         }
 
         val bodyJson = JSONObject().apply {
-            put("model", payload.model)
-            put("stream", true)
+            put("model", resolvedModel)
             put("messages", messagesArray)
+            put("stream", true)
         }
 
-        executeSseWithRetry(
-            client = clientFactory(payload.timeoutSeconds),
-            requestBuilder = {
-                val builder = Request.Builder()
-                    .url(endpoint)
-                    .addHeader("Authorization", "Bearer ${payload.apiKey}")
-                    .addHeader("Content-Type", "application/json")
-                if (provider == AiProviderType.OPENROUTER) {
-                    builder.addHeader("HTTP-Referer", "https://github.com/AvoluProject/FloatingGeminiAI")
-                    builder.addHeader("X-Title", "Floamini OS Assistant")
-                }
-                builder.post(bodyJson.toString().toRequestBody("application/json; charset=utf-8".toMediaType())).build()
-            },
-            extractChunk = { jsonLine ->
-                val obj = JSONObject(jsonLine)
-                val choices = obj.optJSONArray("choices")
-                val delta = choices?.optJSONObject(0)?.optJSONObject("delta")
-                delta?.optString("content", "") ?: ""
-            },
-            onEvent = { emit(it) }
-        )
-    }.flowOn(Dispatchers.IO)
+        val reqBuilder = Request.Builder()
+            .url("$baseUrl/chat/completions")
+            .addHeader("Authorization", "Bearer $apiKey")
+            .post(bodyJson.toString().toRequestBody("application/json; charset=utf-8".toMediaType()))
 
-    override suspend fun testConnection(apiKey: String, model: String, customBaseUrl: String): Pair<Boolean, String> {
-        return try {
-            val endpoint = resolveEndpoint(customBaseUrl)
-            val bodyJson = JSONObject().apply {
-                put("model", model)
-                put("max_tokens", 8)
-                put("messages", JSONArray().apply {
-                    put(JSONObject().apply {
-                        put("role", "user")
-                        put("content", "Hi")
-                    })
-                })
-            }
-            val req = Request.Builder()
-                .url(endpoint)
-                .addHeader("Authorization", "Bearer $apiKey")
-                .addHeader("Content-Type", "application/json")
-                .post(bodyJson.toString().toRequestBody("application/json; charset=utf-8".toMediaType()))
-                .build()
-
-            clientFactory(15L).newCall(req).execute().use { res ->
-                if (res.isSuccessful) true to "${provider.shortBadge} terhubung ($model)"
-                else false to "${provider.shortBadge} HTTP ${res.code}"
-            }
-        } catch (e: Exception) {
-            false to "Koneksi gagal: ${e.localizedMessage}"
+        if (provider == AiProvider.OPENROUTER) {
+            reqBuilder.addHeader("HTTP-Referer", "https://github.com/AvoluProject/FloatingGeminiAI")
+            reqBuilder.addHeader("X-Title", "Floamini OS")
         }
-    }
-}
 
-// ==============================================================================
-// SHARED SSE STREAMING ENGINE WITH EXPONENTIAL BACKOFF RETRY
-// ==============================================================================
-private suspend fun executeSseWithRetry(
-    client: OkHttpClient,
-    requestBuilder: () -> Request,
-    extractChunk: (String) -> String,
-    onEvent: suspend (StreamEvent) -> Unit
-) {
-    var attempt = 0
-    val maxRetries = 2
-
-    while (attempt <= maxRetries) {
-        if (!currentCoroutineContext().isActive) return
-        try {
-            val response = client.newCall(requestBuilder()).execute()
-            response.use { res ->
-                if (!res.isSuccessful) {
-                    val code = res.code
-                    if ((code == 429 || code in 500..599) && attempt < maxRetries) {
-                        attempt++
-                        delay(800L * attempt)
-                        return@use
-                    }
-                    val errText = res.body?.string()?.take(180) ?: ""
-                    onEvent(StreamEvent.Error("Server menolak permintaan (HTTP $code). $errText"))
-                    return
-                }
-
-                val source = res.body?.source()
-                if (source == null) {
-                    onEvent(StreamEvent.Error("Stream respons kosong dari server."))
-                    return
-                }
-
-                val fullBuilder = StringBuilder()
-                while (currentCoroutineContext().isActive && !source.exhausted()) {
-                    val line = source.readUtf8Line() ?: break
-                    if (!line.startsWith("data:")) continue
-                    val dataStr = line.removePrefix("data:").trim()
-                    if (dataStr.isEmpty() || dataStr == "[DONE]") continue
-
-                    try {
-                        val piece = extractChunk(dataStr)
-                        if (piece.isNotEmpty()) {
-                            fullBuilder.append(piece)
-                            onEvent(StreamEvent.Delta(piece))
+        val sb = StringBuilder()
+        client.newCall(reqBuilder.build()).execute().use { response ->
+            if (!response.isSuccessful) {
+                val errBody = response.body?.string().orEmpty()
+                throw RuntimeException("${provider.displayName} HTTP ${response.code}: ${extractErrorMessage(errBody)}")
+            }
+            val stream = response.body?.byteStream() ?: throw RuntimeException("Stream kosong")
+            BufferedReader(InputStreamReader(stream)).use { reader ->
+                var line: String?
+                while (reader.readLine().also { line = it } != null) {
+                    val trimmed = line?.trim().orEmpty()
+                    if (trimmed.startsWith("data:")) {
+                        val payload = trimmed.removePrefix("data:").trim()
+                        if (payload == "[DONE]" || payload.isEmpty()) continue
+                        try {
+                            val json = JSONObject(payload)
+                            val choices = json.optJSONArray("choices") ?: continue
+                            if (choices.length() > 0) {
+                                val delta = choices.getJSONObject(0).optJSONObject("delta")
+                                val content = delta?.optString("content", "").orEmpty()
+                                if (content.isNotEmpty()) {
+                                    sb.append(content)
+                                    onChunk(content)
+                                }
+                            }
+                        } catch (_: Exception) {
                         }
-                    } catch (_: Exception) {}
+                    }
                 }
+            }
+        }
+        return sb.toString()
+    }
 
-                val finalStr = fullBuilder.toString()
-                val estTokens = (finalStr.length / 4).coerceAtLeast(1)
-                onEvent(StreamEvent.Completed(finalStr, estTokens))
-                return
-            }
-        } catch (ioe: IOException) {
-            if (attempt < maxRetries && currentCoroutineContext().isActive) {
-                attempt++
-                delay(750L * attempt)
-            } else {
-                onEvent(StreamEvent.Error("Gangguan jaringan: ${ioe.localizedMessage}"))
-                return
-            }
-        } catch (e: Exception) {
-            onEvent(StreamEvent.Error("Terjadi kesalahan: ${e.localizedMessage}"))
-            return
+    private fun extractErrorMessage(raw: String): String {
+        return try {
+            val obj = JSONObject(raw)
+            obj.optJSONObject("error")?.optString("message")
+                ?: obj.optString("message")
+                ?: raw.take(120)
+        } catch (_: Exception) {
+            raw.take(120)
         }
     }
 }

@@ -3,7 +3,7 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/bg_screen"
+    android:background="#050811"
     android:fillViewport="true">
 
     <LinearLayout
@@ -12,188 +12,128 @@
         android:orientation="vertical"
         android:padding="20dp">
 
-        <LinearLayout
+        <com.example.floatinggeminiai.ui.LiquidGlassFrameLayout
+            android:id="@+id/glassWelcomeHero"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:gravity="center"
-            android:paddingVertical="16dp">
-
-            <FrameLayout
-                android:layout_width="72dp"
-                android:layout_height="72dp"
-                android:background="@drawable/bg_dynamic_island">
-
-                <ImageView
-                    android:layout_width="34dp"
-                    android:layout_height="34dp"
-                    android:layout_gravity="center"
-                    android:src="@drawable/ic_sparkle"
-                    app:tint="#38BDF8" />
-            </FrameLayout>
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
-                android:paddingHorizontal="12dp"
-                android:paddingVertical="4dp"
-                android:background="@drawable/bg_badge_pill"
-                android:text="FLOAMINI OS • MULTI-AI &amp; LIQUID GLASS"
-                android:textSize="10sp"
-                android:textStyle="bold"
-                android:textColor="@color/accent_primary" />
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="10dp"
-                android:text="Selamat Datang di Floamini"
-                android:textSize="24sp"
-                android:textStyle="bold"
-                android:textColor="@color/text_primary"
-                android:gravity="center" />
-
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="6dp"
-                android:text="Asisten AI tingkat sistem operasi dengan 11 AI Provider, Streaming SSE, Voice Chat, PDF Vision, Dynamic Island, dan Siri Mode."
-                android:textSize="13sp"
-                android:lineHeight="19dp"
-                android:textColor="@color/text_secondary"
-                android:gravity="center" />
-        </LinearLayout>
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:background="@drawable/bg_liquid_glass_card"
-            android:padding="18dp"
+            android:layout_marginTop="24dp"
             android:layout_marginBottom="16dp">
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Setup Cepat API Key (Encrypted AES-256)"
-                android:textSize="16sp"
-                android:textStyle="bold"
-                android:textColor="#F8FAFC" />
-
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:text="1. Pilih provider utama Anda (Google Gemini gratis di Google AI Studio, atau OpenAI, Claude, DeepSeek, Grok, Groq, OpenRouter, Mistral, Qwen, Perplexity).\n2. Tempel API Key pada kolom di bawah dan tekan Tes Koneksi."
-                android:textSize="12.5sp"
-                android:lineHeight="18.5dp"
-                android:textColor="#CBD5E1" />
-
-            <Spinner
-                android:id="@+id/spWelcomeProvider"
-                android:layout_width="match_parent"
-                android:layout_height="44dp"
-                android:layout_marginTop="12dp"
-                android:background="@drawable/bg_input_glass"
-                android:paddingHorizontal="12dp" />
-
-            <Button
-                android:id="@+id/btnOpenAiStudio"
-                android:layout_width="match_parent"
-                android:layout_height="44dp"
-                android:layout_marginTop="10dp"
-                android:text="Buka Portal API Key Provider ↗"
-                android:textSize="12.5sp"
-                android:textStyle="bold"
-                android:backgroundTint="#1E293B"
-                android:textColor="#38BDF8" />
-
-            <com.google.android.material.textfield.TextInputLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="10dp"
-                android:hint="Tempel API Key di sini"
-                app:boxBackgroundColor="#0B111E"
-                app:boxStrokeColor="#38BDF8"
-                app:hintTextColor="#38BDF8"
-                app:endIconMode="password_toggle"
-                style="@style/Widget.Material3.TextInputLayout.OutlinedBox">
-
-                <com.google.android.material.textfield.TextInputEditText
-                    android:id="@+id/etWelcomeApiKey"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:textColor="#F8FAFC"
-                    android:textSize="13sp"
-                    android:inputType="textPassword" />
-            </com.google.android.material.textfield.TextInputLayout>
 
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:gravity="center_vertical"
-                android:layout_marginTop="10dp">
+                android:orientation="vertical"
+                android:padding="20dp">
 
-                <Button
-                    android:id="@+id/btnTestTokenWelcome"
-                    android:layout_width="wrap_content"
-                    android:layout_height="40dp"
-                    android:text="Tes Koneksi"
-                    android:textSize="12sp"
-                    android:textStyle="bold"
-                    android:backgroundTint="#0284C7"
-                    android:textColor="#FFFFFF" />
+                <ImageView
+                    android:layout_width="36dp"
+                    android:layout_height="36dp"
+                    android:src="@drawable/ic_sparkle"
+                    app:tint="#38BDF8"
+                    android:layout_marginBottom="10dp" />
 
                 <TextView
-                    android:id="@+id/tvTokenTestResult"
-                    android:layout_width="0dp"
+                    android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:layout_marginStart="12dp"
-                    android:text="Belum diuji"
-                    android:textSize="12sp"
-                    android:textColor="#94A3B8" />
-            </LinearLayout>
-        </LinearLayout>
+                    android:text="Selamat Datang di Floamini"
+                    android:textSize="22sp"
+                    android:textStyle="bold"
+                    android:textColor="#F8FAFC" />
 
-        <LinearLayout
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:text="Asisten AI melayang dengan Kyant0 Liquid Glass, Dynamic Island, Siri Mode, dan 11 AI Provider langsung di atas aplikasi apa pun."
+                    android:textSize="13sp"
+                    android:textColor="#CBD5E1" />
+            </LinearLayout>
+        </com.example.floatinggeminiai.ui.LiquidGlassFrameLayout>
+
+        <com.example.floatinggeminiai.ui.LiquidGlassFrameLayout
+            android:id="@+id/glassWelcomeGuide"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:background="@drawable/bg_liquid_glass_card"
-            android:padding="18dp"
             android:layout_marginBottom="16dp">
 
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Privasi &amp; Kemampuan OS-Level"
-                android:textSize="15sp"
-                android:textStyle="bold"
-                android:textColor="#F8FAFC" />
-
-            <TextView
+            <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:text="• Zero Background Spying: Floamini tidak pernah membaca layar atau clipboard secara diam-diam tanpa tindakan Anda.\n• Seleksi Teks &amp; Share: Blok teks di aplikasi mana pun lalu pilih Tanya Floamini AI, atau bagikan PDF/Gambar langsung ke Floamini.\n• Mode Siri Control Center: Panggil aura Siri dari panel Quick Settings HP Anda kapan saja."
-                android:textSize="12sp"
-                android:lineHeight="18dp"
-                android:textColor="#CBD5E1" />
-        </LinearLayout>
+                android:orientation="vertical"
+                android:padding="20dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="CARA MENDAPATKAN GEMINI API KEY GRATIS"
+                    android:textSize="11sp"
+                    android:textStyle="bold"
+                    android:textColor="#38BDF8"
+                    android:layout_marginBottom="8dp" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="1. Ketuk tombol Buka Google AI Studio di bawah.\n2. Masuk dengan akun Google Anda, lalu pilih Create API key.\n3. Salin kunci (diawali AIzaSy...) dan tempelkan di kolom bawah ini."
+                    android:textSize="12.5sp"
+                    android:textColor="#E2E8F0"
+                    android:layout_marginBottom="12dp" />
+
+                <Button
+                    android:id="@+id/btnOpenAiStudio"
+                    android:layout_width="match_parent"
+                    android:layout_height="42dp"
+                    android:text="Buka Google AI Studio (aistudio.google.com)"
+                    android:textAllCaps="false"
+                    android:textSize="12.5sp"
+                    android:textColor="#38BDF8"
+                    android:background="@drawable/bg_chip_glass"
+                    android:layout_marginBottom="10dp" />
+
+                <EditText
+                    android:id="@+id/etWelcomeGeminiKey"
+                    android:layout_width="match_parent"
+                    android:layout_height="46dp"
+                    android:hint="Tempel Gemini API Key (AIzaSy...)..."
+                    android:textColor="#F8FAFC"
+                    android:textColorHint="#64748B"
+                    android:textSize="13sp"
+                    android:paddingHorizontal="14dp"
+                    android:background="@drawable/bg_input_glass"
+                    android:layout_marginBottom="10dp" />
+
+                <Button
+                    android:id="@+id/btnWelcomeSaveAndTest"
+                    android:layout_width="match_parent"
+                    android:layout_height="44dp"
+                    android:text="Simpan &amp; Tes Koneksi Token"
+                    android:textAllCaps="false"
+                    android:textSize="13sp"
+                    android:textStyle="bold"
+                    android:textColor="#020617"
+                    android:backgroundTint="#38BDF8" />
+
+                <TextView
+                    android:id="@+id/tvWelcomeTestStatus"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:text=""
+                    android:textSize="12sp"
+                    android:textColor="#34D399"
+                    android:visibility="gone" />
+            </LinearLayout>
+        </com.example.floatinggeminiai.ui.LiquidGlassFrameLayout>
 
         <Button
-            android:id="@+id/btnContinueToFloamini"
+            android:id="@+id/btnWelcomeFinish"
             android:layout_width="match_parent"
-            android:layout_height="54dp"
-            android:text="Masuk ke Dashboard Floamini"
+            android:layout_height="48dp"
+            android:text="Mulai Gunakan Floamini"
+            android:textAllCaps="false"
             android:textStyle="bold"
-            android:textSize="15sp"
-            android:backgroundTint="#38BDF8"
-            android:textColor="#04070F"
-            android:layout_marginBottom="24dp" />
+            android:textColor="#F8FAFC"
+            android:background="@drawable/bg_chip_glass" />
 
     </LinearLayout>
 </ScrollView>

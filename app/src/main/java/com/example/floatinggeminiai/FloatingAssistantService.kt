@@ -1,7 +1,5 @@
 package com.example.floatinggeminiai
 
-import android.Manifest
-import android.animation.ValueAnimator
 import android.app.Activity
 import android.app.Notification
 import android.app.NotificationChannel
@@ -13,7 +11,6 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
-import android.content.pm.PackageManager
 import android.content.pm.ServiceInfo
 import android.graphics.Bitmap
 import android.graphics.Color
@@ -28,24 +25,16 @@ import android.os.Build
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
-import android.os.VibrationEffect
-import android.os.Vibrator
-import android.os.VibratorManager
-import android.provider.Settings
 import android.text.Editable
 import android.text.TextWatcher
-import android.util.Base64
-import android.util.DisplayMetrics
 import android.view.Gravity
+import android.view.HapticFeedbackConstants
 import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
-import android.view.animation.DecelerateInterpolator
-import android.widget.Button
 import android.widget.EditText
 import android.widget.FrameLayout
-import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ScrollView
@@ -55,183 +44,141 @@ import androidx.core.app.NotificationCompat
 import androidx.dynamicanimation.animation.DynamicAnimation
 import androidx.dynamicanimation.animation.SpringAnimation
 import androidx.dynamicanimation.animation.SpringForce
-import com.example.floatinggeminiai.ai.AiEngineRegistry
-import com.example.floatinggeminiai.ai.AiProviderType
-import com.example.floatinggeminiai.ai.AiRequestPayload
+import com.example.floatinggeminiai.ai.AiEngine
+import com.example.floatinggeminiai.ai.AiProvider
 import com.example.floatinggeminiai.ai.ChatMessage
 import com.example.floatinggeminiai.ai.ChatThread
-import com.example.floatinggeminiai.ai.StreamEvent
 import com.example.floatinggeminiai.data.ChatRepository
 import com.example.floatinggeminiai.security.SecureVault
 import com.example.floatinggeminiai.tools.ProcessedAttachment
 import com.example.floatinggeminiai.tools.SmartToolsHelper
+import com.example.floatinggeminiai.ui.LiquidGlassFrameLayout
+import com.example.floatinggeminiai.ui.SiriEdgeGlowView
 import com.example.floatinggeminiai.ui.VoiceWaveformView
 import com.example.floatinggeminiai.voice.VoiceSystemManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
-import java.io.ByteArrayOutputStream
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
-import java.util.UUID
+import kotlinx.coroutines.withContext
 import kotlin.math.abs
-import kotlin.system.exitProcess
 
 class FloatingAssistantService : Service() {
 
     companion object {
-        const val ACTION_SCREEN_CAPTURE_RESULT = "ACTION_SCREEN_CAPTURE_RESULT"
-        const val ACTION_RELOAD_SETTINGS = "ACTION_RELOAD_SETTINGS"
-        const val ACTION_RESET_SESSION = "ACTION_RESET_SESSION"
-        const val ACTION_TRIGGER_SIRI = "ACTION_TRIGGER_SIRI"
-        const val ACTION_ATTACH_URI = "ACTION_ATTACH_URI"
-        const val ACTION_AUDIO_PERMISSION_GRANTED = "ACTION_AUDIO_PERMISSION_GRANTED"
-        const val ACTION_EXTERNAL_CONTEXT = "ACTION_EXTERNAL_CONTEXT"
+        const val ACTION_START_OR_UPDATE = "com.example.floatinggeminiai.START_OR_UPDATE"
+        const val ACTION_RELOAD_CONFIG = "com.example.floatinggeminiai.RELOAD_CONFIG"
+        const val ACTION_SUMMON_SIRI = "com.example.floatinggeminiai.SUMMON_SIRI"
+        const val ACTION_MEDIA_PROJECTION_READY = "com.example.floatinggeminiai.MEDIA_PROJECTION_READY"
+        const val ACTION_FILE_PICKED = "com.example.floatinggeminiai.FILE_PICKED"
+        const val ACTION_EXTERNAL_QUERY = "com.example.floatinggeminiai.EXTERNAL_QUERY"
+        private const val CHANNEL_ID = "floamini_overlay_channel"
+        private const val NOTIF_ID = 4077
     }
 
     private lateinit var windowManager: WindowManager
     private lateinit var floatingView: View
     private lateinit var params: WindowManager.LayoutParams
-    private var isFloatingViewAttached = false
 
     private lateinit var vault: SecureVault
     private lateinit var repo: ChatRepository
-    private var voiceManager: VoiceSystemManager? = null
+    private lateinit var aiEngine: AiEngine
+    private lateinit var voiceManager: VoiceSystemManager
+    private lateinit var currentThread: ChatThread
 
-    private var siriGlowView: SiriEdgeGlowView? = null
-    private var isSiriAuraActive = false
-
-    private val serviceJob = Job()
-    private val serviceScope = CoroutineScope(Dispatchers.Main + serviceJob)
+    private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+    private val mainHandler = Handler(Looper.getMainLooper())
     private var activeGenerationJob: Job? = null
 
     // UI References
+    private lateinit var dynamicIslandGlassHost: LiquidGlassFrameLayout
     private lateinit var dynamicIslandView: LinearLayout
     private lateinit var ivIslandSparkle: ImageView
     private lateinit var tvIslandLabel: TextView
     private lateinit var viewIslandPulseDot: View
     private lateinit var bubbleView: FrameLayout
     private lateinit var xiaomiEdgeView: FrameLayout
-    private lateinit var popupChatView: LinearLayout
+    private lateinit var popupChatView: LiquidGlassFrameLayout
 
     private lateinit var tvActiveProviderHeader: TextView
     private lateinit var btnScreenShare: ImageView
     private lateinit var tvScreenShareStatus: TextView
-    private lateinit var attachmentPreviewBar: LinearLayout
-    private lateinit var tvAttachmentName: TextView
-    private lateinit var tvCompareBadge: TextView
-    private lateinit var tvCurrentPersonaBadge: TextView
-
-    private lateinit var scrollChat: ScrollView
-    private lateinit var chatContainer: LinearLayout
-    private lateinit var typingIndicatorRow: LinearLayout
-    private lateinit var tvThinkingLabel: TextView
+    private lateinit var tvAttachmentBadge: TextView
+    private lateinit var chatScrollView: ScrollView
+    private lateinit var chatMessagesContainer: LinearLayout
+    private lateinit var etPromptInput: EditText
+    private lateinit var btnSendOrStop: ImageView
     private lateinit var voiceWaveformBar: LinearLayout
-    private lateinit var tvVoiceStatusLabel: TextView
     private lateinit var voiceWaveformView: VoiceWaveformView
-    private lateinit var etPrompt: EditText
-    private lateinit var btnSendPrompt: ImageButton
+    private lateinit var tvVoiceHint: TextView
 
-    // State
-    private val mainHandler = Handler(Looper.getMainLooper())
-    private var snappedToRightEdge = false
-    private var fullScreenWidth = 1080
-    private var fullScreenHeight = 2400
-    private var isPillAutoHidden = false
+    private var siriGlowView: SiriEdgeGlowView? = null
+    private var isSiriAuraAttached = false
+    private var isFloatingViewAttached = false
     private var isSmartFrozen = false
+    private var isPillAutoHidden = false
     private var isMiniWindowMode = false
     private var isCompareMode = false
-    private var isVoiceChatLoop = false
+    private var isAutoRouterEnabled = false
+    private var snappedToRightEdge = true
 
-    // Preferences
-    private var activeProvider = AiProviderType.GEMINI
-    private var prefAutoRouter = false
-    private var prefOverlayStyle = "dynamic_island"
-    private var prefPillAppearance = "standard"
-    private var prefAutoHidePill = false
-    private var prefSmartFreeze = true
-    private var prefTapOutsideClose = true
-    private var prefLiquidBlur = true
-    private var prefHapticFeedback = true
-    private var prefAutoSpeakTts = true
-    private var prefTtsVoiceName = ""
-    private var prefAnimSpeedMultiplier = 1.0f
-    private var prefIslandWidthPx = 440
-    private var prefIslandPosYPx = 32
-    private var prefIslandOffsetXPx = 0
-    private var prefPopupAlpha = 0.84f
-    private var prefBubbleSizePx = 148
-    private var prefPersona = "asik"
-    private var prefCustomSystemInstruction = ""
-
-    // Multi-Thread Session State
-    private var allThreads = mutableListOf<ChatThread>()
-    private lateinit var currentThread: ChatThread
-    private var lastUserPrompt = ""
-    private var lastBotReply = ""
+    private var activeProvider = AiProvider.GEMINI
+    private var activeModel = "gemini-2.5-flash"
     private var pendingAttachment: ProcessedAttachment? = null
 
-    // Screen Capture
+    // Preferences Cache
+    private var prefOverlayStyle = "dynamic_island"
+    private var prefPillAppearance = "lengkap"
+    private var prefAutoHidePill = false
+    private var prefSmartFreeze = true
+    private var prefLiquidBlur = true
+    private var prefIslandWidthPx = 420
+    private var prefIslandPosYPx = 30
+    private var prefIslandOffsetXPx = 0
+    private var prefPopupAlpha = 0.92f
+    private var prefBubbleSizePx = 140
+
+    private var fullScreenWidth = 1080
+    private var fullScreenHeight = 2400
+
+    // MediaProjection Screen Vision
     private var mediaProjection: MediaProjection? = null
     private var virtualDisplay: VirtualDisplay? = null
     private var imageReader: ImageReader? = null
     private var isScreenShareActive = false
-    private var captureWidth = 540
-    private var captureHeight = 1200
-    private var screenDensity = 320
+
+    private val screenOffReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent?.action == Intent.ACTION_SCREEN_OFF && prefSmartFreeze) {
+                enterSmartFreezeState()
+            }
+        }
+    }
 
     private val autoHidePillRunnable = Runnable {
         if (prefOverlayStyle == "dynamic_island" &&
             prefAutoHidePill &&
-            dynamicIslandView.visibility == View.VISIBLE &&
+            dynamicIslandGlassHost.visibility == View.VISIBLE &&
             popupChatView.visibility != View.VISIBLE
         ) {
             isPillAutoHidden = true
-            dynamicIslandView.animate()
-                .alpha(0.02f)
+            dynamicIslandGlassHost.animate()
+                .alpha(0.03f)
                 .scaleX(0.45f)
                 .scaleY(0.45f)
-                .setDuration((420 / prefAnimSpeedMultiplier).toLong())
+                .setDuration(380L)
                 .start()
         }
     }
 
     private val transformToXiaomiEdgeRunnable = Runnable {
-        if (prefOverlayStyle == "xiaomi_edge" && bubbleView.visibility == View.VISIBLE) {
-            enterXiaomiEdgeMode()
-        }
-    }
-
-    private val smartFreezeRunnable = Runnable {
-        if (prefSmartFreeze && popupChatView.visibility != View.VISIBLE) {
-            enterSmartFreezeState()
-        }
-    }
-
-    private val screenStateReceiver = object : BroadcastReceiver() {
-        override fun onReceive(context: Context?, intent: Intent?) {
-            when (intent?.action) {
-                Intent.ACTION_SCREEN_OFF -> {
-                    if (prefSmartFreeze) {
-                        if (popupChatView.visibility == View.VISIBLE) {
-                            popupChatView.visibility = View.GONE
-                        }
-                        dismissSiriAura()
-                        voiceManager?.stopListening()
-                        voiceManager?.stopSpeaking()
-                        enterSmartFreezeState()
-                    }
-                }
-                Intent.ACTION_SCREEN_ON -> {
-                    if (isSmartFrozen && prefOverlayStyle != "siri_mode") {
-                        wakeFromSmartFreeze()
-                    }
-                }
-            }
+        if (prefOverlayStyle == "xiaomi_edge" && popupChatView.visibility != View.VISIBLE) {
+            bubbleView.visibility = View.GONE
+            xiaomiEdgeView.visibility = View.VISIBLE
+            params.x = if (snappedToRightEdge) (fullScreenWidth - xiaomiEdgeView.layoutParams.width) else 0
+            if (isFloatingViewAttached) windowManager.updateViewLayout(floatingView, params)
         }
     }
 
@@ -239,456 +186,148 @@ class FloatingAssistantService : Service() {
 
     override fun onCreate() {
         super.onCreate()
+        windowManager = getSystemService(Context.WINDOW_SERVICE) as WindowManager
+        val dm = resources.displayMetrics
+        fullScreenWidth = dm.widthPixels
+        fullScreenHeight = dm.heightPixels
+        prefBubbleSizePx = (54 * dm.density).toInt()
+
         vault = SecureVault(this)
         repo = ChatRepository(this)
-        startForegroundNotification(withMediaProjection = false)
-        setupScreenMetrics()
-        loadUserPreferences()
-        initVoiceSystem()
-        setupFloatingOverlay()
+        aiEngine = AiEngine(vault)
+        currentThread = repo.getOrCreateActiveThread()
 
-        val filter = IntentFilter().apply {
-            addAction(Intent.ACTION_SCREEN_OFF)
-            addAction(Intent.ACTION_SCREEN_ON)
-        }
-        registerReceiver(screenStateReceiver, filter)
+        startForegroundNotification(withMediaProjection = false)
+        registerReceiver(screenOffReceiver, IntentFilter(Intent.ACTION_SCREEN_OFF))
+
+        loadPreferences()
+        initFloatingOverlay()
+
+        voiceManager = VoiceSystemManager(
+            context = this,
+            onAmplitudeChanged = { amp ->
+                if (::voiceWaveformView.isInitialized) voiceWaveformView.setAmplitude(amp)
+            },
+            onSpeechResult = { spoken ->
+                if (::etPromptInput.isInitialized) {
+                    etPromptInput.setText(spoken)
+                    sendUserPrompt(spoken)
+                }
+            },
+            onSpeechStateChanged = { listening, hint ->
+                if (::voiceWaveformBar.isInitialized) {
+                    voiceWaveformBar.visibility = if (listening || hint.isNotEmpty()) View.VISIBLE else View.GONE
+                    tvVoiceHint.text = hint
+                }
+            }
+        )
+
+        showCollapsedTriggerState()
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        loadPreferences()
+        applyVisualPreferences()
+
         when (intent?.action) {
-            ACTION_SCREEN_CAPTURE_RESULT -> {
-                val resultCode = intent.getIntExtra("resultCode", Activity.RESULT_CANCELED)
+            ACTION_SUMMON_SIRI -> {
+                triggerSiriSummon()
+            }
+            ACTION_MEDIA_PROJECTION_READY -> {
+                val code = intent.getIntExtra("resultCode", Activity.RESULT_CANCELED)
                 val data: Intent? = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                     intent.getParcelableExtra("data", Intent::class.java)
                 } else {
                     @Suppress("DEPRECATION")
                     intent.getParcelableExtra("data")
                 }
-                if (resultCode == Activity.RESULT_OK && data != null) {
-                    startMediaProjection(resultCode, data)
-                } else {
-                    Toast.makeText(this, "Izin Screen Vision dibatalkan", Toast.LENGTH_SHORT).show()
+                if (code == Activity.RESULT_OK && data != null) {
+                    startMediaProjectionCapture(code, data)
                 }
             }
-            ACTION_RELOAD_SETTINGS -> {
-                loadUserPreferences()
-                wakeFromSmartFreeze()
-                applyVisualPreferences()
+            ACTION_FILE_PICKED -> {
+                val uriStr = intent.getStringExtra("file_uri")
+                if (!uriStr.isNullOrEmpty()) {
+                    handlePickedUri(Uri.parse(uriStr))
+                }
+            }
+            ACTION_EXTERNAL_QUERY -> {
+                openPopupChat(fromSiri = false)
+                val extText = intent.getStringExtra("external_text")
+                val uriStr = intent.getStringExtra("file_uri")
+                if (!uriStr.isNullOrEmpty()) {
+                    handlePickedUri(Uri.parse(uriStr))
+                }
+                if (!extText.isNullOrBlank()) {
+                    etPromptInput.setText("Bantu jelaskan/proses teks ini:\n$extText")
+                }
+            }
+            ACTION_RELOAD_CONFIG -> {
                 if (popupChatView.visibility != View.VISIBLE) {
                     showCollapsedTriggerState()
                 }
             }
-            ACTION_RESET_SESSION -> {
-                allThreads = repo.loadAllThreads()
-                startNewConversationThread()
-            }
-            ACTION_TRIGGER_SIRI -> {
-                triggerHaptic()
-                wakeFromSmartFreeze()
-                showSiriAura()
-                openPopupChat(fromSiri = true)
-            }
-            ACTION_AUDIO_PERMISSION_GRANTED -> {
-                startVoiceChatSession()
-            }
-            ACTION_ATTACH_URI -> {
-                val uriStr = intent.getStringExtra("uri_string") ?: return START_STICKY
-                val uri = Uri.parse(uriStr)
-                val processed = SmartToolsHelper.processUriAttachment(this, uri)
-                if (processed != null) {
-                    pendingAttachment = processed
-                    tvAttachmentName.text = processed.displayName
-                    attachmentPreviewBar.visibility = View.VISIBLE
-                    if (popupChatView.visibility != View.VISIBLE) {
-                        openPopupChat(fromSiri = false)
-                    }
-                } else {
-                    Toast.makeText(this, "Gagal membaca file lampiran", Toast.LENGTH_SHORT).show()
-                }
-            }
-            ACTION_EXTERNAL_CONTEXT -> {
-                val sharedText = intent.getStringExtra("shared_text") ?: ""
-                val uriStr = intent.getStringExtra("uri_string")
-                val mode = intent.getStringExtra("source_mode") ?: "share"
-
-                wakeFromSmartFreeze()
-                openPopupChat(fromSiri = false)
-
-                if (!uriStr.isNullOrEmpty()) {
-                    val processed = SmartToolsHelper.processUriAttachment(this, Uri.parse(uriStr))
-                    if (processed != null) {
-                        pendingAttachment = processed
-                        tvAttachmentName.text = processed.displayName
-                        attachmentPreviewBar.visibility = View.VISIBLE
-                    }
-                }
-
-                if (sharedText.isNotBlank()) {
-                    val prefix = if (mode == "selection") "Bantu jelaskan atau proses teks pilihan ini:\n\"$sharedText\"" else sharedText
-                    etPrompt.setText(prefix)
-                    etPrompt.setSelection(etPrompt.text.length)
+            else -> {
+                if (popupChatView.visibility != View.VISIBLE) {
+                    showCollapsedTriggerState()
                 }
             }
         }
         return START_STICKY
     }
 
-    // ==========================================================================
-    // VOICE SYSTEM (STT + TTS + WAVEFORM + INTERRUPTION)
-    // ==========================================================================
-    private fun initVoiceSystem() {
-        voiceManager = VoiceSystemManager(
-            context = this,
-            onRmsChanged = { amp ->
-                mainHandler.post { voiceWaveformView.setAmplitude(amp) }
-            },
-            onPartialSpeech = { partial ->
-                mainHandler.post {
-                    etPrompt.setText(partial)
-                    etPrompt.setSelection(partial.length)
-                }
-            },
-            onFinalSpeech = { finalSpoken ->
-                mainHandler.post {
-                    voiceWaveformView.stopAnimation()
-                    voiceWaveformBar.visibility = View.GONE
-                    etPrompt.setText(finalSpoken)
-                    triggerSendPrompt(finalSpoken, fromVoice = true)
-                }
-            },
-            onListeningStateChanged = { listening ->
-                mainHandler.post {
-                    if (listening) {
-                        voiceWaveformBar.visibility = View.VISIBLE
-                        tvVoiceStatusLabel.text = "Mendengarkan..."
-                        voiceWaveformView.startAnimation()
-                    } else if (voiceManager?.isSpeaking != true) {
-                        voiceWaveformView.stopAnimation()
-                        voiceWaveformBar.visibility = View.GONE
-                    }
-                }
-            },
-            onSpeakingStateChanged = { speaking ->
-                mainHandler.post {
-                    if (speaking) {
-                        voiceWaveformBar.visibility = View.VISIBLE
-                        tvVoiceStatusLabel.text = "Floamini Berbicara..."
-                        voiceWaveformView.setAmplitude(0.65f)
-                        voiceWaveformView.startAnimation()
-                    } else {
-                        voiceWaveformView.stopAnimation()
-                        voiceWaveformBar.visibility = View.GONE
-                    }
-                }
-            },
-            onVoiceError = { err ->
-                mainHandler.post {
-                    voiceWaveformView.stopAnimation()
-                    voiceWaveformBar.visibility = View.GONE
-                    Toast.makeText(this, err, Toast.LENGTH_SHORT).show()
-                }
-            }
-        )
-    }
-
-    private fun startVoiceChatSession() {
-        if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
-            startActivity(Intent(this, AudioPermissionProxyActivity::class.java).apply {
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            })
-            return
-        }
-        isVoiceChatLoop = true
-        triggerHaptic()
-        voiceManager?.startListening()
-    }
-
-    // ==========================================================================
-    // AUTO SMART FREEZE ENGINE
-    // ==========================================================================
-    private fun scheduleSmartFreeze() {
-        mainHandler.removeCallbacks(smartFreezeRunnable)
-        if (prefSmartFreeze) {
-            mainHandler.postDelayed(smartFreezeRunnable, 18_000L)
-        }
-    }
-
-    private fun enterSmartFreezeState() {
-        if (isSmartFrozen) return
-        isSmartFrozen = true
-        mainHandler.removeCallbacks(autoHidePillRunnable)
-        mainHandler.removeCallbacks(transformToXiaomiEdgeRunnable)
-
-        dynamicIslandView.animate().cancel()
-        bubbleView.animate().cancel()
-        xiaomiEdgeView.animate().cancel()
-        siriGlowView?.stopAndFreezeAnimation()
-
-        if (prefOverlayStyle == "siri_mode" && isFloatingViewAttached) {
-            try {
-                windowManager.removeViewImmediate(floatingView)
-                isFloatingViewAttached = false
-            } catch (_: Exception) {}
-        }
-        System.gc()
-    }
-
-    private fun wakeFromSmartFreeze() {
-        mainHandler.removeCallbacks(smartFreezeRunnable)
-        if (!isFloatingViewAttached && ::floatingView.isInitialized) {
-            try {
-                windowManager.addView(floatingView, params)
-                isFloatingViewAttached = true
-            } catch (_: Exception) {}
-        }
-        isSmartFrozen = false
-    }
-
-    // ==========================================================================
-    // SIRI EDGE GLOW AURA
-    // ==========================================================================
-    private fun showSiriAura() {
-        if (isSiriAuraActive) return
-        isSiriAuraActive = true
-
-        val layoutFlag = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
-        } else {
-            @Suppress("DEPRECATION")
-            WindowManager.LayoutParams.TYPE_PHONE
-        }
-
-        val auraParams = WindowManager.LayoutParams(
-            WindowManager.LayoutParams.MATCH_PARENT,
-            WindowManager.LayoutParams.MATCH_PARENT,
-            layoutFlag,
-            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
-                    WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
-                    WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
-                    WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
-            PixelFormat.TRANSLUCENT
-        )
-
-        val glowView = SiriEdgeGlowView(this).apply { alpha = 0f }
-        siriGlowView = glowView
-        try {
-            windowManager.addView(glowView, auraParams)
-            glowView.startSiriAnimation()
-            glowView.animate().alpha(1f).setDuration(340).start()
-        } catch (_: Exception) {}
-    }
-
-    private fun dismissSiriAura() {
-        val glowView = siriGlowView ?: return
-        isSiriAuraActive = false
-        siriGlowView = null
-        glowView.animate()
-            .alpha(0f)
-            .setDuration(240)
-            .withEndAction {
-                glowView.stopAndFreezeAnimation()
-                try { windowManager.removeViewImmediate(glowView) } catch (_: Exception) {}
-            }
-            .start()
-    }
-
-    private fun triggerHaptic() {
-        if (!prefHapticFeedback) return
-        try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                val vm = getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager
-                vm.defaultVibrator.vibrate(VibrationEffect.createPredefined(VibrationEffect.EFFECT_TICK))
-            } else {
-                @Suppress("DEPRECATION")
-                val vibrator = getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    vibrator.vibrate(VibrationEffect.createOneShot(14, VibrationEffect.DEFAULT_AMPLITUDE))
-                } else {
-                    @Suppress("DEPRECATION")
-                    vibrator.vibrate(14)
-                }
-            }
-        } catch (_: Exception) {}
-    }
-
-    private fun currentTimeLabel(): String = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date())
-
-    private fun loadUserPreferences() {
-        val prefs = getSharedPreferences("gemini_prefs", Context.MODE_PRIVATE)
-        val density = resources.displayMetrics.density
-        activeProvider = AiProviderType.fromId(prefs.getString("active_provider_id", "gemini"))
-        prefAutoRouter = prefs.getBoolean("auto_router_enabled", false)
-        prefOverlayStyle = prefs.getString("overlay_style", "dynamic_island") ?: "dynamic_island"
-        prefPillAppearance = prefs.getString("pill_appearance", "standard") ?: "standard"
-        prefAutoHidePill = prefs.getBoolean("auto_hide_pill", false)
-        prefSmartFreeze = prefs.getBoolean("smart_freeze", true)
-        prefTapOutsideClose = prefs.getBoolean("tap_outside_close", true)
-        prefLiquidBlur = prefs.getBoolean("liquid_blur", true)
-        prefHapticFeedback = prefs.getBoolean("haptic_feedback", true)
-        prefAutoSpeakTts = prefs.getBoolean("auto_speak_tts", true)
-        prefTtsVoiceName = prefs.getString("tts_voice_name", "") ?: ""
-        val animProg = prefs.getInt("anim_speed_prog", 5)
-        prefAnimSpeedMultiplier = (0.5f + animProg * 0.1f).coerceIn(0.5f, 1.5f)
-        prefIslandWidthPx = (prefs.getInt("island_width_dp", 164) * density).toInt()
-        prefIslandPosYPx = (prefs.getInt("island_pos_y_dp", 12) * density).toInt()
-        prefIslandOffsetXPx = (prefs.getInt("island_offset_x_dp", 0) * density).toInt()
-        prefPopupAlpha = (prefs.getInt("popup_opacity", 84) / 100f).coerceIn(0.45f, 1.0f)
-        prefBubbleSizePx = (54 * density).toInt()
-        prefPersona = prefs.getString("ai_persona", "asik") ?: "asik"
-        prefCustomSystemInstruction = prefs.getString("custom_system_instruction", "") ?: ""
-    }
-
-    private fun applyVisualPreferences() {
-        if (::dynamicIslandView.isInitialized) {
-            val lp = dynamicIslandView.layoutParams
-            lp.width = prefIslandWidthPx
-            dynamicIslandView.layoutParams = lp
-
-            when (prefPillAppearance) {
-                "polos" -> {
-                    dynamicIslandView.setBackgroundResource(R.drawable.bg_dynamic_island_polos)
-                    ivIslandSparkle.visibility = View.GONE
-                    tvIslandLabel.visibility = View.GONE
-                    viewIslandPulseDot.visibility = View.GONE
-                }
-                "minimal" -> {
-                    dynamicIslandView.setBackgroundResource(R.drawable.bg_dynamic_island)
-                    ivIslandSparkle.visibility = View.VISIBLE
-                    tvIslandLabel.visibility = View.GONE
-                    viewIslandPulseDot.visibility = View.VISIBLE
-                }
-                else -> {
-                    dynamicIslandView.setBackgroundResource(R.drawable.bg_dynamic_island)
-                    ivIslandSparkle.visibility = View.VISIBLE
-                    tvIslandLabel.visibility = View.VISIBLE
-                    viewIslandPulseDot.visibility = View.VISIBLE
-                }
-            }
-        }
-        if (::popupChatView.isInitialized) {
-            popupChatView.alpha = prefPopupAlpha
-        }
-        if (::tvActiveProviderHeader.isInitialized) {
-            val modelName = vault.getSelectedModel(activeProvider)
-            val prefix = if (prefAutoRouter) "Auto • " else ""
-            tvActiveProviderHeader.text = "$prefix${activeProvider.shortBadge} • $modelName"
-        }
-        if (::tvCurrentPersonaBadge.isInitialized) {
-            tvCurrentPersonaBadge.text = when (prefPersona) {
-                "ringkas" -> "Singkat"
-                "detail" -> "Detail"
-                "teknis" -> "Teknis"
-                else -> "Asik"
-            }
-        }
-    }
-
-    // ==========================================================================
-    // MULTI-THREAD CONVERSATION & HISTORY MANAGEMENT
-    // ==========================================================================
-    private fun initializeThreads() {
-        allThreads = repo.loadAllThreads()
-        val activeId = repo.getActiveThreadId()
-        val existing = allThreads.firstOrNull { it.id == activeId } ?: allThreads.firstOrNull()
-        if (existing != null) {
-            currentThread = existing
-        } else {
-            currentThread = ChatThread(
-                id = UUID.randomUUID().toString(),
-                title = "Obrolan Baru",
-                updatedAt = System.currentTimeMillis()
-            )
-            allThreads.add(0, currentThread)
-            repo.setActiveThreadId(currentThread.id)
-        }
-        renderCurrentThreadMessages()
-    }
-
-    private fun startNewConversationThread() {
-        currentThread = ChatThread(
-            id = UUID.randomUUID().toString(),
-            title = "Obrolan Baru",
-            updatedAt = System.currentTimeMillis()
-        )
-        allThreads.add(0, currentThread)
-        repo.setActiveThreadId(currentThread.id)
-        repo.saveAllThreads(allThreads)
-        renderCurrentThreadMessages()
-    }
-
-    private fun renderCurrentThreadMessages() {
-        chatContainer.removeAllViews()
-        if (currentThread.messages.isEmpty()) {
-            val greeting = "Halo! Floamini OS siap membantu dengan 11 AI Provider, Streaming SSE, Voice Chat, dan PDF/Screen Vision."
-            lastBotReply = greeting
-            addChatBubbleView(
-                ChatMessage(UUID.randomUUID().toString(), "model", greeting, currentTimeLabel(), activeProvider.shortBadge),
-                animateEntrance = false
-            )
-        } else {
-            for (m in currentThread.messages) {
-                if (m.role == "model") lastBotReply = m.text
-                addChatBubbleView(m, animateEntrance = false)
-            }
-        }
-    }
-
-    private fun persistCurrentThread() {
-        currentThread.updatedAt = System.currentTimeMillis()
-        if (currentThread.title == "Obrolan Baru") {
-            val firstUser = currentThread.messages.firstOrNull { it.role == "user" }
-            if (firstUser != null) {
-                currentThread.title = firstUser.text.take(34)
-            }
-        }
-        allThreads.removeAll { it.id == currentThread.id }
-        allThreads.add(0, currentThread)
-        repo.setActiveThreadId(currentThread.id)
-        repo.saveAllThreads(allThreads)
-    }
-
     private fun startForegroundNotification(withMediaProjection: Boolean) {
-        val channelId = "floamini_os_channel"
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(channelId, "Floamini OS Assistant", NotificationManager.IMPORTANCE_LOW)
-            getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
+            val channel = NotificationChannel(
+                CHANNEL_ID,
+                "Floamini Liquid Glass Overlay",
+                NotificationManager.IMPORTANCE_LOW
+            )
+            val nm = getSystemService(NotificationManager::class.java)
+            nm.createNotificationChannel(channel)
         }
 
-        val notification: Notification = NotificationCompat.Builder(this, channelId)
-            .setContentTitle("Floamini OS")
-            .setContentText(if (withMediaProjection) "Live Screen Vision aktif" else "Multi-AI Liquid Glass aktif")
-            .setSmallIcon(android.R.drawable.ic_dialog_info)
+        val notif: Notification = NotificationCompat.Builder(this, CHANNEL_ID)
+            .setContentTitle("Floamini OS Aktif")
+            .setContentText("Ketuk Dynamic Island / Control Center untuk memanggil AI")
+            .setSmallIcon(R.drawable.ic_sparkle)
+            .setOngoing(true)
             .build()
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-            val type = if (withMediaProjection) {
-                ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION or ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE
+            val fgsType = if (withMediaProjection) {
+                ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE or ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION
             } else {
                 ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE
             }
-            startForeground(101, notification, type)
+            startForeground(NOTIF_ID, notif, fgsType)
         } else {
-            startForeground(101, notification)
+            startForeground(NOTIF_ID, notif)
         }
     }
 
-    private fun setupScreenMetrics() {
-        val metrics = DisplayMetrics()
-        val wm = getSystemService(WINDOW_SERVICE) as WindowManager
-        @Suppress("DEPRECATION")
-        wm.defaultDisplay.getRealMetrics(metrics)
-        fullScreenWidth = metrics.widthPixels
-        fullScreenHeight = metrics.heightPixels
-        captureWidth = fullScreenWidth / 2
-        captureHeight = fullScreenHeight / 2
-        screenDensity = metrics.densityDpi
+    private fun loadPreferences() {
+        val prefs = getSharedPreferences("gemini_prefs", Context.MODE_PRIVATE)
+        val d = resources.displayMetrics.density
+
+        activeProvider = AiProvider.fromId(prefs.getString("active_provider", AiProvider.GEMINI.id))
+        activeModel = prefs.getString("active_model", activeProvider.models.first()).orEmpty()
+            .ifEmpty { activeProvider.models.first() }
+
+        prefOverlayStyle = prefs.getString("overlay_style", "dynamic_island").orEmpty()
+        prefPillAppearance = prefs.getString("pill_appearance", "lengkap").orEmpty()
+        prefAutoHidePill = prefs.getBoolean("auto_hide_pill", false)
+        prefSmartFreeze = prefs.getBoolean("smart_freeze", true)
+        prefLiquidBlur = prefs.getBoolean("liquid_blur", true)
+        prefIslandWidthPx = (prefs.getInt("island_width_dp", 164) * d).toInt()
+        prefIslandPosYPx = (prefs.getInt("island_pos_y_dp", 12) * d).toInt()
+        prefIslandOffsetXPx = (prefs.getInt("island_offset_x_dp", 0) * d).toInt()
+        prefPopupAlpha = (prefs.getInt("popup_opacity_pct", 92) / 100f).coerceIn(0.55f, 1.0f)
     }
 
-    private fun setupFloatingOverlay() {
-        windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
+    private fun initFloatingOverlay() {
         floatingView = LayoutInflater.from(this).inflate(R.layout.layout_floating_assistant, null)
-
-        val layoutFlag = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+        val overlayType = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
         } else {
             @Suppress("DEPRECATION")
@@ -698,12 +337,12 @@ class FloatingAssistantService : Service() {
         params = WindowManager.LayoutParams(
             WindowManager.LayoutParams.WRAP_CONTENT,
             WindowManager.LayoutParams.WRAP_CONTENT,
-            layoutFlag,
+            overlayType,
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
             PixelFormat.TRANSLUCENT
         ).apply {
             gravity = Gravity.TOP or Gravity.START
-            x = ((fullScreenWidth - prefIslandWidthPx) / 2) + prefIslandOffsetXPx
+            x = (fullScreenWidth - prefIslandWidthPx) / 2
             y = prefIslandPosYPx
         }
 
@@ -711,6 +350,7 @@ class FloatingAssistantService : Service() {
         isFloatingViewAttached = true
 
         // Bind Views
+        dynamicIslandGlassHost = floatingView.findViewById(R.id.dynamicIslandGlassHost)
         dynamicIslandView = floatingView.findViewById(R.id.dynamicIslandView)
         ivIslandSparkle = floatingView.findViewById(R.id.ivIslandSparkle)
         tvIslandLabel = floatingView.findViewById(R.id.tvIslandLabel)
@@ -719,133 +359,33 @@ class FloatingAssistantService : Service() {
         xiaomiEdgeView = floatingView.findViewById(R.id.xiaomiEdgeView)
         popupChatView = floatingView.findViewById(R.id.popupChatView)
 
-        val glassTitleBar = floatingView.findViewById<LinearLayout>(R.id.glassTitleBar)
-        val btnCloseWindowX = floatingView.findViewById<ImageView>(R.id.btnCloseWindowX)
-        val btnToggleMiniWindow = floatingView.findViewById<ImageView>(R.id.btnToggleMiniWindow)
-        val btnSwitchProviderPill = floatingView.findViewById<LinearLayout>(R.id.btnSwitchProviderPill)
         tvActiveProviderHeader = floatingView.findViewById(R.id.tvActiveProviderHeader)
         btnScreenShare = floatingView.findViewById(R.id.btnScreenShare)
-        val btnToolsDrawer = floatingView.findViewById<ImageView>(R.id.btnToolsDrawer)
-        val btnPlusMenu = floatingView.findViewById<ImageView>(R.id.btnPlusMenu)
-
         tvScreenShareStatus = floatingView.findViewById(R.id.tvScreenShareStatus)
-        attachmentPreviewBar = floatingView.findViewById(R.id.attachmentPreviewBar)
-        tvAttachmentName = floatingView.findViewById(R.id.tvAttachmentName)
-        val btnRemoveAttachment = floatingView.findViewById<TextView>(R.id.btnRemoveAttachment)
+        tvAttachmentBadge = floatingView.findViewById(R.id.tvAttachmentBadge)
+        chatScrollView = floatingView.findViewById(R.id.chatScrollView)
+        chatMessagesContainer = floatingView.findViewById(R.id.chatMessagesContainer)
+        etPromptInput = floatingView.findViewById(R.id.etPromptInput)
+        btnSendOrStop = floatingView.findViewById(R.id.btnSendOrStop)
+        voiceWaveformBar = floatingView.findViewById(R.id.voiceWaveformBar)
+        voiceWaveformView = floatingView.findViewById(R.id.voiceWaveformView)
+        tvVoiceHint = floatingView.findViewById(R.id.tvVoiceHint)
 
-        val plusMenuDrawer = floatingView.findViewById<LinearLayout>(R.id.plusMenuDrawer)
+        val glassTitleBar = floatingView.findViewById<LinearLayout>(R.id.glassTitleBar)
         val smartToolsDrawer = floatingView.findViewById<LinearLayout>(R.id.smartToolsDrawer)
 
-        val actionCompareAi = floatingView.findViewById<LinearLayout>(R.id.actionCompareAi)
-        tvCompareBadge = floatingView.findViewById(R.id.tvCompareBadge)
-        val actionRegenerate = floatingView.findViewById<LinearLayout>(R.id.actionRegenerate)
-        val actionCyclePersona = floatingView.findViewById<LinearLayout>(R.id.actionCyclePersona)
-        tvCurrentPersonaBadge = floatingView.findViewById(R.id.tvCurrentPersonaBadge)
-        val actionCopyLast = floatingView.findViewById<LinearLayout>(R.id.actionCopyLast)
-        val actionNewThread = floatingView.findViewById<LinearLayout>(R.id.actionNewThread)
-        val actionOpenDashboard = floatingView.findViewById<LinearLayout>(R.id.actionOpenDashboard)
-        val actionQuickForceStop = floatingView.findViewById<LinearLayout>(R.id.actionQuickForceStop)
-
-        // 9 Quick Actions
-        val qaTranslate = floatingView.findViewById<TextView>(R.id.qaTranslate)
-        val qaSummarize = floatingView.findViewById<TextView>(R.id.qaSummarize)
-        val qaRewrite = floatingView.findViewById<TextView>(R.id.qaRewrite)
-        val qaExplain = floatingView.findViewById<TextView>(R.id.qaExplain)
-        val qaBrainstorm = floatingView.findViewById<TextView>(R.id.qaBrainstorm)
-        val qaCoding = floatingView.findViewById<TextView>(R.id.qaCoding)
-        val qaGrammar = floatingView.findViewById<TextView>(R.id.qaGrammar)
-        val qaExtractText = floatingView.findViewById<TextView>(R.id.qaExtractText)
-        val qaAskSelection = floatingView.findViewById<TextView>(R.id.qaAskSelection)
-
-        // Smart Tools
-        val btnToolClipboard = floatingView.findViewById<Button>(R.id.btnToolClipboard)
-        val btnToolCalculator = floatingView.findViewById<Button>(R.id.btnToolCalculator)
-        val btnToolNotes = floatingView.findViewById<Button>(R.id.btnToolNotes)
-        val btnToolHistory = floatingView.findViewById<Button>(R.id.btnToolHistory)
-        val panelCalculator = floatingView.findViewById<LinearLayout>(R.id.panelCalculator)
-        val etCalcExpression = floatingView.findViewById<EditText>(R.id.etCalcExpression)
-        val tvCalcResult = floatingView.findViewById<TextView>(R.id.tvCalcResult)
-        val btnEvalCalc = floatingView.findViewById<Button>(R.id.btnEvalCalc)
-        val panelQuickNotes = floatingView.findViewById<LinearLayout>(R.id.panelQuickNotes)
-        val etQuickNotes = floatingView.findViewById<EditText>(R.id.etQuickNotes)
-        val btnSendNotesToAi = floatingView.findViewById<Button>(R.id.btnSendNotesToAi)
-        val panelChatHistory = floatingView.findViewById<LinearLayout>(R.id.panelChatHistory)
-        val etSearchChat = floatingView.findViewById<EditText>(R.id.etSearchChat)
-        val historyThreadsList = floatingView.findViewById<LinearLayout>(R.id.historyThreadsList)
-
-        scrollChat = floatingView.findViewById(R.id.scrollChat)
-        chatContainer = floatingView.findViewById(R.id.chatContainer)
-        typingIndicatorRow = floatingView.findViewById(R.id.typingIndicatorRow)
-        tvThinkingLabel = floatingView.findViewById(R.id.tvThinkingLabel)
-        val btnStopGeneration = floatingView.findViewById<TextView>(R.id.btnStopGeneration)
-
-        voiceWaveformBar = floatingView.findViewById(R.id.voiceWaveformBar)
-        tvVoiceStatusLabel = floatingView.findViewById(R.id.tvVoiceStatusLabel)
-        voiceWaveformView = floatingView.findViewById(R.id.voiceWaveformView)
-        val btnStopVoiceAction = floatingView.findViewById<TextView>(R.id.btnStopVoiceAction)
-
-        val btnAttachFile = floatingView.findViewById<ImageButton>(R.id.btnAttachFile)
-        val btnVoiceMic = floatingView.findViewById<ImageButton>(R.id.btnVoiceMic)
-        etPrompt = floatingView.findViewById(R.id.etPrompt)
-        btnSendPrompt = floatingView.findViewById(R.id.btnSendPrompt)
-        val btnResizeHandle = floatingView.findViewById<ImageView>(R.id.btnResizeHandle)
-
-        val prefs = getSharedPreferences("gemini_prefs", Context.MODE_PRIVATE)
-        applyVisualPreferences()
-        initializeThreads()
-        showCollapsedTriggerState()
-
-        // Tap outside window to close
+        // Tap outside popup to collapse back to Dynamic Island / Bubble
         floatingView.setOnTouchListener { _, event ->
-            if (event.action == MotionEvent.ACTION_OUTSIDE &&
-                popupChatView.visibility == View.VISIBLE &&
-                prefTapOutsideClose
-            ) {
-                triggerHaptic()
-                closePopupChat()
+            if (event.action == MotionEvent.ACTION_OUTSIDE && popupChatView.visibility == View.VISIBLE) {
+                showCollapsedTriggerState()
                 true
             } else {
                 false
             }
         }
 
-        // Smooth Model Switching directly from Header Pill
-        btnSwitchProviderPill.setOnClickListener {
-            triggerHaptic()
-            val configured = vault.getConfiguredProviders()
-            val pool = if (configured.isNotEmpty()) configured else AiProviderType.values().toList()
-            val nextIdx = (pool.indexOf(activeProvider) + 1) % pool.size
-            activeProvider = pool[nextIdx]
-            prefs.edit().putString("active_provider_id", activeProvider.id).apply()
-
-            btnSwitchProviderPill.animate().scaleX(0.92f).scaleY(0.92f).setDuration(90).withEndAction {
-                applyVisualPreferences()
-                btnSwitchProviderPill.animate().scaleX(1f).scaleY(1f).setDuration(120).start()
-            }.start()
-            Toast.makeText(this, "Beralih ke ${activeProvider.displayName}", Toast.LENGTH_SHORT).show()
-        }
-
-        // Toggle Mini Window vs Full Floating Window
-        btnToggleMiniWindow.setOnClickListener {
-            triggerHaptic()
-            isMiniWindowMode = !isMiniWindowMode
-            val density = resources.displayMetrics.density
-            val lp = popupChatView.layoutParams
-            if (isMiniWindowMode) {
-                lp.width = (280 * density).toInt()
-                lp.height = (255 * density).toInt()
-                Toast.makeText(this, "Mini Window Mode", Toast.LENGTH_SHORT).show()
-            } else {
-                lp.width = prefs.getInt("last_win_w", (352 * density).toInt())
-                lp.height = prefs.getInt("last_win_h", (500 * density).toInt())
-                Toast.makeText(this, "Full Floating Window", Toast.LENGTH_SHORT).show()
-            }
-            popupChatView.layoutParams = lp
-            windowManager.updateViewLayout(floatingView, params)
-        }
-
         // Dynamic Island Touch & Drag
-        dynamicIslandView.setOnTouchListener(object : View.OnTouchListener {
+        dynamicIslandGlassHost.setOnTouchListener(object : View.OnTouchListener {
             private var initialX = 0
             private var initialY = 0
             private var initialTouchX = 0f
@@ -860,7 +400,7 @@ class FloatingAssistantService : Service() {
                         initialY = params.y
                         initialTouchX = event.rawX
                         initialTouchY = event.rawY
-                        animateSpringScale(dynamicIslandView, 1.07f)
+                        animateSpringScale(dynamicIslandGlassHost, 1.07f)
                         return true
                     }
                     MotionEvent.ACTION_MOVE -> {
@@ -874,11 +414,11 @@ class FloatingAssistantService : Service() {
                         return true
                     }
                     MotionEvent.ACTION_UP -> {
-                        animateSpringScale(dynamicIslandView, 1.0f)
+                        animateSpringScale(dynamicIslandGlassHost, 1.0f)
                         if (abs(event.rawX - initialTouchX) < 18 && abs(event.rawY - initialTouchY) < 18) {
                             triggerHaptic()
                             isPillAutoHidden = false
-                            dynamicIslandView.alpha = 1.0f
+                            dynamicIslandGlassHost.alpha = 1.0f
                             openPopupChat(fromSiri = false)
                         } else {
                             scheduleAutoHideAndFreeze()
@@ -890,7 +430,7 @@ class FloatingAssistantService : Service() {
             }
         })
 
-        // Bubble Touch & Snap
+        // Classic & Xiaomi Bubble Touch + Edge Snap
         bubbleView.setOnTouchListener(object : View.OnTouchListener {
             private var initialX = 0
             private var initialY = 0
@@ -906,20 +446,27 @@ class FloatingAssistantService : Service() {
                         initialY = params.y
                         initialTouchX = event.rawX
                         initialTouchY = event.rawY
+                        animateSpringScale(bubbleView, 1.1f)
                         return true
                     }
                     MotionEvent.ACTION_MOVE -> {
                         params.x = (initialX + (event.rawX - initialTouchX).toInt()).coerceIn(0, fullScreenWidth - prefBubbleSizePx)
-                        params.y = (initialY + (event.rawY - initialTouchY).toInt()).coerceIn(0, fullScreenHeight - prefBubbleSizePx)
+                        params.y = (initialY + (event.rawY - initialTouchY).toInt()).coerceIn(40, fullScreenHeight - prefBubbleSizePx - 80)
                         windowManager.updateViewLayout(floatingView, params)
                         return true
                     }
                     MotionEvent.ACTION_UP -> {
-                        if (abs(event.rawX - initialTouchX) < 15 && abs(event.rawY - initialTouchY) < 15) {
+                        animateSpringScale(bubbleView, 1.0f)
+                        if (abs(event.rawX - initialTouchX) < 18 && abs(event.rawY - initialTouchY) < 18) {
                             triggerHaptic()
                             openPopupChat(fromSiri = false)
                         } else {
-                            snapBubbleToNearestEdge()
+                            snappedToRightEdge = (params.x + prefBubbleSizePx / 2) > (fullScreenWidth / 2)
+                            params.x = if (snappedToRightEdge) (fullScreenWidth - prefBubbleSizePx) else 0
+                            windowManager.updateViewLayout(floatingView, params)
+                            if (prefOverlayStyle == "xiaomi_edge") {
+                                mainHandler.postDelayed(transformToXiaomiEdgeRunnable, 2500L)
+                            }
                         }
                         return true
                     }
@@ -928,39 +475,12 @@ class FloatingAssistantService : Service() {
             }
         })
 
-        // Xiaomi Edge Pill
-        xiaomiEdgeView.setOnTouchListener(object : View.OnTouchListener {
-            private var initialY = 0
-            private var initialTouchX = 0f
-            private var initialTouchY = 0f
+        xiaomiEdgeView.setOnClickListener {
+            triggerHaptic()
+            openPopupChat(fromSiri = false)
+        }
 
-            override fun onTouch(v: View, event: MotionEvent): Boolean {
-                when (event.action) {
-                    MotionEvent.ACTION_DOWN -> {
-                        wakeFromSmartFreeze()
-                        initialY = params.y
-                        initialTouchX = event.rawX
-                        initialTouchY = event.rawY
-                        return true
-                    }
-                    MotionEvent.ACTION_MOVE -> {
-                        params.y = (initialY + (event.rawY - initialTouchY).toInt()).coerceIn(0, fullScreenHeight - 180)
-                        windowManager.updateViewLayout(floatingView, params)
-                        return true
-                    }
-                    MotionEvent.ACTION_UP -> {
-                        val diffX = event.rawX - initialTouchX
-                        val swipedInward = (snappedToRightEdge && diffX < -45) || (!snappedToRightEdge && diffX > 45)
-                        triggerHaptic()
-                        if (swipedInward) openPopupChat(fromSiri = false) else exitXiaomiEdgeMode()
-                        return true
-                    }
-                }
-                return false
-            }
-        })
-
-        // Drag Window & Remember Position
+        // Drag Floating Window via Glass Title Bar
         glassTitleBar.setOnTouchListener(object : View.OnTouchListener {
             private var initialX = 0
             private var initialY = 0
@@ -977,18 +497,15 @@ class FloatingAssistantService : Service() {
                         return true
                     }
                     MotionEvent.ACTION_MOVE -> {
-                        val maxW = (fullScreenWidth - popupChatView.width).coerceAtLeast(0)
-                        val maxH = (fullScreenHeight - popupChatView.height).coerceAtLeast(0)
-                        params.x = (initialX + (event.rawX - initialTouchX).toInt()).coerceIn(0, maxW)
-                        params.y = (initialY + (event.rawY - initialTouchY).toInt()).coerceIn(0, maxH)
+                        params.x = (initialX + (event.rawX - initialTouchX).toInt())
+                            .coerceIn(0, (fullScreenWidth - popupChatView.width).coerceAtLeast(0))
+                        params.y = (initialY + (event.rawY - initialTouchY).toInt())
+                            .coerceIn(0, (fullScreenHeight - popupChatView.height).coerceAtLeast(0))
                         windowManager.updateViewLayout(floatingView, params)
                         return true
                     }
                     MotionEvent.ACTION_UP -> {
-                        prefs.edit()
-                            .putInt("last_win_x", params.x)
-                            .putInt("last_win_y", params.y)
-                            .apply()
+                        saveLastWindowGeometry()
                         return true
                     }
                 }
@@ -996,43 +513,34 @@ class FloatingAssistantService : Service() {
             }
         })
 
-        // Resize Window & Remember Size
-        btnResizeHandle.setOnTouchListener(object : View.OnTouchListener {
-            private var initialW = 0
-            private var initialH = 0
-            private var initialTouchX = 0f
-            private var initialTouchY = 0f
+        // Corner Resize Handle
+        floatingView.findViewById<ImageView>(R.id.btnResizeHandle).setOnTouchListener(object : View.OnTouchListener {
+            private var startW = 0
+            private var startH = 0
+            private var startTouchX = 0f
+            private var startTouchY = 0f
 
             override fun onTouch(v: View, event: MotionEvent): Boolean {
-                val density = resources.displayMetrics.density
-                val minW = (275 * density).toInt()
-                val minH = (250 * density).toInt()
-                val maxW = (fullScreenWidth * 0.96f).toInt()
-                val maxH = (fullScreenHeight * 0.84f).toInt()
-
+                val d = resources.displayMetrics.density
                 when (event.action) {
                     MotionEvent.ACTION_DOWN -> {
-                        initialW = popupChatView.width
-                        initialH = popupChatView.height
-                        initialTouchX = event.rawX
-                        initialTouchY = event.rawY
+                        startW = popupChatView.layoutParams.width
+                        startH = popupChatView.layoutParams.height
+                        startTouchX = event.rawX
+                        startTouchY = event.rawY
                         return true
                     }
                     MotionEvent.ACTION_MOVE -> {
-                        val newW = (initialW + (event.rawX - initialTouchX).toInt()).coerceIn(minW, maxW)
-                        val newH = (initialH + (event.rawY - initialTouchY).toInt()).coerceIn(minH, maxH)
                         val lp = popupChatView.layoutParams
-                        lp.width = newW
-                        lp.height = newH
+                        lp.width = (startW + (event.rawX - startTouchX).toInt())
+                            .coerceIn((260 * d).toInt(), (fullScreenWidth - 24).coerceAtLeast(300))
+                        lp.height = (startH + (event.rawY - startTouchY).toInt())
+                            .coerceIn((260 * d).toInt(), (fullScreenHeight - 100).coerceAtLeast(350))
                         popupChatView.layoutParams = lp
-                        windowManager.updateViewLayout(floatingView, params)
                         return true
                     }
                     MotionEvent.ACTION_UP -> {
-                        prefs.edit()
-                            .putInt("last_win_w", popupChatView.width)
-                            .putInt("last_win_h", popupChatView.height)
-                            .apply()
+                        saveLastWindowGeometry()
                         return true
                     }
                 }
@@ -1040,227 +548,235 @@ class FloatingAssistantService : Service() {
             }
         })
 
-        btnCloseWindowX.setOnClickListener {
+        // Header Buttons
+        floatingView.findViewById<ImageView>(R.id.btnClosePopup).setOnClickListener {
             triggerHaptic()
-            closePopupChat()
+            showCollapsedTriggerState()
         }
 
-        btnScreenShare.setOnClickListener {
+        floatingView.findViewById<ImageView>(R.id.btnToggleMiniWindow).setOnClickListener {
             triggerHaptic()
-            if (!isScreenShareActive) {
-                startActivity(Intent(this, ScreenCapturePermissionActivity::class.java).apply {
-                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                })
-            } else {
-                stopMediaProjection()
-                Toast.makeText(this, "Screen Vision dihentikan", Toast.LENGTH_SHORT).show()
-            }
+            isMiniWindowMode = !isMiniWindowMode
+            openPopupChat(fromSiri = false)
         }
 
-        btnPlusMenu.setOnClickListener {
-            triggerHaptic()
-            smartToolsDrawer.visibility = View.GONE
-            val show = plusMenuDrawer.visibility != View.VISIBLE
-            plusMenuDrawer.visibility = if (show) View.VISIBLE else View.GONE
-            btnPlusMenu.animate().rotation(if (show) 45f else 0f).setDuration(200).start()
-        }
-
-        btnToolsDrawer.setOnClickListener {
-            triggerHaptic()
-            plusMenuDrawer.visibility = View.GONE
-            btnPlusMenu.animate().rotation(0f).setDuration(200).start()
-            val show = smartToolsDrawer.visibility != View.VISIBLE
-            smartToolsDrawer.visibility = if (show) View.VISIBLE else View.GONE
-            if (show) {
-                etQuickNotes.setText(repo.getQuickNotes())
-                refreshHistoryList(historyThreadsList, "")
-            }
-        }
-
-        // Plus Menu Actions
-        actionCompareAi.setOnClickListener {
+        floatingView.findViewById<ImageView>(R.id.btnCompareMode).setOnClickListener { view ->
             triggerHaptic()
             isCompareMode = !isCompareMode
-            tvCompareBadge.text = if (isCompareMode) "Compare AI: ON" else "Compare AI: OFF"
-            tvCompareBadge.setTextColor(Color.parseColor(if (isCompareMode) "#34D399" else "#38BDF8"))
+            (view as ImageView).setColorFilter(
+                if (isCompareMode) Color.parseColor("#E879F9") else Color.parseColor("#94A3B8")
+            )
             Toast.makeText(
                 this,
-                if (isCompareMode) "Compare AI aktif: membandingkan 2 provider sekaligus" else "Compare AI dimatikan",
+                if (isCompareMode) "Mode Compare 2 AI Aktif" else "Mode Single AI",
                 Toast.LENGTH_SHORT
             ).show()
         }
 
-        actionRegenerate.setOnClickListener {
-            if (lastUserPrompt.isNotEmpty()) {
-                plusMenuDrawer.visibility = View.GONE
-                btnPlusMenu.animate().rotation(0f).setDuration(180).start()
-                triggerSendPrompt(lastUserPrompt, fromVoice = false, isRegenerate = true)
+        btnScreenShare.setOnClickListener {
+            triggerHaptic()
+            if (isScreenShareActive) {
+                stopMediaProjection()
             } else {
-                Toast.makeText(this, "Belum ada pertanyaan untuk diulang", Toast.LENGTH_SHORT).show()
+                val permIntent = Intent(this, ScreenCapturePermissionActivity::class.java).apply {
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+                startActivity(permIntent)
             }
         }
 
-        actionCyclePersona.setOnClickListener {
+        floatingView.findViewById<ImageView>(R.id.btnToggleSmartDrawer).setOnClickListener {
             triggerHaptic()
-            prefPersona = when (prefPersona) {
-                "asik" -> "ringkas"
-                "ringkas" -> "detail"
-                "detail" -> "teknis"
-                else -> "asik"
+            val show = smartToolsDrawer.visibility != View.VISIBLE
+            smartToolsDrawer.visibility = if (show) View.VISIBLE else View.GONE
+            if (show) {
+                refreshHistoryList(floatingView.findViewById(R.id.historyResultsContainer), "")
             }
-            prefs.edit().putString("ai_persona", prefPersona).apply()
+        }
+
+        // Smart Drawer Chips
+        floatingView.findViewById<TextView>(R.id.chipSwitchProvider).setOnClickListener {
+            val all = AiProvider.entries
+            val nextIdx = (all.indexOf(activeProvider) + 1) % all.size
+            activeProvider = all[nextIdx]
+            activeModel = if (activeProvider == AiProvider.CUSTOM) {
+                vault.getCustomModelId().ifEmpty { "custom-model" }
+            } else {
+                activeProvider.models.first()
+            }
+            getSharedPreferences("gemini_prefs", Context.MODE_PRIVATE).edit()
+                .putString("active_provider", activeProvider.id)
+                .putString("active_model", activeModel)
+                .apply()
             applyVisualPreferences()
+            Toast.makeText(this, "Beralih ke ${activeProvider.displayName}", Toast.LENGTH_SHORT).show()
         }
 
-        actionCopyLast.setOnClickListener {
-            if (lastBotReply.isNotEmpty()) {
-                val cb = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                cb.setPrimaryClip(ClipData.newPlainText("Floamini Reply", lastBotReply))
-                Toast.makeText(this, "Jawaban terakhir disalin", Toast.LENGTH_SHORT).show()
-            }
+        floatingView.findViewById<TextView>(R.id.chipAutoRouter).setOnClickListener { tv ->
+            isAutoRouterEnabled = !isAutoRouterEnabled
+            (tv as TextView).text = if (isAutoRouterEnabled) "Auto-Router: ON" else "Auto-Router: OFF"
+            tv.setTextColor(if (isAutoRouterEnabled) Color.parseColor("#38BDF8") else Color.parseColor("#E2E8F0"))
         }
 
-        actionNewThread.setOnClickListener {
-            triggerHaptic()
-            startNewConversationThread()
-            plusMenuDrawer.visibility = View.GONE
-            btnPlusMenu.animate().rotation(0f).setDuration(180).start()
-            Toast.makeText(this, "Sesi obrolan baru dimulai", Toast.LENGTH_SHORT).show()
-        }
-
-        actionOpenDashboard.setOnClickListener {
-            closePopupChat()
-            startActivity(Intent(this, MainActivity::class.java).apply { addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) })
-        }
-
-        actionQuickForceStop.setOnClickListener {
-            triggerHaptic()
-            performQuickForceStop()
-        }
-
-        // 9 Quick Actions
-        qaTranslate.setOnClickListener { triggerSendPrompt("Terjemahkan teks atau konten layar ini ke Bahasa Indonesia yang natural.") }
-        qaSummarize.setOnClickListener { triggerSendPrompt("Ringkas poin-poin terpenting dari konteks atau layar ini secara padat.") }
-        qaRewrite.setOnClickListener { triggerSendPrompt("Tulis ulang teks terakhir agar lebih rapi, jelas, dan enak dibaca.") }
-        qaExplain.setOnClickListener { triggerSendPrompt("Jelaskan konsep atau isi layar ini dengan bahasa yang mudah dipahami.") }
-        qaBrainstorm.setOnClickListener { triggerSendPrompt("Berikan 5 ide kreatif dan segar terkait topik yang sedang kita bahas.") }
-        qaCoding.setOnClickListener { triggerSendPrompt("Bantu analisis, perbaiki bug, atau tulis kode bersih untuk kebutuhan ini.") }
-        qaGrammar.setOnClickListener { triggerSendPrompt("Periksa dan perbaiki tata bahasa (grammar & ejaan) pada teks terakhir.") }
-        qaExtractText.setOnClickListener { triggerSendPrompt("Ekstrak seluruh teks penting yang terlihat pada gambar atau layar secara rapi.") }
-        qaAskSelection.setOnClickListener {
-            // Explicit user action: read clipboard only when button is tapped
-            val cb = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-            val clipText = cb.primaryClip?.getItemAt(0)?.coerceToText(this)?.toString()?.trim() ?: ""
-            if (clipText.isNotEmpty()) {
-                triggerSendPrompt("Bantu jelaskan atau proses teks dari clipboard ini:\n\"$clipText\"")
+        floatingView.findViewById<TextView>(R.id.chipClipboard).setOnClickListener {
+            val cm = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+            val clipText = cm.primaryClip?.getItemAt(0)?.text?.toString().orEmpty()
+            if (clipText.isBlank()) {
+                Toast.makeText(this, "Clipboard kosong.", Toast.LENGTH_SHORT).show()
             } else {
-                Toast.makeText(this, "Clipboard saat ini kosong", Toast.LENGTH_SHORT).show()
-            }
-        }
-
-        // Smart Tools Drawer Buttons
-        btnToolClipboard.setOnClickListener {
-            val cb = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-            val clipText = cb.primaryClip?.getItemAt(0)?.coerceToText(this)?.toString()?.trim() ?: ""
-            if (clipText.isNotEmpty()) {
-                etPrompt.setText("Analisis teks clipboard ini:\n$clipText")
+                etPromptInput.setText("Ringkas / jelaskan isi clipboard ini:\n$clipText")
                 smartToolsDrawer.visibility = View.GONE
-            } else {
-                Toast.makeText(this, "Clipboard kosong", Toast.LENGTH_SHORT).show()
             }
         }
 
-        btnToolCalculator.setOnClickListener {
-            panelCalculator.visibility = if (panelCalculator.visibility == View.VISIBLE) View.GONE else View.VISIBLE
-            panelQuickNotes.visibility = View.GONE
-            panelChatHistory.visibility = View.GONE
+        floatingView.findViewById<TextView>(R.id.chipCalculator).setOnClickListener {
+            val expr = etPromptInput.text.toString().trim()
+            if (expr.isEmpty()) {
+                etPromptInput.hint = "Ketik hitungan (mis. (25*4)+15) lalu klik Kalkulator"
+            } else {
+                val res = SmartToolsHelper.evaluateMath(expr)
+                appendMessageBubble(ChatMessage(role = "assistant", content = "Hasil Kalkulator ($expr) = $res", providerTag = "Kalkulator"))
+                etPromptInput.setText("")
+            }
         }
 
-        btnEvalCalc.setOnClickListener {
-            val expr = etCalcExpression.text.toString()
-            tvCalcResult.text = "= ${SmartToolsHelper.evaluateMathExpression(expr)}"
+        floatingView.findViewById<TextView>(R.id.chipNewSession).setOnClickListener {
+            currentThread = repo.createNewThread("Sesi ${System.currentTimeMillis() % 1000}")
+            renderCurrentThreadMessages()
+            smartToolsDrawer.visibility = View.GONE
+            Toast.makeText(this, "Sesi baru dimulai.", Toast.LENGTH_SHORT).show()
         }
 
-        btnToolNotes.setOnClickListener {
-            panelQuickNotes.visibility = if (panelQuickNotes.visibility == View.VISIBLE) View.GONE else View.VISIBLE
-            panelCalculator.visibility = View.GONE
-            panelChatHistory.visibility = View.GONE
+        floatingView.findViewById<TextView>(R.id.chipQuickForceStop).setOnClickListener {
+            stopSelf()
         }
 
-        etQuickNotes.addTextChangedListener(object : TextWatcher {
+        floatingView.findViewById<EditText>(R.id.etSearchHistory).addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
-                repo.saveQuickNotes(s?.toString() ?: "")
+                refreshHistoryList(floatingView.findViewById(R.id.historyResultsContainer), s?.toString().orEmpty())
             }
             override fun afterTextChanged(s: Editable?) {}
         })
 
-        btnSendNotesToAi.setOnClickListener {
-            val note = etQuickNotes.text.toString().trim()
-            if (note.isNotEmpty()) {
-                smartToolsDrawer.visibility = View.GONE
-                triggerSendPrompt("Bantu rapikan atau kembangkan catatan cepat berikut:\n$note")
-            }
-        }
+        // Quick Action Prompts
+        setupQuickPromptChips()
 
-        btnToolHistory.setOnClickListener {
-            panelChatHistory.visibility = if (panelChatHistory.visibility == View.VISIBLE) View.GONE else View.VISIBLE
-            panelCalculator.visibility = View.GONE
-            panelQuickNotes.visibility = View.GONE
-            refreshHistoryList(historyThreadsList, etSearchChat.text.toString())
-        }
-
-        etSearchChat.addTextChangedListener(object : TextWatcher {
-            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
-            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
-                refreshHistoryList(historyThreadsList, s?.toString() ?: "")
-            }
-            override fun afterTextChanged(s: Editable?) {}
-        })
-
-        // Attachments (PDF, Image, File)
-        btnAttachFile.setOnClickListener {
-            triggerHaptic()
-            startActivity(Intent(this, FilePickerProxyActivity::class.java).apply {
+        // Composer Buttons
+        floatingView.findViewById<ImageView>(R.id.btnAttachFile).setOnClickListener {
+            val pick = Intent(this, FilePickerProxyActivity::class.java).apply {
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            })
+            }
+            startActivity(pick)
         }
 
-        btnRemoveAttachment.setOnClickListener {
-            pendingAttachment = null
-            attachmentPreviewBar.visibility = View.GONE
-        }
-
-        // Voice System Controls
-        btnVoiceMic.setOnClickListener {
-            if (voiceManager?.isListening == true) {
-                voiceManager?.stopListening()
+        floatingView.findViewById<ImageView>(R.id.btnVoiceMic).setOnClickListener {
+            triggerHaptic()
+            if (voiceManager.isListening) {
+                voiceManager.stopListening()
             } else {
-                startVoiceChatSession()
+                voiceManager.startListening()
             }
         }
 
-        btnStopVoiceAction.setOnClickListener {
-            isVoiceChatLoop = false
-            voiceManager?.stopListening()
-            voiceManager?.stopSpeaking()
-            voiceWaveformView.stopAnimation()
-            voiceWaveformBar.visibility = View.GONE
+        btnSendOrStop.setOnClickListener {
+            triggerHaptic()
+            if (activeGenerationJob?.isActive == true) {
+                activeGenerationJob?.cancel()
+                btnSendOrStop.setImageResource(R.drawable.ic_send)
+            } else {
+                val text = etPromptInput.text.toString().trim()
+                if (text.isNotEmpty() || pendingAttachment != null || isScreenShareActive) {
+                    sendUserPrompt(text.ifEmpty { "Analisis tampilan layar / lampiran ini secara singkat dan jelas." })
+                }
+            }
         }
 
-        // Stop Generation Button
-        btnStopGeneration.setOnClickListener {
-            activeGenerationJob?.cancel()
-            typingIndicatorRow.visibility = View.GONE
-            btnSendPrompt.isEnabled = true
-            tvIslandLabel.text = "Floamini"
-            Toast.makeText(this, "Generasi dihentikan", Toast.LENGTH_SHORT).show()
-        }
+        applyVisualPreferences()
+        renderCurrentThreadMessages()
+    }
 
-        // Send Prompt
-        btnSendPrompt.setOnClickListener {
-            isVoiceChatLoop = false
-            triggerSendPrompt(etPrompt.text.toString(), fromVoice = false)
+    private fun setupQuickPromptChips() {
+        val row = floatingView.findViewById<LinearLayout>(R.id.quickPromptsRow)
+        row.removeAllViews()
+        val d = resources.displayMetrics.density
+        val actions = listOf(
+            "Baca Layar" to "Jelaskan apa yang tampil di layar ini dan bantu jawab jika ada pertanyaan.",
+            "Ringkas" to "Ringkas teks berikut menjadi poin inti yang mudah dipahami:",
+            "Terjemahkan" to "Terjemahkan ke Bahasa Indonesia yang natural:",
+            "Perbaiki Bahasa" to "Perbaiki tata bahasa dan buat kalimat ini lebih rapi:",
+            "Bantu Balas" to "Buatkan 3 opsi balasan yang sopan dan asik untuk pesan ini:"
+        )
+
+        for ((label, promptPrefix) in actions) {
+            val chip = TextView(this).apply {
+                text = label
+                textSize = 11f
+                setTextColor(Color.parseColor("#CBD5E1"))
+                setPadding((10 * d).toInt(), (5 * d).toInt(), (10 * d).toInt(), (5 * d).toInt())
+                setBackgroundResource(R.drawable.bg_chip_glass)
+                setOnClickListener {
+                    val existing = etPromptInput.text.toString().trim()
+                    if (label == "Baca Layar") {
+                        sendUserPrompt(promptPrefix)
+                    } else if (existing.isNotEmpty()) {
+                        sendUserPrompt("$promptPrefix\n$existing")
+                    } else {
+                        etPromptInput.setText("$promptPrefix ")
+                        etPromptInput.setSelection(etPromptInput.text.length)
+                    }
+                }
+            }
+            val lp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                marginEnd = (6 * d).toInt()
+            }
+            row.addView(chip, lp)
+        }
+    }
+
+    private fun applyVisualPreferences() {
+        if (::dynamicIslandGlassHost.isInitialized && ::dynamicIslandView.isInitialized) {
+            dynamicIslandGlassHost.cornerRadiusDp = 17f
+            dynamicIslandGlassHost.bevelWidthDp = 9f
+            dynamicIslandGlassHost.materialVariant = LiquidGlassFrameLayout.GlassMaterialVariant.CLEAR
+            dynamicIslandGlassHost.dispersionStrength = if (prefPillAppearance == "polos") 0f else 0.34f
+            dynamicIslandGlassHost.specularIntensity = if (prefPillAppearance == "polos") 0f else 0.72f
+
+            val lp = dynamicIslandView.layoutParams
+            lp.width = prefIslandWidthPx
+            dynamicIslandView.layoutParams = lp
+
+            when (prefPillAppearance) {
+                "polos" -> {
+                    dynamicIslandView.setBackgroundResource(R.drawable.bg_dynamic_island_polos)
+                    ivIslandSparkle.visibility = View.GONE
+                    tvIslandLabel.visibility = View.GONE
+                    viewIslandPulseDot.visibility = View.GONE
+                }
+                "minimal" -> {
+                    dynamicIslandView.background = null
+                    ivIslandSparkle.visibility = View.VISIBLE
+                    tvIslandLabel.visibility = View.GONE
+                    viewIslandPulseDot.visibility = View.VISIBLE
+                }
+                else -> {
+                    dynamicIslandView.background = null
+                    ivIslandSparkle.visibility = View.VISIBLE
+                    tvIslandLabel.visibility = View.VISIBLE
+                    viewIslandPulseDot.visibility = View.VISIBLE
+                }
+            }
+        }
+        if (::popupChatView.isInitialized) {
+            popupChatView.cornerRadiusDp = 28f
+            popupChatView.bevelWidthDp = 16f
+            popupChatView.materialVariant = LiquidGlassFrameLayout.GlassMaterialVariant.REGULAR
+            popupChatView.dispersionStrength = 0.28f
+            popupChatView.specularIntensity = 0.62f
+            popupChatView.alpha = prefPopupAlpha
+        }
+        if (::tvActiveProviderHeader.isInitialized) {
+            tvActiveProviderHeader.text = "${activeProvider.displayName} • $activeModel"
         }
     }
 
@@ -1295,394 +811,283 @@ class FloatingAssistantService : Service() {
         }
     }
 
-    // ==========================================================================
-    // SEND PROMPT, SSE STREAMING, COMPARE AI & AUTO-ROUTER
-    // ==========================================================================
-    private fun triggerSendPrompt(rawPrompt: String, fromVoice: Boolean = false, isRegenerate: Boolean = false) {
-        val prompt = rawPrompt.trim()
-        if (prompt.isEmpty()) return
-
+    private fun sendUserPrompt(rawPrompt: String) {
+        etPromptInput.setText("")
         val attachment = pendingAttachment
         pendingAttachment = null
-        attachmentPreviewBar.visibility = View.GONE
+        tvAttachmentBadge.visibility = View.GONE
 
-        val imagesList = mutableListOf<String>()
+        val composedPrompt = buildString {
+            append(rawPrompt)
+            if (attachment != null && attachment.extractedText.isNotEmpty()) {
+                append("\n\n[Isi Dokumen ${attachment.displayName}]:\n")
+                append(attachment.extractedText)
+            }
+        }
+
+        val userMsg = ChatMessage(role = "user", content = rawPrompt)
+        currentThread.messages.add(userMsg)
+        if (currentThread.messages.size == 1) {
+            currentThread.title = rawPrompt.take(28)
+        }
+        repo.saveThread(currentThread)
+        appendMessageBubble(userMsg)
+
+        val imagesToSend = mutableListOf<String>()
+        if (attachment != null) imagesToSend.addAll(attachment.base64Images)
         if (isScreenShareActive) {
-            captureCurrentScreenBase64()?.let { imagesList.add(it) }
-        }
-        if (attachment != null) {
-            imagesList.addAll(attachment.imageBase64List)
+            captureCurrentScreenBase64()?.let { imagesToSend.add(it) }
         }
 
-        val combinedPrompt = if (attachment != null && attachment.extractedText.isNotBlank()) {
-            "$prompt\n\n--- Isi Lampiran (${attachment.displayName}) ---\n${attachment.extractedText}"
-        } else {
-            prompt
-        }
+        val systemInstruction = buildSystemPrompt()
+        btnSendOrStop.setImageResource(R.drawable.ic_stop)
 
-        val chosenProvider = if (prefAutoRouter) {
-            AiEngineRegistry.resolveAutoRoute(vault, activeProvider, combinedPrompt, imagesList.isNotEmpty())
-        } else {
-            activeProvider
-        }
-
-        val apiKey = vault.getApiKey(chosenProvider)
-        if (apiKey.isEmpty()) {
-            Toast.makeText(this, "API Key ${chosenProvider.displayName} belum diisi! Buka Settings.", Toast.LENGTH_LONG).show()
-            return
-        }
-
-        floatingView.findViewById<LinearLayout>(R.id.plusMenuDrawer).visibility = View.GONE
-        floatingView.findViewById<LinearLayout>(R.id.smartToolsDrawer).visibility = View.GONE
-        floatingView.findViewById<ImageView>(R.id.btnPlusMenu).animate().rotation(0f).setDuration(180).start()
-
-        wakeFromSmartFreeze()
-        triggerHaptic()
-        lastUserPrompt = prompt
-
-        if (!isRegenerate) {
-            val userMsg = ChatMessage(
-                id = UUID.randomUUID().toString(),
-                role = "user",
-                text = prompt,
-                timestamp = currentTimeLabel(),
-                attachmentLabel = attachment?.displayName
-            )
-            currentThread.messages.add(userMsg)
-            addChatBubbleView(userMsg, animateEntrance = true)
-        }
-
-        etPrompt.text.clear()
-        btnSendPrompt.isEnabled = false
-        typingIndicatorRow.visibility = View.VISIBLE
-        tvIslandLabel.text = "Streaming..."
-
-        activeGenerationJob?.cancel()
         activeGenerationJob = serviceScope.launch {
             if (isCompareMode) {
-                executeDualCompareStream(chosenProvider, combinedPrompt, imagesList)
+                val primary = Pair(activeProvider, activeModel)
+                val secondaryProv = AiProvider.entries.firstOrNull { it != activeProvider && vault.hasApiKey(it.id) }
+                    ?: activeProvider
+                val secondary = Pair(secondaryProv, secondaryProv.models.first())
+
+                val leftView = appendStreamingAssistantBubble("${primary.first.displayName}")
+                val rightView = appendStreamingAssistantBubble("${secondary.first.displayName}")
+
+                val historyCopy = currentThread.messages.dropLast(1) + ChatMessage(role = "user", content = composedPrompt)
+
+                launch {
+                    val sb1 = StringBuilder()
+                    val r1 = aiEngine.streamChat(primary.first, primary.second, systemInstruction, historyCopy, imagesToSend) { chunk ->
+                        sb1.append(chunk)
+                        withContext(Dispatchers.Main) {
+                            leftView.text = cleanMarkdownSymbols(sb1.toString()) + " ▍"
+                            scrollChatToBottom()
+                        }
+                    }
+                    val final1 = r1.getOrElse { "Error: ${it.message}" }
+                    leftView.text = cleanMarkdownSymbols(final1)
+                    repo.recordUsage(primary.first.displayName, final1.length)
+                }
+
+                val sb2 = StringBuilder()
+                val r2 = aiEngine.streamChat(secondary.first, secondary.second, systemInstruction, historyCopy, imagesToSend) { chunk ->
+                    sb2.append(chunk)
+                    withContext(Dispatchers.Main) {
+                        rightView.text = cleanMarkdownSymbols(sb2.toString()) + " ▍"
+                        scrollChatToBottom()
+                    }
+                }
+                val final2 = r2.getOrElse { "Error: ${it.message}" }
+                rightView.text = cleanMarkdownSymbols(final2)
+                repo.recordUsage(secondary.first.displayName, final2.length)
+                btnSendOrStop.setImageResource(R.drawable.ic_send)
             } else {
-                executeSingleProviderStream(chosenProvider, apiKey, combinedPrompt, imagesList, fromVoice)
-            }
-        }
-    }
-
-    private suspend fun executeSingleProviderStream(
-        provider: AiProviderType,
-        apiKey: String,
-        promptText: String,
-        imagesList: List<String>,
-        fromVoice: Boolean
-    ) {
-        val modelId = vault.getSelectedModel(provider)
-        tvThinkingLabel.text = "${provider.shortBadge} ($modelId) sedang mengetik..."
-
-        val botTime = currentTimeLabel()
-        val streamingTv = addStreamingBotBubble(provider.shortBadge, modelId, botTime)
-        val buffer = StringBuilder()
-
-        val payload = AiRequestPayload(
-            provider = provider,
-            apiKey = apiKey,
-            model = modelId,
-            customBaseUrl = vault.getCustomBaseUrl(),
-            systemInstruction = buildSystemInstructionText(),
-            history = currentThread.messages.dropLast(1).takeLast(14),
-            userPrompt = promptText,
-            imageBase64List = imagesList
-        )
-
-        AiEngineRegistry.getAdapter(provider).streamChat(payload).collect { event ->
-            when (event) {
-                is StreamEvent.Delta -> {
-                    buffer.append(event.chunk)
-                    streamingTv.text = "${buffer} ▍"
-                    scrollChat.post { scrollChat.fullScroll(View.FOCUS_DOWN) }
+                val (chosenProv, chosenModel) = if (isAutoRouterEnabled) {
+                    aiEngine.resolveAutoRouter(composedPrompt, imagesToSend.isNotEmpty())
+                } else {
+                    Pair(activeProvider, activeModel)
                 }
-                is StreamEvent.Completed -> {
-                    val finalReply = event.fullText.ifBlank { "Respons kosong dari ${provider.shortBadge}." }
-                    streamingTv.text = SmartToolsHelper.formatRichMarkdown(finalReply)
-                    lastBotReply = finalReply
 
-                    val botMsg = ChatMessage(
-                        id = UUID.randomUUID().toString(),
-                        role = "model",
-                        text = finalReply,
-                        timestamp = botTime,
-                        providerBadge = provider.shortBadge,
-                        modelName = modelId
-                    )
-                    currentThread.messages.add(botMsg)
-                    persistCurrentThread()
-                    repo.recordUsage(provider, event.estimatedTokens)
+                val aiTextView = appendStreamingAssistantBubble("${chosenProv.displayName} • $chosenModel")
+                val historyForApi = currentThread.messages.dropLast(1) + ChatMessage(role = "user", content = composedPrompt)
+                val sb = StringBuilder()
 
-                    typingIndicatorRow.visibility = View.GONE
-                    btnSendPrompt.isEnabled = true
-                    tvIslandLabel.text = if (isScreenShareActive) "Live Vision" else "Floamini"
-                    triggerHaptic()
-
-                    if ((fromVoice || isVoiceChatLoop) && prefAutoSpeakTts) {
-                        val plainForSpeech = finalReply.replace("```", " ").replace("**", "").replace("`", "")
-                        voiceManager?.speak(plainForSpeech, 1.05f, prefTtsVoiceName)
+                val result = aiEngine.streamChat(
+                    provider = chosenProv,
+                    model = chosenModel,
+                    systemPrompt = systemInstruction,
+                    history = historyForApi,
+                    imageBase64List = imagesToSend,
+                    onChunk = { chunk ->
+                        sb.append(chunk)
+                        withContext(Dispatchers.Main) {
+                            aiTextView.text = cleanMarkdownSymbols(sb.toString()) + " ▍"
+                            scrollChatToBottom()
+                        }
                     }
-                }
-                is StreamEvent.Error -> {
-                    streamingTv.text = event.message
-                    streamingTv.setTextColor(Color.parseColor("#FCA5A5"))
-                    typingIndicatorRow.visibility = View.GONE
-                    btnSendPrompt.isEnabled = true
-                    tvIslandLabel.text = "Floamini"
-                }
+                )
+
+                val finalClean = result.fold(
+                    onSuccess = { cleanMarkdownSymbols(it).ifEmpty { "Tidak ada respons." } },
+                    onFailure = { "Kendala: ${it.message}" }
+                )
+                aiTextView.text = finalClean
+                btnSendOrStop.setImageResource(R.drawable.ic_send)
+
+                val assistantMsg = ChatMessage(
+                    role = "assistant",
+                    content = finalClean,
+                    providerTag = "${chosenProv.displayName} • $chosenModel"
+                )
+                currentThread.messages.add(assistantMsg)
+                repo.saveThread(currentThread)
+                repo.recordUsage(chosenProv.displayName, finalClean.length)
+                scrollChatToBottom()
             }
         }
     }
 
-    private suspend fun executeDualCompareStream(
-        primary: AiProviderType,
-        promptText: String,
-        imagesList: List<String>
-    ) {
-        val configured = vault.getConfiguredProviders()
-        val secondary = configured.firstOrNull { it != primary } ?: primary
-        tvThinkingLabel.text = "Membandingkan ${primary.shortBadge} vs ${secondary.shortBadge}..."
+    private fun buildSystemPrompt(): String {
+        val prefs = getSharedPreferences("gemini_prefs", Context.MODE_PRIVATE)
+        val pIdx = prefs.getInt("personality_index", 0)
+        val customNote = prefs.getString("custom_system_prompt", "").orEmpty()
+        val styleRule = when (pIdx) {
+            1 -> "Jawab singkat, padat, langsung ke inti pertanyaan."
+            2 -> "Jawab terstruktur dan jelas dengan penjelasan menyeluruh."
+            3 -> "Jawab kreatif, ekspresif, dan inspiratif."
+            4 -> "Jawab sebagai senior software engineer yang akurat."
+            else -> "Jawab dengan gaya bahasa Indonesia yang asik, santai, ramah, dan langsung ke inti pertanyaan minimal 1-3 kalimat."
+        }
+        return "Kamu adalah Floamini, asisten AI pribadi di layar Android. $styleRule Jangan gunakan simbol markdown bintang (* atau **) atau tanda pagar (#). $customNote".trim()
+    }
 
-        val (tvLeft, tvRight) = addSideBySideCompareCards(primary.shortBadge, secondary.shortBadge)
-        val bufLeft = StringBuilder()
-        val bufRight = StringBuilder()
+    private fun cleanMarkdownSymbols(text: String): String {
+        return text.replace("**", "").replace("*", "").replace("###", "").replace("##", "").trim()
+    }
 
-        val job1 = serviceScope.async {
-            val payload1 = AiRequestPayload(
-                provider = primary,
-                apiKey = vault.getApiKey(primary),
-                model = vault.getSelectedModel(primary),
-                customBaseUrl = vault.getCustomBaseUrl(),
-                systemInstruction = buildSystemInstructionText(),
-                history = currentThread.messages.dropLast(1).takeLast(10),
-                userPrompt = promptText,
-                imageBase64List = imagesList
+    private fun renderCurrentThreadMessages() {
+        chatMessagesContainer.removeAllViews()
+        if (currentThread.messages.isEmpty()) {
+            appendMessageBubble(
+                ChatMessage(
+                    role = "assistant",
+                    content = "Halo! Aku Floamini Liquid Glass siap bantu. Ketuk ikon layar untuk berbagi tampilan layar atau langsung ketik pertanyaanmu.",
+                    providerTag = "Floamini OS"
+                )
             )
-            AiEngineRegistry.getAdapter(primary).streamChat(payload1).collect { ev ->
-                when (ev) {
-                    is StreamEvent.Delta -> {
-                        bufLeft.append(ev.chunk)
-                        tvLeft.text = "${bufLeft} ▍"
-                    }
-                    is StreamEvent.Completed -> {
-                        tvLeft.text = SmartToolsHelper.formatRichMarkdown(ev.fullText)
-                        repo.recordUsage(primary, ev.estimatedTokens)
-                    }
-                    is StreamEvent.Error -> tvLeft.text = ev.message
-                }
-            }
+            return
         }
-
-        val job2 = serviceScope.async {
-            val payload2 = AiRequestPayload(
-                provider = secondary,
-                apiKey = vault.getApiKey(secondary),
-                model = vault.getSelectedModel(secondary),
-                customBaseUrl = vault.getCustomBaseUrl(),
-                systemInstruction = buildSystemInstructionText(),
-                history = currentThread.messages.dropLast(1).takeLast(10),
-                userPrompt = promptText,
-                imageBase64List = imagesList
-            )
-            AiEngineRegistry.getAdapter(secondary).streamChat(payload2).collect { ev ->
-                when (ev) {
-                    is StreamEvent.Delta -> {
-                        bufRight.append(ev.chunk)
-                        tvRight.text = "${bufRight} ▍"
-                        scrollChat.post { scrollChat.fullScroll(View.FOCUS_DOWN) }
-                    }
-                    is StreamEvent.Completed -> {
-                        tvRight.text = SmartToolsHelper.formatRichMarkdown(ev.fullText)
-                        repo.recordUsage(secondary, ev.estimatedTokens)
-                    }
-                    is StreamEvent.Error -> tvRight.text = ev.message
-                }
-            }
+        for (m in currentThread.messages) {
+            appendMessageBubble(m)
         }
-
-        awaitAll(job1, job2)
-        val mergedSummary = "[${primary.shortBadge}]: $bufLeft\n\n[${secondary.shortBadge}]: $bufRight"
-        lastBotReply = mergedSummary
-        currentThread.messages.add(
-            ChatMessage(UUID.randomUUID().toString(), "model", mergedSummary, currentTimeLabel(), "Compare")
-        )
-        persistCurrentThread()
-        typingIndicatorRow.visibility = View.GONE
-        btnSendPrompt.isEnabled = true
-        tvIslandLabel.text = "Floamini"
-        triggerHaptic()
+        scrollChatToBottom()
     }
 
-    // ==========================================================================
-    // CHAT BUBBLES & STAGGERED ENTRANCE ANIMATION
-    // ==========================================================================
-    private fun addChatBubbleView(msg: ChatMessage, animateEntrance: Boolean) {
-        val isUser = (msg.role == "user")
+    private fun appendMessageBubble(msg: ChatMessage) {
+        val d = resources.displayMetrics.density
+        val isUser = msg.role == "user"
+
         val wrapper = LinearLayout(this).apply {
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT
-            ).apply { setMargins(0, 6, 0, 6) }
             orientation = LinearLayout.VERTICAL
             gravity = if (isUser) Gravity.END else Gravity.START
-        }
-
-        val tvMessage = TextView(this).apply {
-            text = if (isUser) msg.text else SmartToolsHelper.formatRichMarkdown(msg.text)
-            textSize = 13f
-            lineHeight = (19 * resources.displayMetrics.density).toInt()
-            setTextColor(Color.parseColor("#F8FAFC"))
-            setPadding(26, 16, 26, 16)
-            maxWidth = (264 * resources.displayMetrics.density).toInt()
-            setBackgroundResource(if (isUser) R.drawable.bg_chat_user else R.drawable.bg_chat_bot)
-            setOnClickListener {
-                val cb = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                cb.setPrimaryClip(ClipData.newPlainText("Floamini Message", msg.text))
-                Toast.makeText(this@FloatingAssistantService, "Pesan disalin", Toast.LENGTH_SHORT).show()
-            }
-        }
-
-        val metaText = if (isUser) {
-            val att = if (!msg.attachmentLabel.isNullOrEmpty()) " • ${msg.attachmentLabel}" else ""
-            "Kamu • ${msg.timestamp}$att"
-        } else {
-            "${msg.providerBadge} • ${msg.timestamp}"
-        }
-
-        val tvTime = TextView(this).apply {
-            text = metaText
-            textSize = 9.5f
-            setTextColor(Color.parseColor("#64748B"))
-            setPadding(8, 3, 8, 0)
-        }
-
-        wrapper.addView(tvMessage)
-        wrapper.addView(tvTime)
-        chatContainer.addView(wrapper)
-
-        if (animateEntrance) {
-            wrapper.alpha = 0f
-            wrapper.translationY = 18f
-            wrapper.animate()
-                .alpha(1f)
-                .translationY(0f)
-                .setDuration((210 / prefAnimSpeedMultiplier).toLong())
-                .setInterpolator(DecelerateInterpolator())
-                .start()
-        }
-        scrollChat.post { scrollChat.fullScroll(View.FOCUS_DOWN) }
-    }
-
-    private fun addStreamingBotBubble(providerBadge: String, modelName: String, timeLabel: String): TextView {
-        val wrapper = LinearLayout(this).apply {
-            layoutParams = LinearLayout.LayoutParams(
+            val lp = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT
-            ).apply { setMargins(0, 6, 0, 6) }
+            ).apply {
+                bottomMargin = (8 * d).toInt()
+            }
+            layoutParams = lp
+            alpha = 0f
+            translationY = 12f * d
+        }
+
+        if (!isUser && msg.providerTag.isNotEmpty()) {
+            val tagTv = TextView(this).apply {
+                text = msg.providerTag
+                textSize = 9.5f
+                setTextColor(Color.parseColor("#38BDF8"))
+                setPadding((4 * d).toInt(), 0, 0, (2 * d).toInt())
+            }
+            wrapper.addView(tagTv)
+        }
+
+        val bubbleTv = TextView(this).apply {
+            text = msg.content
+            textSize = 12.5f
+            setTextColor(Color.parseColor("#F8FAFC"))
+            setPadding((12 * d).toInt(), (9 * d).toInt(), (12 * d).toInt(), (9 * d).toInt())
+            setBackgroundResource(if (isUser) R.drawable.bg_msg_user else R.drawable.bg_msg_ai)
+            maxWidth = (268 * d).toInt()
+            setOnLongClickListener {
+                val cm = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                cm.setPrimaryClip(ClipData.newPlainText("Floamini", msg.content))
+                Toast.makeText(this@FloatingAssistantService, "Teks disalin!", Toast.LENGTH_SHORT).show()
+                true
+            }
+        }
+        wrapper.addView(bubbleTv)
+
+        if (!isUser) {
+            val actionRow = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                setPadding((4 * d).toInt(), (3 * d).toInt(), 0, 0)
+            }
+            val btnSpeak = TextView(this).apply {
+                text = "Dengarkan"
+                textSize = 10f
+                setTextColor(Color.parseColor("#94A3B8"))
+                setPadding(0, 0, (12 * d).toInt(), 0)
+                setOnClickListener { voiceManager.speak(msg.content) }
+            }
+            val btnCopy = TextView(this).apply {
+                text = "Salin"
+                textSize = 10f
+                setTextColor(Color.parseColor("#94A3B8"))
+                setOnClickListener {
+                    val cm = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                    cm.setPrimaryClip(ClipData.newPlainText("Floamini", msg.content))
+                    Toast.makeText(this@FloatingAssistantService, "Disalin!", Toast.LENGTH_SHORT).show()
+                }
+            }
+            actionRow.addView(btnSpeak)
+            actionRow.addView(btnCopy)
+            wrapper.addView(actionRow)
+        }
+
+        chatMessagesContainer.addView(wrapper)
+        wrapper.animate().alpha(1f).translationY(0f).setDuration(200L).start()
+        scrollChatToBottom()
+    }
+
+    private fun appendStreamingAssistantBubble(providerLabel: String): TextView {
+        val d = resources.displayMetrics.density
+        val wrapper = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.START
-        }
-
-        val tvMessage = TextView(this).apply {
-            text = "▍"
-            textSize = 13f
-            lineHeight = (19 * resources.displayMetrics.density).toInt()
-            setTextColor(Color.parseColor("#F8FAFC"))
-            setPadding(26, 16, 26, 16)
-            maxWidth = (264 * resources.displayMetrics.density).toInt()
-            setBackgroundResource(R.drawable.bg_chat_bot)
-        }
-
-        val tvTime = TextView(this).apply {
-            text = "$providerBadge ($modelName) • $timeLabel"
-            textSize = 9.5f
-            setTextColor(Color.parseColor("#38BDF8"))
-            setPadding(8, 3, 8, 0)
-        }
-
-        wrapper.addView(tvMessage)
-        wrapper.addView(tvTime)
-        chatContainer.addView(wrapper)
-        scrollChat.post { scrollChat.fullScroll(View.FOCUS_DOWN) }
-        return tvMessage
-    }
-
-    private fun addSideBySideCompareCards(leftTitle: String, rightTitle: String): Pair<TextView, TextView> {
-        val row = LinearLayout(this).apply {
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT
-            ).apply { setMargins(0, 6, 0, 6) }
-            orientation = LinearLayout.HORIZONTAL
+            ).apply {
+                bottomMargin = (8 * d).toInt()
+            }
         }
-
-        fun createCol(title: String): Pair<LinearLayout, TextView> {
-            val col = LinearLayout(this).apply {
-                layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply {
-                    setMargins(3, 0, 3, 0)
-                }
-                orientation = LinearLayout.VERTICAL
-                setBackgroundResource(R.drawable.bg_chat_bot)
-                setPadding(16, 12, 16, 12)
-            }
-            val header = TextView(this).apply {
-                text = title
-                textSize = 10.5f
-                setTextColor(Color.parseColor("#38BDF8"))
-            }
-            val body = TextView(this).apply {
-                text = "▍"
-                textSize = 12f
-                setTextColor(Color.parseColor("#F8FAFC"))
-            }
-            col.addView(header)
-            col.addView(body)
-            return col to body
+        val tagTv = TextView(this).apply {
+            text = providerLabel
+            textSize = 9.5f
+            setTextColor(Color.parseColor("#38BDF8"))
+            setPadding((4 * d).toInt(), 0, 0, (2 * d).toInt())
         }
+        val bubbleTv = TextView(this).apply {
+            text = "Berpikir... ▍"
+            textSize = 12.5f
+            setTextColor(Color.parseColor("#F8FAFC"))
+            setPadding((12 * d).toInt(), (9 * d).toInt(), (12 * d).toInt(), (9 * d).toInt())
+            setBackgroundResource(R.drawable.bg_msg_ai)
+            maxWidth = (268 * d).toInt()
+        }
+        wrapper.addView(tagTv)
+        wrapper.addView(bubbleTv)
+        chatMessagesContainer.addView(wrapper)
+        scrollChatToBottom()
+        return bubbleTv
+    }
 
-        val (col1, tv1) = createCol(leftTitle)
-        val (col2, tv2) = createCol(rightTitle)
-        row.addView(col1)
-        row.addView(col2)
-        chatContainer.addView(row)
-        return tv1 to tv2
+    private fun scrollChatToBottom() {
+        chatScrollView.post {
+            chatScrollView.fullScroll(View.FOCUS_DOWN)
+        }
     }
 
     // ==========================================================================
-    // SPRING ANIMATIONS & WINDOW TRANSITIONS
+    // OVERLAY TRANSITIONS, SIRI MODE, SMART FREEZE & BLUR
     // ==========================================================================
-    private fun animateSpringScale(target: View, finalScale: Float) {
-        val stiff = SpringForce.STIFFNESS_MEDIUM * prefAnimSpeedMultiplier
-        SpringAnimation(target, DynamicAnimation.SCALE_X, finalScale).apply {
-            spring.dampingRatio = SpringForce.DAMPING_RATIO_LOW_BOUNCY
-            spring.stiffness = stiff
-            start()
-        }
-        SpringAnimation(target, DynamicAnimation.SCALE_Y, finalScale).apply {
-            spring.dampingRatio = SpringForce.DAMPING_RATIO_LOW_BOUNCY
-            spring.stiffness = stiff
-            start()
-        }
-    }
-
-    private fun scheduleAutoHideAndFreeze() {
-        mainHandler.removeCallbacks(autoHidePillRunnable)
-        if (prefAutoHidePill && prefOverlayStyle == "dynamic_island") {
-            mainHandler.postDelayed(autoHidePillRunnable, 3000L)
-        }
-        scheduleSmartFreeze()
-    }
-
     private fun showCollapsedTriggerState() {
         mainHandler.removeCallbacks(transformToXiaomiEdgeRunnable)
         mainHandler.removeCallbacks(autoHidePillRunnable)
         dismissSiriAura()
 
+        popupChatView.stopAmbientRefraction()
         popupChatView.visibility = View.GONE
-        dynamicIslandView.visibility = View.GONE
+        dynamicIslandGlassHost.visibility = View.GONE
         bubbleView.visibility = View.GONE
         xiaomiEdgeView.visibility = View.GONE
         isPillAutoHidden = false
@@ -1704,7 +1109,6 @@ class FloatingAssistantService : Service() {
                 params.y = fullScreenHeight / 3
                 windowManager.updateViewLayout(floatingView, params)
                 mainHandler.postDelayed(transformToXiaomiEdgeRunnable, 2500L)
-                scheduleSmartFreeze()
             }
             "classic_bubble" -> {
                 wakeFromSmartFreeze()
@@ -1713,19 +1117,21 @@ class FloatingAssistantService : Service() {
                 params.x = if (snappedToRightEdge) (fullScreenWidth - prefBubbleSizePx) else 0
                 params.y = fullScreenHeight / 3
                 windowManager.updateViewLayout(floatingView, params)
-                scheduleSmartFreeze()
             }
             else -> {
                 wakeFromSmartFreeze()
-                dynamicIslandView.visibility = View.VISIBLE
-                dynamicIslandView.scaleX = 0.72f
-                dynamicIslandView.scaleY = 0.72f
-                dynamicIslandView.alpha = 1.0f
+                dynamicIslandGlassHost.visibility = View.VISIBLE
+                dynamicIslandGlassHost.scaleX = 0.72f
+                dynamicIslandGlassHost.scaleY = 0.72f
+                dynamicIslandGlassHost.alpha = 1.0f
+                if (prefPillAppearance != "polos") {
+                    dynamicIslandGlassHost.startAmbientRefraction()
+                }
                 params.x = (((fullScreenWidth - prefIslandWidthPx) / 2) + prefIslandOffsetXPx)
                     .coerceIn(12, (fullScreenWidth - prefIslandWidthPx - 12).coerceAtLeast(12))
                 params.y = prefIslandPosYPx
                 windowManager.updateViewLayout(floatingView, params)
-                animateSpringScale(dynamicIslandView, 1.0f)
+                animateSpringScale(dynamicIslandGlassHost, 1.0f)
                 scheduleAutoHideAndFreeze()
             }
         }
@@ -1736,7 +1142,8 @@ class FloatingAssistantService : Service() {
         mainHandler.removeCallbacks(transformToXiaomiEdgeRunnable)
         mainHandler.removeCallbacks(autoHidePillRunnable)
 
-        dynamicIslandView.visibility = View.GONE
+        dynamicIslandGlassHost.stopAmbientRefraction()
+        dynamicIslandGlassHost.visibility = View.GONE
         xiaomiEdgeView.visibility = View.GONE
         bubbleView.visibility = View.GONE
 
@@ -1746,14 +1153,15 @@ class FloatingAssistantService : Service() {
         val savedH = prefs.getInt("last_win_h", (500 * density).toInt())
         val lp = popupChatView.layoutParams
         lp.width = if (isMiniWindowMode) (280 * density).toInt() else savedW
-        lp.height = if (isMiniWindowMode) (255 * density).toInt() else savedH
+        lp.height = if (isMiniWindowMode) (265 * density).toInt() else savedH
         popupChatView.layoutParams = lp
 
         popupChatView.visibility = View.VISIBLE
+        popupChatView.startAmbientRefraction()
         popupChatView.pivotX = lp.width / 2f
         popupChatView.pivotY = if (fromSiri) lp.height.toFloat() else 0f
-        popupChatView.scaleX = 0.55f
-        popupChatView.scaleY = 0.35f
+        popupChatView.scaleX = 0.58f
+        popupChatView.scaleY = 0.38f
         popupChatView.alpha = 0f
 
         val defaultX = ((fullScreenWidth - lp.width) / 2).coerceIn(16, (fullScreenWidth - lp.width - 16).coerceAtLeast(16))
@@ -1771,22 +1179,82 @@ class FloatingAssistantService : Service() {
 
         popupChatView.animate()
             .alpha(prefPopupAlpha)
-            .setDuration((240 / prefAnimSpeedMultiplier).toLong())
+            .setDuration(220L)
             .start()
         animateSpringScale(popupChatView, 1.0f)
     }
 
-    private fun closePopupChat() {
-        voiceManager?.stopListening()
-        voiceManager?.stopSpeaking()
-        popupChatView.animate()
-            .scaleX(0.45f)
-            .scaleY(0.22f)
-            .alpha(0f)
-            .setDuration((190 / prefAnimSpeedMultiplier).toLong())
-            .setInterpolator(DecelerateInterpolator())
-            .withEndAction { showCollapsedTriggerState() }
-            .start()
+    private fun triggerSiriSummon() {
+        wakeFromSmartFreeze()
+        triggerHaptic()
+        if (!isSiriAuraAttached) {
+            val glow = SiriEdgeGlowView(this)
+            val overlayType = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
+            } else {
+                @Suppress("DEPRECATION")
+                WindowManager.LayoutParams.TYPE_PHONE
+            }
+            val glowParams = WindowManager.LayoutParams(
+                WindowManager.LayoutParams.MATCH_PARENT,
+                WindowManager.LayoutParams.MATCH_PARENT,
+                overlayType,
+                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                        WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
+                        WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+                PixelFormat.TRANSLUCENT
+            )
+            windowManager.addView(glow, glowParams)
+            siriGlowView = glow
+            isSiriAuraAttached = true
+        }
+        siriGlowView?.startSiriAnimation()
+        openPopupChat(fromSiri = true)
+    }
+
+    private fun dismissSiriAura() {
+        if (isSiriAuraAttached && siriGlowView != null) {
+            siriGlowView?.stopAndFreezeAnimation()
+            try {
+                windowManager.removeView(siriGlowView)
+            } catch (_: Exception) {
+            }
+            siriGlowView = null
+            isSiriAuraAttached = false
+        }
+    }
+
+    private fun scheduleAutoHideAndFreeze() {
+        mainHandler.removeCallbacks(autoHidePillRunnable)
+        if (prefAutoHidePill) {
+            mainHandler.postDelayed(autoHidePillRunnable, 3000L)
+        }
+    }
+
+    private fun enterSmartFreezeState() {
+        if (isSmartFrozen) return
+        isSmartFrozen = true
+        mainHandler.removeCallbacks(autoHidePillRunnable)
+        mainHandler.removeCallbacks(transformToXiaomiEdgeRunnable)
+        dynamicIslandGlassHost.stopAmbientRefraction()
+        popupChatView.stopAmbientRefraction()
+        siriGlowView?.stopAndFreezeAnimation()
+
+        if (prefOverlayStyle == "siri_mode" && isFloatingViewAttached) {
+            try {
+                windowManager.removeView(floatingView)
+                isFloatingViewAttached = false
+            } catch (_: Exception) {
+            }
+        }
+    }
+
+    private fun wakeFromSmartFreeze() {
+        isSmartFrozen = false
+        if (!isFloatingViewAttached) {
+            windowManager.addView(floatingView, params)
+            isFloatingViewAttached = true
+        }
     }
 
     private fun applyWindowBlur(enabled: Boolean) {
@@ -1794,104 +1262,102 @@ class FloatingAssistantService : Service() {
             try {
                 if (enabled) {
                     params.flags = params.flags or WindowManager.LayoutParams.FLAG_BLUR_BEHIND
-                    params.blurBehindRadius = 38
+                    params.blurBehindRadius = 42
                 } else {
                     params.flags = params.flags and WindowManager.LayoutParams.FLAG_BLUR_BEHIND.inv()
                     params.blurBehindRadius = 0
                 }
-            } catch (_: Exception) {}
+            } catch (_: Throwable) {
+            }
         }
     }
 
-    private fun snapBubbleToNearestEdge() {
-        snappedToRightEdge = (params.x + prefBubbleSizePx / 2) >= (fullScreenWidth / 2)
-        val targetX = if (snappedToRightEdge) (fullScreenWidth - prefBubbleSizePx) else 0
-        ValueAnimator.ofInt(params.x, targetX).apply {
-            duration = 230
-            interpolator = DecelerateInterpolator()
-            addUpdateListener { anim ->
-                params.x = anim.animatedValue as Int
-                try { windowManager.updateViewLayout(floatingView, params) } catch (_: Exception) {}
+    private fun saveLastWindowGeometry() {
+        getSharedPreferences("gemini_prefs", Context.MODE_PRIVATE).edit()
+            .putInt("last_win_x", params.x)
+            .putInt("last_win_y", params.y)
+            .putInt("last_win_w", popupChatView.layoutParams.width)
+            .putInt("last_win_h", popupChatView.layoutParams.height)
+            .apply()
+    }
+
+    private fun animateSpringScale(target: View, endScale: Float) {
+        SpringAnimation(target, DynamicAnimation.SCALE_X, endScale).apply {
+            spring = SpringForce(endScale).apply {
+                dampingRatio = SpringForce.DAMPING_RATIO_MEDIUM_BOUNCY
+                stiffness = SpringForce.STIFFNESS_MEDIUM
             }
             start()
         }
-        if (prefOverlayStyle == "xiaomi_edge") {
-            mainHandler.removeCallbacks(transformToXiaomiEdgeRunnable)
-            mainHandler.postDelayed(transformToXiaomiEdgeRunnable, 2500L)
-        }
-        scheduleSmartFreeze()
-    }
-
-    private fun enterXiaomiEdgeMode() {
-        snappedToRightEdge = (params.x + prefBubbleSizePx / 2) >= (fullScreenWidth / 2)
-        xiaomiEdgeView.setBackgroundResource(
-            if (snappedToRightEdge) R.drawable.bg_xiaomi_edge_right else R.drawable.bg_xiaomi_edge_left
-        )
-        bubbleView.visibility = View.GONE
-        xiaomiEdgeView.visibility = View.VISIBLE
-        xiaomiEdgeView.alpha = 0.85f
-        val pillW = (18 * resources.displayMetrics.density).toInt()
-        params.x = if (snappedToRightEdge) (fullScreenWidth - pillW) else 0
-        windowManager.updateViewLayout(floatingView, params)
-        xiaomiEdgeView.animate().alpha(0.45f).setDuration(380).start()
-        scheduleSmartFreeze()
-    }
-
-    private fun exitXiaomiEdgeMode() {
-        mainHandler.removeCallbacks(transformToXiaomiEdgeRunnable)
-        xiaomiEdgeView.visibility = View.GONE
-        bubbleView.visibility = View.VISIBLE
-        bubbleView.alpha = 1.0f
-        params.x = if (snappedToRightEdge) (fullScreenWidth - prefBubbleSizePx) else 0
-        windowManager.updateViewLayout(floatingView, params)
-        mainHandler.postDelayed(transformToXiaomiEdgeRunnable, 2500L)
-        scheduleSmartFreeze()
-    }
-
-    private fun performQuickForceStop() {
-        Toast.makeText(this, "Menghentikan paksa Floamini...", Toast.LENGTH_SHORT).show()
-        dismissSiriAura()
-        stopMediaProjection()
-        startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-            data = Uri.parse("package:$packageName")
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        })
-        stopSelf()
-        exitProcess(0)
-    }
-
-    // ==========================================================================
-    // LIVE SCREEN VISION (MEDIAPROJECTION)
-    // ==========================================================================
-    private fun startMediaProjection(resultCode: Int, data: Intent) {
-        startForegroundNotification(withMediaProjection = true)
-        val projectionManager = getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
-        mediaProjection = projectionManager.getMediaProjection(resultCode, data)
-
-        mediaProjection?.registerCallback(object : MediaProjection.Callback() {
-            override fun onStop() {
-                mainHandler.post { stopMediaProjection() }
+        SpringAnimation(target, DynamicAnimation.SCALE_Y, endScale).apply {
+            spring = SpringForce(endScale).apply {
+                dampingRatio = SpringForce.DAMPING_RATIO_MEDIUM_BOUNCY
+                stiffness = SpringForce.STIFFNESS_MEDIUM
             }
-        }, mainHandler)
+            start()
+        }
+    }
 
-        imageReader = ImageReader.newInstance(captureWidth, captureHeight, PixelFormat.RGBA_8888, 2)
+    private fun triggerHaptic() {
+        floatingView.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+    }
+
+    // ==========================================================================
+    // MEDIA PROJECTION LIVE VISION & FILE ATTACHMENT
+    // ==========================================================================
+    private fun startMediaProjectionCapture(resultCode: Int, data: Intent) {
+        stopMediaProjection()
+        startForegroundNotification(withMediaProjection = true)
+        val mgr = getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
+        mediaProjection = mgr.getMediaProjection(resultCode, data)
+
+        val capW = (fullScreenWidth / 2).coerceAtLeast(360)
+        val capH = (fullScreenHeight / 2).coerceAtLeast(640)
+        imageReader = ImageReader.newInstance(capW, capH, PixelFormat.RGBA_8888, 2)
         virtualDisplay = mediaProjection?.createVirtualDisplay(
-            "FloaminiScreenShare",
-            captureWidth,
-            captureHeight,
-            screenDensity,
+            "FloaminiScreenVision",
+            capW,
+            capH,
+            resources.displayMetrics.densityDpi,
             DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR,
             imageReader?.surface,
             null,
-            null
+            mainHandler
         )
 
         isScreenShareActive = true
         btnScreenShare.setColorFilter(Color.parseColor("#38BDF8"))
         tvScreenShareStatus.visibility = View.VISIBLE
         tvIslandLabel.text = "Live Vision"
-        popupChatView.setBackgroundResource(R.drawable.bg_liquid_glass_window_share)
+        popupChatView.dispersionStrength = 0.46f
+        popupChatView.specularIntensity = 0.88f
         Toast.makeText(this, "Live Screen Vision aktif", Toast.LENGTH_SHORT).show()
+    }
+
+    private fun captureCurrentScreenBase64(): String? {
+        val image = imageReader?.acquireLatestImage() ?: return null
+        return try {
+            val plane = image.planes[0]
+            val buffer = plane.buffer
+            val pixelStride = plane.pixelStride
+            val rowStride = plane.rowStride
+            val rowPadding = rowStride - pixelStride * image.width
+            val bmp = Bitmap.createBitmap(
+                image.width + rowPadding / pixelStride,
+                image.height,
+                Bitmap.Config.ARGB_8888
+            )
+            bmp.copyPixelsFromBuffer(buffer)
+            val cropped = Bitmap.createBitmap(bmp, 0, 0, image.width, image.height)
+            bmp.recycle()
+            val b64 = SmartToolsHelper.bitmapToBase64(cropped, 960)
+            cropped.recycle()
+            b64
+        } catch (_: Exception) {
+            null
+        } finally {
+            image.close()
+        }
     }
 
     private fun stopMediaProjection() {
@@ -1905,62 +1371,34 @@ class FloatingAssistantService : Service() {
         if (::btnScreenShare.isInitialized) btnScreenShare.setColorFilter(Color.parseColor("#94A3B8"))
         if (::tvScreenShareStatus.isInitialized) tvScreenShareStatus.visibility = View.GONE
         if (::tvIslandLabel.isInitialized) tvIslandLabel.text = "Floamini"
-        if (::popupChatView.isInitialized) popupChatView.setBackgroundResource(R.drawable.bg_liquid_glass_window)
+        if (::popupChatView.isInitialized) {
+            popupChatView.dispersionStrength = 0.28f
+            popupChatView.specularIntensity = 0.62f
+        }
         startForegroundNotification(withMediaProjection = false)
     }
 
-    private fun captureCurrentScreenBase64(): String? {
-        return try {
-            val image = imageReader?.acquireLatestImage() ?: return null
-            val planes = image.planes
-            val buffer = planes[0].buffer
-            val pixelStride = planes[0].pixelStride
-            val rowStride = planes[0].rowStride
-            val rowPadding = rowStride - pixelStride * captureWidth
-
-            val bitmap = Bitmap.createBitmap(
-                captureWidth + rowPadding / pixelStride,
-                captureHeight,
-                Bitmap.Config.ARGB_8888
-            )
-            bitmap.copyPixelsFromBuffer(buffer)
-            image.close()
-
-            val cropped = Bitmap.createBitmap(bitmap, 0, 0, captureWidth, captureHeight)
-            val out = ByteArrayOutputStream()
-            cropped.compress(Bitmap.CompressFormat.JPEG, 68, out)
-            bitmap.recycle()
-            cropped.recycle()
-            Base64.encodeToString(out.toByteArray(), Base64.NO_WRAP)
-        } catch (_: Exception) {
-            null
+    private fun handlePickedUri(uri: Uri) {
+        serviceScope.launch(Dispatchers.IO) {
+            val processed = SmartToolsHelper.processUri(this@FloatingAssistantService, uri)
+            withContext(Dispatchers.Main) {
+                pendingAttachment = processed
+                tvAttachmentBadge.text = "Lampiran siap: ${processed.displayName}"
+                tvAttachmentBadge.visibility = View.VISIBLE
+            }
         }
-    }
-
-    private fun buildSystemInstructionText(): String {
-        val basePersona = when (prefPersona) {
-            "ringkas" -> "Kamu adalah Floamini, asisten AI yang sigap dan padat. Jawab langsung ke inti dalam 1-2 kalimat."
-            "detail" -> "Kamu adalah Floamini, asisten AI yang ramah dan informatif. Jelaskan jawaban secara runtut dan jelas."
-            "teknis" -> "Kamu adalah Floamini, asisten teknis dan software architect cerdas. Berikan solusi terstruktur."
-            else -> "Kamu adalah Floamini, asisten AI yang asik, santai, cerdas, dan terasa menyatu dengan sistem operasi Android."
-        }
-        val custom = if (prefCustomSystemInstruction.isNotBlank()) "\nInstruksi Tambahan Pengguna: $prefCustomSystemInstruction" else ""
-        return "$basePersona Selalu ingat konteks percakapan sebelumnya dalam sesi ini.$custom"
     }
 
     override fun onDestroy() {
-        super.onDestroy()
-        try { unregisterReceiver(screenStateReceiver) } catch (_: Exception) {}
-        mainHandler.removeCallbacks(transformToXiaomiEdgeRunnable)
-        mainHandler.removeCallbacks(autoHidePillRunnable)
-        mainHandler.removeCallbacks(smartFreezeRunnable)
-        voiceManager?.release()
-        dismissSiriAura()
+        mainHandler.removeCallbacksAndMessages(null)
+        serviceScope.cancel()
         stopMediaProjection()
-        activeGenerationJob?.cancel()
-        serviceJob.cancel()
-        if (isFloatingViewAttached && ::floatingView.isInitialized) {
+        dismissSiriAura()
+        if (::voiceManager.isInitialized) voiceManager.release()
+        try { unregisterReceiver(screenOffReceiver) } catch (_: Exception) {}
+        if (isFloatingViewAttached) {
             try { windowManager.removeView(floatingView) } catch (_: Exception) {}
         }
+        super.onDestroy()
     }
 }

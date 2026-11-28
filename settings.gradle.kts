@@ -12,5 +12,5 @@ dependencyResolutionManagement {
         mavenCentral()
     }
 }
-rootProject.name = "Floamini"
+rootProject.name = "FloaminiOS"
 include(":app")

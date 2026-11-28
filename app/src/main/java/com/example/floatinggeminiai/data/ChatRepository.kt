@@ -1,80 +1,108 @@
 package com.example.floatinggeminiai.data
 
 import android.content.Context
-import com.example.floatinggeminiai.ai.AiProviderType
 import com.example.floatinggeminiai.ai.ChatMessage
 import com.example.floatinggeminiai.ai.ChatThread
 import org.json.JSONArray
 import org.json.JSONObject
-import java.util.UUID
 
 class ChatRepository(context: Context) {
 
-    private val prefs = context.applicationContext.getSharedPreferences("floamini_data_store", Context.MODE_PRIVATE)
+    private val prefs = context.applicationContext.getSharedPreferences("floamini_chat_data", Context.MODE_PRIVATE)
 
     fun loadAllThreads(): MutableList<ChatThread> {
-        val raw = prefs.getString("chat_threads_v6", null) ?: return mutableListOf()
-        val list = mutableListOf<ChatThread>()
-        try {
+        val raw = prefs.getString("threads_json", null) ?: return mutableListOf()
+        return try {
             val arr = JSONArray(raw)
+            val result = mutableListOf<ChatThread>()
             for (i in 0 until arr.length()) {
                 val obj = arr.getJSONObject(i)
-                val msgArr = obj.optJSONArray("messages") ?: JSONArray()
-                val messages = mutableListOf<ChatMessage>()
-                for (j in 0 until msgArr.length()) {
-                    val m = msgArr.getJSONObject(j)
-                    messages.add(
+                val msgsArr = obj.optJSONArray("messages") ?: JSONArray()
+                val msgs = mutableListOf<ChatMessage>()
+                for (j in 0 until msgsArr.length()) {
+                    val m = msgsArr.getJSONObject(j)
+                    msgs.add(
                         ChatMessage(
-                            id = m.optString("id", UUID.randomUUID().toString()),
+                            id = m.optString("id", System.nanoTime().toString()),
                             role = m.optString("role", "user"),
-                            text = m.optString("text", ""),
-                            timestamp = m.optString("timestamp", ""),
-                            providerBadge = m.optString("providerBadge", "Gemini"),
-                            modelName = m.optString("modelName", ""),
-                            attachmentLabel = m.optString("attachmentLabel", "").ifEmpty { null }
+                            content = m.optString("content", ""),
+                            providerTag = m.optString("providerTag", ""),
+                            timestamp = m.optLong("timestamp", System.currentTimeMillis())
                         )
                     )
                 }
-                list.add(
+                result.add(
                     ChatThread(
-                        id = obj.optString("id", UUID.randomUUID().toString()),
-                        title = obj.optString("title", "Sesi Baru"),
-                        updatedAt = obj.optLong("updatedAt", System.currentTimeMillis()),
-                        messages = messages
+                        id = obj.getString("id"),
+                        title = obj.optString("title", "Sesi Floamini"),
+                        messages = msgs,
+                        updatedAt = obj.optLong("updatedAt", System.currentTimeMillis())
                     )
                 )
             }
-        } catch (_: Exception) {}
-        return list
+            result
+        } catch (_: Exception) {
+            mutableListOf()
+        }
     }
 
     fun saveAllThreads(threads: List<ChatThread>) {
         val arr = JSONArray()
-        for (t in threads.take(40)) {
-            val msgArr = JSONArray()
-            for (m in t.messages.takeLast(120)) {
-                msgArr.put(JSONObject().apply {
-                    put("id", m.id)
-                    put("role", m.role)
-                    put("text", m.text)
-                    put("timestamp", m.timestamp)
-                    put("providerBadge", m.providerBadge)
-                    put("modelName", m.modelName)
-                    put("attachmentLabel", m.attachmentLabel ?: "")
-                })
+        for (t in threads.take(30)) {
+            val msgsArr = JSONArray()
+            for (m in t.messages.takeLast(80)) {
+                msgsArr.put(
+                    JSONObject()
+                        .put("id", m.id)
+                        .put("role", m.role)
+                        .put("content", m.content)
+                        .put("providerTag", m.providerTag)
+                        .put("timestamp", m.timestamp)
+                )
             }
-            arr.put(JSONObject().apply {
-                put("id", t.id)
-                put("title", t.title)
-                put("updatedAt", t.updatedAt)
-                put("messages", msgArr)
-            })
+            arr.put(
+                JSONObject()
+                    .put("id", t.id)
+                    .put("title", t.title)
+                    .put("messages", msgsArr)
+                    .put("updatedAt", t.updatedAt)
+            )
         }
-        prefs.edit().putString("chat_threads_v6", arr.toString()).apply()
+        prefs.edit().putString("threads_json", arr.toString()).apply()
     }
 
-    fun getActiveThreadId(): String {
-        return prefs.getString("active_thread_id", "") ?: ""
+    fun getOrCreateActiveThread(): ChatThread {
+        val all = loadAllThreads()
+        val activeId = prefs.getString("active_thread_id", null)
+        val found = all.find { it.id == activeId } ?: all.firstOrNull()
+        if (found != null) return found
+
+        val created = ChatThread(id = "session_${System.currentTimeMillis()}", title = "Sesi Utama")
+        all.add(0, created)
+        saveAllThreads(all)
+        setActiveThreadId(created.id)
+        return created
+    }
+
+    fun createNewThread(title: String = "Sesi Baru"): ChatThread {
+        val all = loadAllThreads()
+        val created = ChatThread(id = "session_${System.currentTimeMillis()}", title = title)
+        all.add(0, created)
+        saveAllThreads(all)
+        setActiveThreadId(created.id)
+        return created
+    }
+
+    fun saveThread(thread: ChatThread) {
+        val all = loadAllThreads()
+        val idx = all.indexOfFirst { it.id == thread.id }
+        thread.updatedAt = System.currentTimeMillis()
+        if (idx >= 0) {
+            all[idx] = thread
+        } else {
+            all.add(0, thread)
+        }
+        saveAllThreads(all)
     }
 
     fun setActiveThreadId(id: String) {
@@ -85,58 +113,37 @@ class ChatRepository(context: Context) {
         val q = query.trim().lowercase()
         val all = loadAllThreads()
         if (q.isEmpty()) return all
-        return all.filter { thread ->
-            thread.title.lowercase().contains(q) ||
-                    thread.messages.any { it.text.lowercase().contains(q) }
+        return all.filter { t ->
+            t.title.lowercase().contains(q) || t.messages.any { it.content.lowercase().contains(q) }
         }
     }
 
-    fun clearAllThreads() {
-        prefs.edit().remove("chat_threads_v6").remove("active_thread_id").apply()
+    fun clearAllHistory() {
+        prefs.edit().remove("threads_json").remove("active_thread_id").apply()
     }
 
-    // Usage Statistics per Provider
-    fun recordUsage(provider: AiProviderType, estimatedTokens: Int) {
-        val reqKey = "usage_req_${provider.id}"
-        val tokKey = "usage_tok_${provider.id}"
-        val curReq = prefs.getInt(reqKey, 0) + 1
-        val curTok = prefs.getLong(tokKey, 0L) + estimatedTokens.coerceAtLeast(1)
+    fun recordUsage(providerName: String, charsOut: Int) {
+        val totalReq = prefs.getInt("usage_total_req", 0) + 1
+        val totalChars = prefs.getLong("usage_total_chars", 0L) + charsOut
+        val provCount = prefs.getInt("usage_prov_$providerName", 0) + 1
         prefs.edit()
-            .putInt(reqKey, curReq)
-            .putLong(tokKey, curTok)
+            .putInt("usage_total_req", totalReq)
+            .putLong("usage_total_chars", totalChars)
+            .putInt("usage_prov_$providerName", provCount)
             .apply()
     }
 
-    fun getUsageSummaryText(): String {
-        val sb = StringBuilder()
-        var totalReq = 0
-        var totalTok = 0L
-        for (p in AiProviderType.values()) {
-            val req = prefs.getInt("usage_req_${p.id}", 0)
-            val tok = prefs.getLong("usage_tok_${p.id}", 0L)
-            if (req > 0) {
-                totalReq += req
-                totalTok += tok
-                sb.append("• ${p.displayName}: $req request (~$tok token)\n")
-            }
-        }
-        if (totalReq == 0) {
-            return "Belum ada pemakaian API tercatat pada sesi ini."
-        }
-        return "Total Keseluruhan: $totalReq request (~$totalTok token)\n\n$sb".trim()
+    fun getUsageSummary(): String {
+        val req = prefs.getInt("usage_total_req", 0)
+        val chars = prefs.getLong("usage_total_chars", 0L)
+        val estTokens = chars / 4
+        return "Total Permintaan: $req kali | Estimasi Token Output: ~$estTokens token"
     }
 
-    fun resetUsageStats() {
-        val ed = prefs.edit()
-        for (p in AiProviderType.values()) {
-            ed.remove("usage_req_${p.id}").remove("usage_tok_${p.id}")
-        }
-        ed.apply()
+    fun resetUsage() {
+        prefs.edit().putInt("usage_total_req", 0).putLong("usage_total_chars", 0L).apply()
     }
 
-    // Quick Notes Storage
-    fun getQuickNotes(): String = prefs.getString("quick_notes_text", "") ?: ""
-    fun saveQuickNotes(text: String) {
-        prefs.edit().putString("quick_notes_text", text).apply()
-    }
+    fun getQuickNotes(): String = prefs.getString("quick_notes", "").orEmpty()
+    fun saveQuickNotes(notes: String) = prefs.edit().putString("quick_notes", notes).apply()
 }

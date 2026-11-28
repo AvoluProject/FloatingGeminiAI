@@ -2,123 +2,72 @@ package com.example.floatinggeminiai
 
 import android.content.Context
 import android.content.Intent
-import android.graphics.Color
 import android.net.Uri
 import android.os.Bundle
 import android.view.View
-import android.widget.AdapterView
-import android.widget.ArrayAdapter
 import android.widget.Button
-import android.widget.Spinner
+import android.widget.EditText
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
-import com.example.floatinggeminiai.ai.AiEngineRegistry
-import com.example.floatinggeminiai.ai.AiProviderType
+import androidx.lifecycle.lifecycleScope
+import com.example.floatinggeminiai.ai.AiEngine
+import com.example.floatinggeminiai.ai.AiProvider
 import com.example.floatinggeminiai.security.SecureVault
-import com.google.android.material.textfield.TextInputEditText
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
+import com.example.floatinggeminiai.ui.LiquidGlassFrameLayout
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 class WelcomeActivity : AppCompatActivity() {
-
-    private val activityJob = Job()
-    private val uiScope = CoroutineScope(Dispatchers.Main + activityJob)
-    private lateinit var vault: SecureVault
-    private var selectedProvider = AiProviderType.GEMINI
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_welcome)
 
-        vault = SecureVault(this)
+        val vault = SecureVault(this)
+        val engine = AiEngine(vault)
         val prefs = getSharedPreferences("gemini_prefs", Context.MODE_PRIVATE)
-        val fromSettings = intent.getBooleanExtra("from_settings", false)
 
-        val spWelcomeProvider = findViewById<Spinner>(R.id.spWelcomeProvider)
-        val btnOpenAiStudio = findViewById<Button>(R.id.btnOpenAiStudio)
-        val etWelcomeApiKey = findViewById<TextInputEditText>(R.id.etWelcomeApiKey)
-        val btnTestTokenWelcome = findViewById<Button>(R.id.btnTestTokenWelcome)
-        val tvTokenTestResult = findViewById<TextView>(R.id.tvTokenTestResult)
-        val btnContinueToFloamini = findViewById<Button>(R.id.btnContinueToFloamini)
-
-        val providers = AiProviderType.values().toList()
-        val adapter = ArrayAdapter(
-            this,
-            android.R.layout.simple_spinner_dropdown_item,
-            providers.map { "${it.displayName} (${it.defaultModel})" }
-        )
-        spWelcomeProvider.adapter = adapter
-        spWelcomeProvider.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
-            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
-                selectedProvider = providers[position]
-                etWelcomeApiKey.setText(vault.getApiKey(selectedProvider))
-            }
-            override fun onNothingSelected(parent: AdapterView<*>?) {}
+        findViewById<LiquidGlassFrameLayout>(R.id.glassWelcomeHero).apply {
+            cornerRadiusDp = 28f
+            dispersionStrength = 0.35f
+            startAmbientRefraction()
+        }
+        findViewById<LiquidGlassFrameLayout>(R.id.glassWelcomeGuide).apply {
+            cornerRadiusDp = 26f
+            dispersionStrength = 0.28f
+            startAmbientRefraction()
         }
 
-        if (fromSettings) {
-            btnContinueToFloamini.text = "Kembali ke Pengaturan Floamini"
+        findViewById<Button>(R.id.btnOpenAiStudio).setOnClickListener {
+            startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://aistudio.google.com/app/apikey")))
         }
 
-        btnOpenAiStudio.setOnClickListener {
-            try {
-                startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(selectedProvider.docsUrl)))
-            } catch (_: Exception) {
-                Toast.makeText(this, "Kunjungi ${selectedProvider.docsUrl}", Toast.LENGTH_LONG).show()
-            }
-        }
+        val etKey = findViewById<EditText>(R.id.etWelcomeGeminiKey)
+        val tvStatus = findViewById<TextView>(R.id.tvWelcomeTestStatus)
 
-        btnTestTokenWelcome.setOnClickListener {
-            val token = etWelcomeApiKey.text.toString().trim()
-            if (token.isEmpty()) {
-                tvTokenTestResult.text = "Masukkan API Key terlebih dahulu"
-                tvTokenTestResult.setTextColor(Color.parseColor("#FBBF24"))
+        findViewById<Button>(R.id.btnWelcomeSaveAndTest).setOnClickListener {
+            val raw = etKey.text.toString().trim()
+            if (raw.isEmpty()) {
+                Toast.makeText(this, "Tempel Gemini API Key terlebih dahulu.", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
-
-            btnTestTokenWelcome.isEnabled = false
-            tvTokenTestResult.text = "Menguji ${selectedProvider.shortBadge}..."
-            tvTokenTestResult.setTextColor(Color.parseColor("#38BDF8"))
-
-            uiScope.launch {
-                val (ok, msg) = withContext(Dispatchers.IO) {
-                    AiEngineRegistry.getAdapter(selectedProvider)
-                        .testConnection(token, selectedProvider.defaultModel)
-                }
-                btnTestTokenWelcome.isEnabled = true
-                if (ok) {
-                    vault.setApiKey(selectedProvider, token)
-                    prefs.edit().putString("active_provider_id", selectedProvider.id).apply()
-                    tvTokenTestResult.text = "$msg • Tersimpan!"
-                    tvTokenTestResult.setTextColor(Color.parseColor("#34D399"))
-                } else {
-                    tvTokenTestResult.text = msg
-                    tvTokenTestResult.setTextColor(Color.parseColor("#FCA5A5"))
+            vault.saveApiKey(AiProvider.GEMINI.id, raw)
+            prefs.edit().putString("active_provider", AiProvider.GEMINI.id).apply()
+            tvStatus.visibility = View.VISIBLE
+            tvStatus.text = "Menguji token Gemini..."
+            lifecycleScope.launch {
+                val res = engine.testConnection(AiProvider.GEMINI, AiProvider.GEMINI.models.first())
+                res.onSuccess { msg ->
+                    tvStatus.text = msg
+                }.onFailure { err ->
+                    tvStatus.text = "Gagal: ${err.message}"
                 }
             }
         }
 
-        btnContinueToFloamini.setOnClickListener {
-            val enteredKey = etWelcomeApiKey.text.toString().trim()
-            if (enteredKey.isNotEmpty()) {
-                vault.setApiKey(selectedProvider, enteredKey)
-                prefs.edit().putString("active_provider_id", selectedProvider.id).apply()
-            }
-            prefs.edit().putBoolean("has_seen_welcome", true).apply()
-
-            if (!fromSettings) {
-                startActivity(Intent(this, MainActivity::class.java))
-            }
+        findViewById<Button>(R.id.btnWelcomeFinish).setOnClickListener {
+            prefs.edit().putBoolean("welcome_completed", true).apply()
             finish()
         }
-    }
-
-    override fun onDestroy() {
-        super.onDestroy()
-        activityJob.cancel()
     }
 }

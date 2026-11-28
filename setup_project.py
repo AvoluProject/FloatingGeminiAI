@@ -1,32 +1,19 @@
 import os
 
-# ==============================================================================
-# SKRIP PEMBANGKIT PROYEK ANDROID: FLOAMINI OS EDITION (v6.0)
-# - Design System: iOS 26 Liquid Glass + Adaptive Dark/Light Theme + Spring Physics
-# - Floating System: Dynamic Island, Siri Control Center Mode, Xiaomi Edge, Mini/Full Window
-# - Multi-AI Engine: 11 Modular Provider Adapters + SSE Streaming + Retry + Auto-Router + Compare AI
-# - Voice System: Speech-to-Text, Text-to-Speech, Voice Selection, Live Waveform, Interruption
-# - Smart Tools: PDF & File QA, Image Vision, Clipboard, Calculator, Notes, Share-to-AI, Process-Text
-# - Security: EncryptedSharedPreferences (AES256-GCM) + Explicit User Permissions
-# ==============================================================================
-
 PROJECT_FILES = {
     # --------------------------------------------------------------------------
-    # 1. GITHUB ACTIONS WORKFLOW (Gradle 8.5 + Permanent Keystore + Auto Version)
+    # 1. GITHUB ACTIONS WORKFLOW (OPSIONAL JIKA PUSH KE GITHUB)
     # --------------------------------------------------------------------------
     ".github/workflows/build_apk.yml": r"""name: Build Floamini OS APK
 
 on:
   push:
     branches: [ "main", "master" ]
-  pull_request:
-    branches: [ "main", "master" ]
   workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -37,35 +24,32 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Restore Permanent Signing Keystore
-        uses: actions/cache@v4
-        with:
-          path: app/floamini.jks
-          key: floamini-permanent-keystore-v1
-
-      - name: Ensure Permanent Signing Keystore Exists
-        run: |
-          if [ ! -f app/floamini.jks ]; then
-            keytool -genkeypair -v -keystore app/floamini.jks -alias floamini_key -keyalg RSA -keysize 2048 -validity 10000 -storepass floamini_keystore_pass_2026 -keypass floamini_keystore_pass_2026 -dname "CN=Floamini, OU=Mobile, O=AvoluProject, L=Yogyakarta, ST=DIY, C=ID"
-          fi
-
       - name: Setup Gradle 8.5
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.5'
 
+      - name: Generate Persistent Signing Keystore
+        run: |
+          if [ ! -f app/floamini.jks ]; then
+            keytool -genkeypair -v -keystore app/floamini.jks -alias floamini_key \
+              -keyalg RSA -keysize 2048 -validity 10000 \
+              -storepass floamini_keystore_pass_2026 -keypass floamini_keystore_pass_2026 \
+              -dname "CN=Floamini, OU=Mobile, O=AvoluProject, L=Yogyakarta, ST=DIY, C=ID"
+          fi
+
       - name: Build Update-Ready APK
         run: gradle assembleDebug
 
-      - name: Upload Floamini APK Artifact
+      - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Floamini-OS-v6.0-update-ready
+          name: Floamini-OS-v7.0-LiquidGlass
           path: app/build/outputs/apk/debug/app-debug.apk
 """,
 
     # --------------------------------------------------------------------------
-    # 2. KONFIGURASI GRADLE ROOT
+    # 2. GRADLE ROOT & PROPERTIES
     # --------------------------------------------------------------------------
     "settings.gradle.kts": r"""pluginManagement {
     repositories {
@@ -81,7 +65,7 @@ dependencyResolutionManagement {
         mavenCentral()
     }
 }
-rootProject.name = "Floamini"
+rootProject.name = "FloaminiOS"
 include(":app")
 """,
 
@@ -106,8 +90,8 @@ android.nonTransitiveRClass=true
 }
 
 val ciRunNumber = System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull() ?: 0
-val appVersionCode = 10 + ciRunNumber
-val appVersionName = "6.0.$ciRunNumber"
+val appVersionCode = 25 + ciRunNumber
+val appVersionName = "7.0.$ciRunNumber"
 
 android {
     namespace = "com.example.floatinggeminiai"
@@ -139,23 +123,22 @@ android {
             if (ksFile.exists()) {
                 signingConfig = signingConfigs.getByName("floaminiSign")
             }
+            isMinifyEnabled = false
         }
         release {
             isMinifyEnabled = false
-            val ksFile = file("floamini.jks")
-            if (ksFile.exists()) {
-                signingConfig = signingConfigs.getByName("floaminiSign")
-            }
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
         }
     }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
+
     kotlinOptions {
         jvmTarget = "17"
     }
@@ -173,39 +156,37 @@ dependencies {
 }
 """,
 
+    "app/proguard-rules.pro": r"""-keep class com.example.floatinggeminiai.** { *; }
+""",
+
     # --------------------------------------------------------------------------
-    # 4. ANDROID MANIFEST (OVERLAY + CONTROL CENTER + VOICE + SHARE/PROCESS_TEXT)
+    # 4. ANDROID MANIFEST
     # --------------------------------------------------------------------------
     "app/src/main/AndroidManifest.xml": r"""<?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <uses-permission android:name="android.permission.INTERNET" />
-    <uses-permission android:name="android.permission.VIBRATE" />
-    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION" />
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-
-    <queries>
-        <intent>
-            <action android:name="android.intent.action.TTS_SERVICE" />
-        </intent>
-        <intent>
-            <action android:name="android.speech.RecognitionService" />
-        </intent>
-    </queries>
+    <uses-permission android:name="android.permission.VIBRATE" />
 
     <application
         android:allowBackup="true"
-        android:label="Floamini"
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
         android:supportsRtl="true"
-        android:theme="@style/Theme.Floamini.Adaptive">
+        android:theme="@style/Theme.FloaminiOS">
 
         <activity
             android:name=".MainActivity"
-            android:exported="true">
+            android:exported="true"
+            android:windowSoftInputMode="adjustResize">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
@@ -217,36 +198,20 @@ dependencies {
             android:exported="false" />
 
         <activity
-            android:name=".SiriTriggerActivity"
-            android:exported="false"
-            android:excludeFromRecents="true"
-            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
-
-        <activity
             android:name=".ScreenCapturePermissionActivity"
             android:exported="false"
-            android:excludeFromRecents="true"
-            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+            android:theme="@style/Theme.FloaminiTransparent" />
 
         <activity
             android:name=".FilePickerProxyActivity"
             android:exported="false"
-            android:excludeFromRecents="true"
-            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+            android:theme="@style/Theme.FloaminiTransparent" />
 
-        <activity
-            android:name=".AudioPermissionProxyActivity"
-            android:exported="false"
-            android:excludeFromRecents="true"
-            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
-
-        <!-- Text Selection Assistant (PROCESS_TEXT) & Share-to-AI (ACTION_SEND) -->
         <activity
             android:name=".ExternalTriggerActivity"
             android:exported="true"
             android:label="Tanya Floamini AI"
-            android:excludeFromRecents="true"
-            android:theme="@android:style/Theme.Translucent.NoTitleBar">
+            android:theme="@style/Theme.FloaminiTransparent">
             <intent-filter>
                 <action android:name="android.intent.action.PROCESS_TEXT" />
                 <category android:name="android.intent.category.DEFAULT" />
@@ -262,23 +227,7 @@ dependencies {
                 <category android:name="android.intent.category.DEFAULT" />
                 <data android:mimeType="image/*" />
             </intent-filter>
-            <intent-filter>
-                <action android:name="android.intent.action.SEND" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <data android:mimeType="application/pdf" />
-            </intent-filter>
         </activity>
-
-        <service
-            android:name=".FloaminiTileService"
-            android:exported="true"
-            android:icon="@drawable/ic_sparkle"
-            android:label="Floamini AI"
-            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
-            <intent-filter>
-                <action android:name="android.service.quicksettings.action.QS_TILE" />
-            </intent-filter>
-        </service>
 
         <service
             android:name=".FloatingAssistantService"
@@ -287,7 +236,18 @@ dependencies {
             android:foregroundServiceType="specialUse|mediaProjection">
             <property
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
-                android:value="Floamini OS Liquid Glass AI Assistant" />
+                android:value="Floating AI overlay assistant window" />
+        </service>
+
+        <service
+            android:name=".FloaminiTileService"
+            android:icon="@drawable/ic_sparkle"
+            android:label="Floamini AI"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
         </service>
 
     </application>
@@ -295,49 +255,35 @@ dependencies {
 """,
 
     # --------------------------------------------------------------------------
-    # 5. ADAPTIVE THEME VALUES (DARK & LIGHT LIQUID GLASS PALETTE)
+    # 5. RESOURCES: STRINGS & THEMES
     # --------------------------------------------------------------------------
-    "app/src/main/res/values/colors.xml": r"""<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <color name="bg_screen">#F2F5FA</color>
-    <color name="bg_card">#E6FFFFFF</color>
-    <color name="bg_input">#E2E8F0</color>
-    <color name="border_glass">#330F172A</color>
-    <color name="text_primary">#0F172A</color>
-    <color name="text_secondary">#475569</color>
-    <color name="accent_primary">#0284C7</color>
-    <color name="accent_secondary">#7C3AED</color>
-    <color name="divider_subtle">#CBD5E1</color>
+    "app/src/main/res/values/strings.xml": r"""<resources>
+    <string name="app_name">Floamini</string>
 </resources>
 """,
 
-    "app/src/main/res/values-night/colors.xml": r"""<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <color name="bg_screen">#04070F</color>
-    <color name="bg_card">#E611192B</color>
-    <color name="bg_input">#0B111E</color>
-    <color name="border_glass">#40FFFFFF</color>
-    <color name="text_primary">#F8FAFC</color>
-    <color name="text_secondary">#94A3B8</color>
-    <color name="accent_primary">#38BDF8</color>
-    <color name="accent_secondary">#C084FC</color>
-    <color name="divider_subtle">#1E293B</color>
-</resources>
-""",
+    "app/src/main/res/values/themes.xml": r"""<resources>
+    <style name="Theme.FloaminiOS" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <item name="colorPrimary">#38BDF8</item>
+        <item name="colorPrimaryVariant">#0284C7</item>
+        <item name="colorOnPrimary">#020617</item>
+        <item name="colorSecondary">#A855F7</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+    </style>
 
-    "app/src/main/res/values/themes.xml": r"""<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <style name="Theme.Floamini.Adaptive" parent="Theme.Material3.DayNight.NoActionBar">
-        <item name="colorPrimary">@color/accent_primary</item>
-        <item name="colorSecondary">@color/accent_secondary</item>
-        <item name="android:windowBackground">@color/bg_screen</item>
-        <item name="android:statusBarColor">@color/bg_screen</item>
+    <style name="Theme.FloaminiTransparent" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowContentOverlay">@null</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:backgroundDimEnabled">false</item>
     </style>
 </resources>
 """,
 
     # --------------------------------------------------------------------------
-    # 6. SECURITY MODULE: ENCRYPTED CREDENTIAL VAULT (AES-256 GCM)
+    # 6. SECURITY MODULE: ENCRYPTED VAULT (AES256-GCM)
     # --------------------------------------------------------------------------
     "app/src/main/java/com/example/floatinggeminiai/security/SecureVault.kt": r"""package com.example.floatinggeminiai.security
 
@@ -345,803 +291,672 @@ import android.content.Context
 import android.content.SharedPreferences
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
-import com.example.floatinggeminiai.ai.AiProviderType
 
 class SecureVault(context: Context) {
 
-    private val appContext = context.applicationContext
+    private val prefs: SharedPreferences = createEncryptedPrefs(context.applicationContext)
 
-    private val securePrefs: SharedPreferences by lazy {
-        try {
-            val masterKey = MasterKey.Builder(appContext)
+    private fun createEncryptedPrefs(ctx: Context): SharedPreferences {
+        return try {
+            val masterKey = MasterKey.Builder(ctx)
                 .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
                 .build()
             EncryptedSharedPreferences.create(
-                appContext,
-                "floamini_encrypted_vault",
+                ctx,
+                "floamini_secure_vault",
                 masterKey,
                 EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
                 EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
             )
-        } catch (_: Exception) {
-            appContext.getSharedPreferences("floamini_vault_fallback", Context.MODE_PRIVATE)
+        } catch (_: Throwable) {
+            ctx.getSharedPreferences("floamini_secure_vault_fallback", Context.MODE_PRIVATE)
         }
     }
 
-    init {
-        migrateLegacyGeminiKeyIfNeeded()
+    fun saveApiKey(providerId: String, apiKey: String) {
+        prefs.edit().putString("key_$providerId", apiKey.trim()).apply()
     }
 
-    private fun migrateLegacyGeminiKeyIfNeeded() {
-        val legacyPrefs = appContext.getSharedPreferences("gemini_prefs", Context.MODE_PRIVATE)
-        val legacyKey = legacyPrefs.getString("api_key", "") ?: ""
-        if (legacyKey.isNotEmpty() && getApiKey(AiProviderType.GEMINI).isEmpty()) {
-            setApiKey(AiProviderType.GEMINI, legacyKey)
-            legacyPrefs.edit().remove("api_key").apply()
-        }
+    fun getApiKey(providerId: String): String {
+        return prefs.getString("key_$providerId", "")?.trim().orEmpty()
     }
 
-    fun getApiKey(provider: AiProviderType): String {
-        return securePrefs.getString("key_${provider.id}", "")?.trim() ?: ""
+    fun hasApiKey(providerId: String): Boolean {
+        return getApiKey(providerId).isNotEmpty()
     }
 
-    fun setApiKey(provider: AiProviderType, apiKey: String) {
-        val clean = apiKey.trim()
-        if (clean.isEmpty()) {
-            securePrefs.edit().remove("key_${provider.id}").apply()
-        } else {
-            securePrefs.edit().putString("key_${provider.id}", clean).apply()
-        }
-    }
-
-    fun hasAnyConfiguredKey(): Boolean {
-        return AiProviderType.values().any { getApiKey(it).isNotEmpty() }
-    }
-
-    fun getConfiguredProviders(): List<AiProviderType> {
-        return AiProviderType.values().filter { getApiKey(it).isNotEmpty() }
-    }
-
-    fun getSelectedModel(provider: AiProviderType): String {
-        return securePrefs.getString("model_${provider.id}", provider.defaultModel)
-            ?.ifBlank { provider.defaultModel } ?: provider.defaultModel
-    }
-
-    fun setSelectedModel(provider: AiProviderType, modelId: String) {
-        securePrefs.edit().putString("model_${provider.id}", modelId.trim()).apply()
+    fun saveCustomEndpoint(baseUrl: String, modelId: String) {
+        prefs.edit()
+            .putString("custom_base_url", baseUrl.trim())
+            .putString("custom_model_id", modelId.trim())
+            .apply()
     }
 
     fun getCustomBaseUrl(): String {
-        return securePrefs.getString("custom_base_url", "https://api.openai.com/v1")
-            ?.ifBlank { "https://api.openai.com/v1" } ?: "https://api.openai.com/v1"
+        return prefs.getString("custom_base_url", "https://api.openai.com/v1")?.trim().orEmpty()
     }
 
-    fun setCustomBaseUrl(url: String) {
-        securePrefs.edit().putString("custom_base_url", url.trim().trimEnd('/')).apply()
+    fun getCustomModelId(): String {
+        return prefs.getString("custom_model_id", "gpt-4o-mini")?.trim().orEmpty()
     }
 
-    fun clearAllCredentials() {
-        securePrefs.edit().clear().apply()
+    fun getMaskedKey(providerId: String): String {
+        val raw = getApiKey(providerId)
+        if (raw.length <= 8) return if (raw.isEmpty()) "Belum diisi" else "••••••••"
+        return "${raw.take(4)}••••••${raw.takeLast(4)}"
     }
 }
 """,
 
     # --------------------------------------------------------------------------
-    # 7. AI MODELS & PROVIDER METADATA (ALL 11 PROVIDERS)
+    # 7. AI MODELS & PROVIDER CONFIGURATION (11 PROVIDERS)
     # --------------------------------------------------------------------------
     "app/src/main/java/com/example/floatinggeminiai/ai/AiModels.kt": r"""package com.example.floatinggeminiai.ai
 
-enum class AiProviderType(
+enum class AiProvider(
     val id: String,
     val displayName: String,
-    val shortBadge: String,
     val defaultBaseUrl: String,
-    val defaultModel: String,
-    val availableModels: List<String>,
     val docsUrl: String,
-    val keyHint: String,
+    val models: List<String>,
     val supportsVision: Boolean
 ) {
     GEMINI(
         id = "gemini",
         displayName = "Google Gemini",
-        shortBadge = "Gemini",
         defaultBaseUrl = "https://generativelanguage.googleapis.com/v1beta",
-        defaultModel = "gemini-2.5-flash",
-        availableModels = listOf("gemini-2.5-flash", "gemini-2.5-pro", "gemini-3-flash-preview", "gemini-2.0-flash"),
-        docsUrl = "https://aistudio.google.com/apikey",
-        keyHint = "AIzaSy...",
+        docsUrl = "https://aistudio.google.com/app/apikey",
+        models = listOf("gemini-2.5-flash", "gemini-2.5-pro", "gemini-2.0-flash", "gemini-3-flash-preview"),
         supportsVision = true
     ),
     OPENAI(
         id = "openai",
         displayName = "OpenAI",
-        shortBadge = "OpenAI",
         defaultBaseUrl = "https://api.openai.com/v1",
-        defaultModel = "gpt-4o-mini",
-        availableModels = listOf("gpt-4o-mini", "gpt-4o", "o3-mini", "gpt-4.1-mini"),
         docsUrl = "https://platform.openai.com/api-keys",
-        keyHint = "sk-proj-...",
+        models = listOf("gpt-4o-mini", "gpt-4o", "o3-mini", "gpt-4.1-mini"),
         supportsVision = true
     ),
     CLAUDE(
         id = "claude",
         displayName = "Anthropic Claude",
-        shortBadge = "Claude",
         defaultBaseUrl = "https://api.anthropic.com/v1",
-        defaultModel = "claude-3-5-sonnet-latest",
-        availableModels = listOf("claude-3-5-sonnet-latest", "claude-3-5-haiku-latest", "claude-3-7-sonnet-latest"),
         docsUrl = "https://console.anthropic.com/settings/keys",
-        keyHint = "sk-ant-...",
+        models = listOf("claude-3-5-haiku-latest", "claude-3-7-sonnet-latest", "claude-sonnet-4-20250514"),
         supportsVision = true
     ),
     DEEPSEEK(
         id = "deepseek",
         displayName = "DeepSeek",
-        shortBadge = "DeepSeek",
-        defaultBaseUrl = "https://api.deepseek.com",
-        defaultModel = "deepseek-chat",
-        availableModels = listOf("deepseek-chat", "deepseek-reasoner"),
+        defaultBaseUrl = "https://api.deepseek.com/v1",
         docsUrl = "https://platform.deepseek.com/api_keys",
-        keyHint = "sk-...",
+        models = listOf("deepseek-chat", "deepseek-reasoner"),
         supportsVision = false
     ),
     GROK(
         id = "grok",
         displayName = "xAI Grok",
-        shortBadge = "Grok",
         defaultBaseUrl = "https://api.x.ai/v1",
-        defaultModel = "grok-2-latest",
-        availableModels = listOf("grok-2-latest", "grok-2-vision-1212", "grok-beta"),
         docsUrl = "https://console.x.ai/",
-        keyHint = "xai-...",
-        supportsVision = true
+        models = listOf("grok-2-latest", "grok-3-mini", "grok-3"),
+        supportsVision = false
     ),
     GROQ(
         id = "groq",
-        displayName = "Groq (Ultra-Fast)",
-        shortBadge = "Groq",
+        displayName = "Groq (Ultra Fast)",
         defaultBaseUrl = "https://api.groq.com/openai/v1",
-        defaultModel = "llama-3.3-70b-versatile",
-        availableModels = listOf("llama-3.3-70b-versatile", "llama-3.1-8b-instant", "mixtral-8x7b-32768", "gemma2-9b-it"),
         docsUrl = "https://console.groq.com/keys",
-        keyHint = "gsk_...",
+        models = listOf("llama-3.3-70b-versatile", "llama-3.1-8b-instant", "mixtral-8x7b-32768"),
         supportsVision = false
     ),
     OPENROUTER(
         id = "openrouter",
         displayName = "OpenRouter",
-        shortBadge = "OpenRouter",
         defaultBaseUrl = "https://openrouter.ai/api/v1",
-        defaultModel = "google/gemini-2.5-flash",
-        availableModels = listOf("google/gemini-2.5-flash", "anthropic/claude-3.5-sonnet", "openai/gpt-4o-mini", "deepseek/deepseek-chat"),
         docsUrl = "https://openrouter.ai/keys",
-        keyHint = "sk-or-v1-...",
+        models = listOf("google/gemini-2.5-flash", "anthropic/claude-3.5-sonnet", "openai/gpt-4o-mini", "deepseek/deepseek-r1"),
         supportsVision = true
     ),
     MISTRAL(
         id = "mistral",
         displayName = "Mistral AI",
-        shortBadge = "Mistral",
         defaultBaseUrl = "https://api.mistral.ai/v1",
-        defaultModel = "mistral-small-latest",
-        availableModels = listOf("mistral-small-latest", "mistral-large-latest", "codestral-latest", "pixtral-12b-2409"),
         docsUrl = "https://console.mistral.ai/api-keys/",
-        keyHint = "Mistral API Key...",
-        supportsVision = true
+        models = listOf("mistral-small-latest", "mistral-large-latest", "codestral-latest"),
+        supportsVision = false
     ),
     QWEN(
         id = "qwen",
         displayName = "Alibaba Qwen",
-        shortBadge = "Qwen",
         defaultBaseUrl = "https://dashscope-intl.aliyuncs.com/compatible-mode/v1",
-        defaultModel = "qwen-plus",
-        availableModels = listOf("qwen-plus", "qwen-max", "qwen-turbo", "qwen2.5-coder-32b-instruct"),
         docsUrl = "https://www.alibabacloud.com/help/en/model-studio/",
-        keyHint = "sk-...",
+        models = listOf("qwen-plus", "qwen-turbo", "qwen-max"),
         supportsVision = false
     ),
     PERPLEXITY(
         id = "perplexity",
         displayName = "Perplexity (Web Search)",
-        shortBadge = "Perplexity",
         defaultBaseUrl = "https://api.perplexity.ai",
-        defaultModel = "sonar",
-        availableModels = listOf("sonar", "sonar-pro", "sonar-reasoning"),
         docsUrl = "https://www.perplexity.ai/settings/api",
-        keyHint = "pplx-...",
+        models = listOf("sonar", "sonar-pro", "sonar-reasoning"),
         supportsVision = false
     ),
     CUSTOM(
         id = "custom",
         displayName = "Custom OpenAI-Compatible",
-        shortBadge = "Custom",
         defaultBaseUrl = "https://api.openai.com/v1",
-        defaultModel = "gpt-4o-mini",
-        availableModels = listOf("custom-model"),
         docsUrl = "https://developers.openai.com/api/docs",
-        keyHint = "Custom API Key...",
-        supportsVision = true
+        models = listOf("custom-model"),
+        supportsVision = false
     );
 
     companion object {
-        fun fromId(id: String?): AiProviderType {
-            return values().find { it.id == id } ?: GEMINI
+        fun fromId(id: String?): AiProvider {
+            return entries.find { it.id.equals(id, ignoreCase = true) } ?: GEMINI
         }
     }
 }
 
 data class ChatMessage(
-    val id: String,
-    val role: String, // "user" or "model"
-    val text: String,
-    val timestamp: String,
-    val providerBadge: String = "Gemini",
-    val modelName: String = "",
-    val attachmentLabel: String? = null
+    val id: String = System.nanoTime().toString(),
+    val role: String, // "user" or "assistant"
+    val content: String,
+    val providerTag: String = "",
+    val timestamp: Long = System.currentTimeMillis()
 )
 
 data class ChatThread(
     val id: String,
     var title: String,
-    var updatedAt: Long,
-    val messages: MutableList<ChatMessage> = mutableListOf()
+    val messages: MutableList<ChatMessage> = mutableListOf(),
+    var updatedAt: Long = System.currentTimeMillis()
 )
-
-data class AiRequestPayload(
-    val provider: AiProviderType,
-    val apiKey: String,
-    val model: String,
-    val customBaseUrl: String = "",
-    val systemInstruction: String,
-    val history: List<ChatMessage>,
-    val userPrompt: String,
-    val imageBase64List: List<String> = emptyList(),
-    val timeoutSeconds: Long = 35L
-)
-
-sealed class StreamEvent {
-    data class Delta(val chunk: String) : StreamEvent()
-    data class Completed(val fullText: String, val estimatedTokens: Int) : StreamEvent()
-    data class Error(val message: String) : StreamEvent()
-}
 """,
 
     # --------------------------------------------------------------------------
-    # 8. MODULAR MULTI-AI ADAPTER ENGINE (SSE STREAMING + RETRY + AUTO-ROUTER)
+    # 8. MULTI-AI PROVIDER ENGINE (SSE STREAMING, RETRY, AUTO-ROUTER)
     # --------------------------------------------------------------------------
     "app/src/main/java/com/example/floatinggeminiai/ai/AiProviderAdapters.kt": r"""package com.example.floatinggeminiai.ai
 
 import com.example.floatinggeminiai.security.SecureVault
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.flow
-import kotlinx.coroutines.flow.flowOn
-import kotlinx.coroutines.isActive
+import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONArray
 import org.json.JSONObject
-import java.io.IOException
+import java.io.BufferedReader
+import java.io.InputStreamReader
 import java.util.concurrent.TimeUnit
 
-interface AiProviderAdapter {
-    fun streamChat(payload: AiRequestPayload): Flow<StreamEvent>
-    suspend fun testConnection(apiKey: String, model: String, customBaseUrl: String = ""): Pair<Boolean, String>
-}
+class AiEngine(private val vault: SecureVault) {
 
-object AiEngineRegistry {
+    private val client = OkHttpClient.Builder()
+        .connectTimeout(25, TimeUnit.SECONDS)
+        .readTimeout(90, TimeUnit.SECONDS)
+        .writeTimeout(30, TimeUnit.SECONDS)
+        .build()
 
-    private fun buildClient(timeoutSec: Long): OkHttpClient {
-        return OkHttpClient.Builder()
-            .connectTimeout(timeoutSec.coerceAtLeast(15L), TimeUnit.SECONDS)
-            .readTimeout(timeoutSec.coerceAtLeast(30L), TimeUnit.SECONDS)
-            .writeTimeout(25L, TimeUnit.SECONDS)
-            .build()
-    }
-
-    fun getAdapter(provider: AiProviderType): AiProviderAdapter {
-        return when (provider) {
-            AiProviderType.GEMINI -> GeminiAdapter(::buildClient)
-            AiProviderType.CLAUDE -> ClaudeAdapter(::buildClient)
-            else -> OpenAiCompatibleAdapter(provider, ::buildClient)
-        }
-    }
-
-    /**
-     * AI Auto-Router: Memilih provider terbaik secara otomatis berdasarkan tugas & ketersediaan API Key.
-     */
-    fun resolveAutoRoute(
-        vault: SecureVault,
-        fallbackProvider: AiProviderType,
-        prompt: String,
-        hasImages: Boolean
-    ): AiProviderType {
-        val configured = vault.getConfiguredProviders()
-        if (configured.isEmpty()) return fallbackProvider
+    fun resolveAutoRouter(prompt: String, hasVisualAttachment: Boolean): Pair<AiProvider, String> {
+        val configured = AiProvider.entries.filter { vault.hasApiKey(it.id) }
+        if (configured.isEmpty()) return Pair(AiProvider.GEMINI, AiProvider.GEMINI.models.first())
 
         val lower = prompt.lowercase()
-        if (hasImages) {
-            val visionPriority = listOf(AiProviderType.GEMINI, AiProviderType.OPENAI, AiProviderType.CLAUDE, AiProviderType.GROK, AiProviderType.OPENROUTER)
-            visionPriority.firstOrNull { it in configured }?.let { return it }
+        if (hasVisualAttachment) {
+            val visionProv = configured.firstOrNull { it.supportsVision } ?: configured.first()
+            return Pair(visionProv, visionProv.models.first())
         }
-
-        val isCoding = listOf("kode", "code", "bug", "error", "kotlin", "python", "java", "script", "gradle", "sql", "html").any { lower.contains(it) }
-        if (isCoding) {
-            val codePriority = listOf(AiProviderType.DEEPSEEK, AiProviderType.CLAUDE, AiProviderType.QWEN, AiProviderType.OPENAI, AiProviderType.GEMINI)
-            codePriority.firstOrNull { it in configured }?.let { return it }
+        if (lower.contains("terbaru") || lower.contains("berita") || lower.contains("hari ini") || lower.contains("harga")) {
+            configured.find { it == AiProvider.PERPLEXITY }?.let { return Pair(it, it.models.first()) }
         }
-
-        val isWebSearch = listOf("berita", "terbaru", "hari ini", "harga", "siapa", "kapan", "news", "latest", "2026").any { lower.contains(it) }
-        if (isWebSearch && AiProviderType.PERPLEXITY in configured) {
-            return AiProviderType.PERPLEXITY
+        if (lower.contains("kode") || lower.contains("code") || lower.contains("bug") || lower.contains("kotlin") || lower.contains("python")) {
+            configured.find { it == AiProvider.DEEPSEEK || it == AiProvider.CLAUDE }?.let {
+                return Pair(it, it.models.first())
+            }
         }
-
-        if (prompt.length < 90 && AiProviderType.GROQ in configured) {
-            return AiProviderType.GROQ
+        configured.find { it == AiProvider.GROQ || it == AiProvider.GEMINI }?.let {
+            return Pair(it, it.models.first())
         }
-
-        return if (fallbackProvider in configured) fallbackProvider else configured.first()
+        val chosen = configured.first()
+        val model = if (chosen == AiProvider.CUSTOM) vault.getCustomModelId() else chosen.models.first()
+        return Pair(chosen, model)
     }
-}
 
-// ==============================================================================
-// ADAPTER 1: GOOGLE GEMINI (SSE STREAMING + MULTIMODAL VISION/PDF)
-// ==============================================================================
-class GeminiAdapter(
-    private val clientFactory: (Long) -> OkHttpClient
-) : AiProviderAdapter {
+    suspend fun testConnection(provider: AiProvider, model: String): Result<String> = withContext(Dispatchers.IO) {
+        val apiKey = vault.getApiKey(provider.id)
+        if (apiKey.isEmpty()) {
+            return@withContext Result.failure(IllegalStateException("API Key ${provider.displayName} masih kosong."))
+        }
+        val start = System.currentTimeMillis()
+        var responseText = ""
+        val result = streamChat(
+            provider = provider,
+            model = model,
+            systemPrompt = "Jawab hanya dengan kata: OK terhubung.",
+            history = listOf(ChatMessage(role = "user", content = "Tes koneksi")),
+            imageBase64List = emptyList(),
+            onChunk = { chunk -> responseText += chunk }
+        )
+        val latency = System.currentTimeMillis() - start
+        result.map { "${provider.displayName} aktif (${latency}ms): ${responseText.trim().take(60)}" }
+    }
 
-    override fun streamChat(payload: AiRequestPayload): Flow<StreamEvent> = flow {
-        val url = "${payload.provider.defaultBaseUrl}/models/${payload.model}:streamGenerateContent?alt=sse&key=${payload.apiKey}"
+    suspend fun streamChat(
+        provider: AiProvider,
+        model: String,
+        systemPrompt: String,
+        history: List<ChatMessage>,
+        imageBase64List: List<String>,
+        onChunk: suspend (String) -> Unit
+    ): Result<String> = withContext(Dispatchers.IO) {
+        val apiKey = vault.getApiKey(provider.id)
+        if (apiKey.isEmpty()) {
+            return@withContext Result.failure(
+                IllegalStateException("API Key untuk ${provider.displayName} belum diisi. Silakan isi di tab AI & Keys.")
+            )
+        }
+
+        var lastError: Throwable? = null
+        for (attempt in 1..2) {
+            try {
+                val fullText = when (provider) {
+                    AiProvider.GEMINI -> executeGeminiStream(apiKey, model, systemPrompt, history, imageBase64List, onChunk)
+                    AiProvider.CLAUDE -> executeClaudeStream(apiKey, model, systemPrompt, history, imageBase64List, onChunk)
+                    else -> executeOpenAiCompatibleStream(provider, apiKey, model, systemPrompt, history, imageBase64List, onChunk)
+                }
+                return@withContext Result.success(fullText)
+            } catch (ce: CancellationException) {
+                throw ce
+            } catch (t: Throwable) {
+                lastError = t
+                if (attempt < 2) delay(700L)
+            }
+        }
+        Result.failure(lastError ?: RuntimeException("Gagal menghubungi ${provider.displayName}"))
+    }
+
+    private suspend fun executeGeminiStream(
+        apiKey: String,
+        model: String,
+        systemPrompt: String,
+        history: List<ChatMessage>,
+        imageBase64List: List<String>,
+        onChunk: suspend (String) -> Unit
+    ): String {
+        val url = "${AiProvider.GEMINI.defaultBaseUrl}/models/$model:streamGenerateContent?alt=sse&key=$apiKey"
         val contentsArray = JSONArray()
 
-        for (msg in payload.history) {
-            contentsArray.put(JSONObject().apply {
-                put("role", if (msg.role == "user") "user" else "model")
-                put("parts", JSONArray().apply {
-                    put(JSONObject().apply { put("text", msg.text) })
-                })
-            })
-        }
-
-        val userParts = JSONArray().apply {
-            put(JSONObject().apply { put("text", payload.userPrompt) })
-            for (imgB64 in payload.imageBase64List) {
-                put(JSONObject().apply {
-                    put("inlineData", JSONObject().apply {
-                        put("mimeType", "image/jpeg")
-                        put("data", imgB64)
-                    })
-                })
-            }
-        }
-        contentsArray.put(JSONObject().apply {
-            put("role", "user")
-            put("parts", userParts)
-        })
-
-        val bodyJson = JSONObject().apply {
-            put("systemInstruction", JSONObject().apply {
-                put("parts", JSONArray().apply {
-                    put(JSONObject().apply { put("text", payload.systemInstruction) })
-                })
-            })
-            put("contents", contentsArray)
-        }
-
-        executeSseWithRetry(
-            client = clientFactory(payload.timeoutSeconds),
-            requestBuilder = {
-                Request.Builder()
-                    .url(url)
-                    .post(bodyJson.toString().toRequestBody("application/json; charset=utf-8".toMediaType()))
-                    .build()
-            },
-            extractChunk = { jsonLine ->
-                val obj = JSONObject(jsonLine)
-                val candidates = obj.optJSONArray("candidates")
-                val parts = candidates?.optJSONObject(0)?.optJSONObject("content")?.optJSONArray("parts")
-                parts?.optJSONObject(0)?.optString("text", "") ?: ""
-            },
-            onEvent = { emit(it) }
-        )
-    }.flowOn(Dispatchers.IO)
-
-    override suspend fun testConnection(apiKey: String, model: String, customBaseUrl: String): Pair<Boolean, String> {
-        return try {
-            val req = Request.Builder()
-                .url("https://generativelanguage.googleapis.com/v1beta/models?key=$apiKey")
-                .get()
-                .build()
-            clientFactory(15L).newCall(req).execute().use { res ->
-                if (res.isSuccessful) true to "Gemini terhubung ($model)"
-                else false to "Gagal HTTP ${res.code}"
-            }
-        } catch (e: Exception) {
-            false to "Koneksi gagal: ${e.localizedMessage}"
-        }
-    }
-}
-
-// ==============================================================================
-// ADAPTER 2: ANTHROPIC CLAUDE (/v1/messages SSE STREAMING + VISION)
-// ==============================================================================
-class ClaudeAdapter(
-    private val clientFactory: (Long) -> OkHttpClient
-) : AiProviderAdapter {
-
-    override fun streamChat(payload: AiRequestPayload): Flow<StreamEvent> = flow {
-        val url = "${payload.provider.defaultBaseUrl}/messages"
-        val messagesArray = JSONArray()
-
-        for (msg in payload.history) {
-            messagesArray.put(JSONObject().apply {
-                put("role", if (msg.role == "user") "user" else "assistant")
-                put("content", msg.text)
-            })
-        }
-
-        if (payload.imageBase64List.isEmpty()) {
-            messagesArray.put(JSONObject().apply {
-                put("role", "user")
-                put("content", payload.userPrompt)
-            })
-        } else {
-            val contentBlocks = JSONArray()
-            for (imgB64 in payload.imageBase64List) {
-                contentBlocks.put(JSONObject().apply {
-                    put("type", "image")
-                    put("source", JSONObject().apply {
-                        put("type", "base64")
-                        put("media_type", "image/jpeg")
-                        put("data", imgB64)
-                    })
-                })
-            }
-            contentBlocks.put(JSONObject().apply {
-                put("type", "text")
-                put("text", payload.userPrompt)
-            })
-            messagesArray.put(JSONObject().apply {
-                put("role", "user")
-                put("content", contentBlocks)
-            })
-        }
-
-        val bodyJson = JSONObject().apply {
-            put("model", payload.model)
-            put("max_tokens", 2048)
-            put("stream", true)
-            put("system", payload.systemInstruction)
-            put("messages", messagesArray)
-        }
-
-        executeSseWithRetry(
-            client = clientFactory(payload.timeoutSeconds),
-            requestBuilder = {
-                Request.Builder()
-                    .url(url)
-                    .addHeader("x-api-key", payload.apiKey)
-                    .addHeader("anthropic-version", "2023-06-01")
-                    .addHeader("content-type", "application/json")
-                    .post(bodyJson.toString().toRequestBody("application/json; charset=utf-8".toMediaType()))
-                    .build()
-            },
-            extractChunk = { jsonLine ->
-                val obj = JSONObject(jsonLine)
-                if (obj.optString("type") == "content_block_delta") {
-                    obj.optJSONObject("delta")?.optString("text", "") ?: ""
-                } else {
-                    ""
+        val recentHistory = history.takeLast(24)
+        recentHistory.forEachIndexed { idx, msg ->
+            val role = if (msg.role == "assistant") "model" else "user"
+            val parts = JSONArray()
+            parts.put(JSONObject().put("text", msg.content))
+            if (idx == recentHistory.lastIndex && role == "user" && imageBase64List.isNotEmpty()) {
+                for (b64 in imageBase64List) {
+                    parts.put(
+                        JSONObject().put(
+                            "inlineData",
+                            JSONObject()
+                                .put("mimeType", "image/jpeg")
+                                .put("data", b64)
+                        )
+                    )
                 }
-            },
-            onEvent = { emit(it) }
-        )
-    }.flowOn(Dispatchers.IO)
-
-    override suspend fun testConnection(apiKey: String, model: String, customBaseUrl: String): Pair<Boolean, String> {
-        return try {
-            val body = JSONObject().apply {
-                put("model", model)
-                put("max_tokens", 8)
-                put("messages", JSONArray().apply {
-                    put(JSONObject().apply {
-                        put("role", "user")
-                        put("content", "Hi")
-                    })
-                })
             }
-            val req = Request.Builder()
-                .url("https://api.anthropic.com/v1/messages")
-                .addHeader("x-api-key", apiKey)
-                .addHeader("anthropic-version", "2023-06-01")
-                .post(body.toString().toRequestBody("application/json; charset=utf-8".toMediaType()))
-                .build()
-            clientFactory(15L).newCall(req).execute().use { res ->
-                if (res.isSuccessful) true to "Claude terhubung ($model)"
-                else false to "Gagal HTTP ${res.code}"
-            }
-        } catch (e: Exception) {
-            false to "Koneksi gagal: ${e.localizedMessage}"
+            contentsArray.put(JSONObject().put("role", role).put("parts", parts))
         }
+
+        val bodyJson = JSONObject().apply {
+            put("systemInstruction", JSONObject().put("parts", JSONArray().put(JSONObject().put("text", systemPrompt))))
+            put("contents", contentsArray)
+            put("generationConfig", JSONObject().put("temperature", 0.75))
+        }
+
+        val request = Request.Builder()
+            .url(url)
+            .post(bodyJson.toString().toRequestBody("application/json; charset=utf-8".toMediaType()))
+            .build()
+
+        val sb = StringBuilder()
+        client.newCall(request).execute().use { response ->
+            if (!response.isSuccessful) {
+                val errBody = response.body?.string().orEmpty()
+                throw RuntimeException("Gemini HTTP ${response.code}: ${extractErrorMessage(errBody)}")
+            }
+            val stream = response.body?.byteStream() ?: throw RuntimeException("Stream kosong")
+            BufferedReader(InputStreamReader(stream)).use { reader ->
+                var line: String?
+                while (reader.readLine().also { line = it } != null) {
+                    val trimmed = line?.trim().orEmpty()
+                    if (trimmed.startsWith("data:")) {
+                        val payload = trimmed.removePrefix("data:").trim()
+                        if (payload == "[DONE]" || payload.isEmpty()) continue
+                        try {
+                            val json = JSONObject(payload)
+                            val candidates = json.optJSONArray("candidates") ?: continue
+                            if (candidates.length() > 0) {
+                                val parts = candidates.getJSONObject(0)
+                                    .optJSONObject("content")
+                                    ?.optJSONArray("parts")
+                                if (parts != null) {
+                                    for (i in 0 until parts.length()) {
+                                        val piece = parts.getJSONObject(i).optString("text", "")
+                                        if (piece.isNotEmpty()) {
+                                            sb.append(piece)
+                                            onChunk(piece)
+                                        }
+                                    }
+                                }
+                            }
+                        } catch (_: Exception) {
+                        }
+                    }
+                }
+            }
+        }
+        return sb.toString()
     }
-}
 
-// ==============================================================================
-// ADAPTER 3: OPENAI & COMPATIBLE PROVIDERS (OPENAI, DEEPSEEK, GROK, GROQ,
-// OPENROUTER, MISTRAL, QWEN, PERPLEXITY, CUSTOM)
-// ==============================================================================
-class OpenAiCompatibleAdapter(
-    private val provider: AiProviderType,
-    private val clientFactory: (Long) -> OkHttpClient
-) : AiProviderAdapter {
+    private suspend fun executeClaudeStream(
+        apiKey: String,
+        model: String,
+        systemPrompt: String,
+        history: List<ChatMessage>,
+        imageBase64List: List<String>,
+        onChunk: suspend (String) -> Unit
+    ): String {
+        val url = "${AiProvider.CLAUDE.defaultBaseUrl}/messages"
+        val messagesArray = JSONArray()
+        val recentHistory = history.takeLast(20)
 
-    private fun resolveEndpoint(customBaseUrl: String): String {
-        val base = if (provider == AiProviderType.CUSTOM && customBaseUrl.isNotBlank()) {
-            customBaseUrl.trimEnd('/')
+        recentHistory.forEachIndexed { idx, msg ->
+            val role = if (msg.role == "assistant") "assistant" else "user"
+            if (idx == recentHistory.lastIndex && role == "user" && imageBase64List.isNotEmpty()) {
+                val contentArr = JSONArray()
+                for (b64 in imageBase64List) {
+                    contentArr.put(
+                        JSONObject()
+                            .put("type", "image")
+                            .put(
+                                "source",
+                                JSONObject()
+                                    .put("type", "base64")
+                                    .put("media_type", "image/jpeg")
+                                    .put("data", b64)
+                            )
+                    )
+                }
+                contentArr.put(JSONObject().put("type", "text").put("text", msg.content))
+                messagesArray.put(JSONObject().put("role", role).put("content", contentArr))
+            } else {
+                messagesArray.put(JSONObject().put("role", role).put("content", msg.content))
+            }
+        }
+
+        val bodyJson = JSONObject().apply {
+            put("model", model)
+            put("max_tokens", 2048)
+            put("system", systemPrompt)
+            put("messages", messagesArray)
+            put("stream", true)
+        }
+
+        val request = Request.Builder()
+            .url(url)
+            .addHeader("x-api-key", apiKey)
+            .addHeader("anthropic-version", "2023-06-01")
+            .post(bodyJson.toString().toRequestBody("application/json; charset=utf-8".toMediaType()))
+            .build()
+
+        val sb = StringBuilder()
+        client.newCall(request).execute().use { response ->
+            if (!response.isSuccessful) {
+                val errBody = response.body?.string().orEmpty()
+                throw RuntimeException("Claude HTTP ${response.code}: ${extractErrorMessage(errBody)}")
+            }
+            val stream = response.body?.byteStream() ?: throw RuntimeException("Stream kosong")
+            BufferedReader(InputStreamReader(stream)).use { reader ->
+                var line: String?
+                while (reader.readLine().also { line = it } != null) {
+                    val trimmed = line?.trim().orEmpty()
+                    if (trimmed.startsWith("data:")) {
+                        val payload = trimmed.removePrefix("data:").trim()
+                        if (payload.isEmpty() || payload == "[DONE]") continue
+                        try {
+                            val json = JSONObject(payload)
+                            if (json.optString("type") == "content_block_delta") {
+                                val text = json.optJSONObject("delta")?.optString("text", "").orEmpty()
+                                if (text.isNotEmpty()) {
+                                    sb.append(text)
+                                    onChunk(text)
+                                }
+                            }
+                        } catch (_: Exception) {
+                        }
+                    }
+                }
+            }
+        }
+        return sb.toString()
+    }
+
+    private suspend fun executeOpenAiCompatibleStream(
+        provider: AiProvider,
+        apiKey: String,
+        model: String,
+        systemPrompt: String,
+        history: List<ChatMessage>,
+        imageBase64List: List<String>,
+        onChunk: suspend (String) -> Unit
+    ): String {
+        val baseUrl = if (provider == AiProvider.CUSTOM) {
+            vault.getCustomBaseUrl().trimEnd('/')
         } else {
             provider.defaultBaseUrl.trimEnd('/')
         }
-        return if (base.endsWith("/chat/completions")) base else "$base/chat/completions"
-    }
-
-    override fun streamChat(payload: AiRequestPayload): Flow<StreamEvent> = flow {
-        val endpoint = resolveEndpoint(payload.customBaseUrl)
-        val messagesArray = JSONArray().apply {
-            put(JSONObject().apply {
-                put("role", "system")
-                put("content", payload.systemInstruction)
-            })
-            for (msg in payload.history) {
-                put(JSONObject().apply {
-                    put("role", if (msg.role == "user") "user" else "assistant")
-                    put("content", msg.text)
-                })
-            }
+        val resolvedModel = if (provider == AiProvider.CUSTOM && model == "custom-model") {
+            vault.getCustomModelId().ifEmpty { model }
+        } else {
+            model
         }
 
-        if (payload.imageBase64List.isNotEmpty() && provider.supportsVision) {
-            val contentArray = JSONArray().apply {
-                put(JSONObject().apply {
-                    put("type", "text")
-                    put("text", payload.userPrompt)
-                })
-                for (imgB64 in payload.imageBase64List) {
-                    put(JSONObject().apply {
-                        put("type", "image_url")
-                        put("image_url", JSONObject().apply {
-                            put("url", "data:image/jpeg;base64,$imgB64")
-                        })
-                    })
+        val messagesArray = JSONArray()
+        messagesArray.put(JSONObject().put("role", "system").put("content", systemPrompt))
+
+        val recentHistory = history.takeLast(20)
+        recentHistory.forEachIndexed { idx, msg ->
+            val role = if (msg.role == "assistant") "assistant" else "user"
+            if (idx == recentHistory.lastIndex && role == "user" && imageBase64List.isNotEmpty() && provider.supportsVision) {
+                val contentParts = JSONArray()
+                contentParts.put(JSONObject().put("type", "text").put("text", msg.content))
+                for (b64 in imageBase64List) {
+                    contentParts.put(
+                        JSONObject()
+                            .put("type", "image_url")
+                            .put("image_url", JSONObject().put("url", "data:image/jpeg;base64,$b64"))
+                    )
                 }
+                messagesArray.put(JSONObject().put("role", role).put("content", contentParts))
+            } else {
+                messagesArray.put(JSONObject().put("role", role).put("content", msg.content))
             }
-            messagesArray.put(JSONObject().apply {
-                put("role", "user")
-                put("content", contentArray)
-            })
-        } else {
-            messagesArray.put(JSONObject().apply {
-                put("role", "user")
-                put("content", payload.userPrompt)
-            })
         }
 
         val bodyJson = JSONObject().apply {
-            put("model", payload.model)
-            put("stream", true)
+            put("model", resolvedModel)
             put("messages", messagesArray)
+            put("stream", true)
         }
 
-        executeSseWithRetry(
-            client = clientFactory(payload.timeoutSeconds),
-            requestBuilder = {
-                val builder = Request.Builder()
-                    .url(endpoint)
-                    .addHeader("Authorization", "Bearer ${payload.apiKey}")
-                    .addHeader("Content-Type", "application/json")
-                if (provider == AiProviderType.OPENROUTER) {
-                    builder.addHeader("HTTP-Referer", "https://github.com/AvoluProject/FloatingGeminiAI")
-                    builder.addHeader("X-Title", "Floamini OS Assistant")
-                }
-                builder.post(bodyJson.toString().toRequestBody("application/json; charset=utf-8".toMediaType())).build()
-            },
-            extractChunk = { jsonLine ->
-                val obj = JSONObject(jsonLine)
-                val choices = obj.optJSONArray("choices")
-                val delta = choices?.optJSONObject(0)?.optJSONObject("delta")
-                delta?.optString("content", "") ?: ""
-            },
-            onEvent = { emit(it) }
-        )
-    }.flowOn(Dispatchers.IO)
+        val reqBuilder = Request.Builder()
+            .url("$baseUrl/chat/completions")
+            .addHeader("Authorization", "Bearer $apiKey")
+            .post(bodyJson.toString().toRequestBody("application/json; charset=utf-8".toMediaType()))
 
-    override suspend fun testConnection(apiKey: String, model: String, customBaseUrl: String): Pair<Boolean, String> {
-        return try {
-            val endpoint = resolveEndpoint(customBaseUrl)
-            val bodyJson = JSONObject().apply {
-                put("model", model)
-                put("max_tokens", 8)
-                put("messages", JSONArray().apply {
-                    put(JSONObject().apply {
-                        put("role", "user")
-                        put("content", "Hi")
-                    })
-                })
-            }
-            val req = Request.Builder()
-                .url(endpoint)
-                .addHeader("Authorization", "Bearer $apiKey")
-                .addHeader("Content-Type", "application/json")
-                .post(bodyJson.toString().toRequestBody("application/json; charset=utf-8".toMediaType()))
-                .build()
-
-            clientFactory(15L).newCall(req).execute().use { res ->
-                if (res.isSuccessful) true to "${provider.shortBadge} terhubung ($model)"
-                else false to "${provider.shortBadge} HTTP ${res.code}"
-            }
-        } catch (e: Exception) {
-            false to "Koneksi gagal: ${e.localizedMessage}"
+        if (provider == AiProvider.OPENROUTER) {
+            reqBuilder.addHeader("HTTP-Referer", "https://github.com/AvoluProject/FloatingGeminiAI")
+            reqBuilder.addHeader("X-Title", "Floamini OS")
         }
-    }
-}
 
-// ==============================================================================
-// SHARED SSE STREAMING ENGINE WITH EXPONENTIAL BACKOFF RETRY
-// ==============================================================================
-private suspend fun executeSseWithRetry(
-    client: OkHttpClient,
-    requestBuilder: () -> Request,
-    extractChunk: (String) -> String,
-    onEvent: suspend (StreamEvent) -> Unit
-) {
-    var attempt = 0
-    val maxRetries = 2
-
-    while (attempt <= maxRetries) {
-        if (!currentCoroutineContext().isActive) return
-        try {
-            val response = client.newCall(requestBuilder()).execute()
-            response.use { res ->
-                if (!res.isSuccessful) {
-                    val code = res.code
-                    if ((code == 429 || code in 500..599) && attempt < maxRetries) {
-                        attempt++
-                        delay(800L * attempt)
-                        return@use
-                    }
-                    val errText = res.body?.string()?.take(180) ?: ""
-                    onEvent(StreamEvent.Error("Server menolak permintaan (HTTP $code). $errText"))
-                    return
-                }
-
-                val source = res.body?.source()
-                if (source == null) {
-                    onEvent(StreamEvent.Error("Stream respons kosong dari server."))
-                    return
-                }
-
-                val fullBuilder = StringBuilder()
-                while (currentCoroutineContext().isActive && !source.exhausted()) {
-                    val line = source.readUtf8Line() ?: break
-                    if (!line.startsWith("data:")) continue
-                    val dataStr = line.removePrefix("data:").trim()
-                    if (dataStr.isEmpty() || dataStr == "[DONE]") continue
-
-                    try {
-                        val piece = extractChunk(dataStr)
-                        if (piece.isNotEmpty()) {
-                            fullBuilder.append(piece)
-                            onEvent(StreamEvent.Delta(piece))
+        val sb = StringBuilder()
+        client.newCall(reqBuilder.build()).execute().use { response ->
+            if (!response.isSuccessful) {
+                val errBody = response.body?.string().orEmpty()
+                throw RuntimeException("${provider.displayName} HTTP ${response.code}: ${extractErrorMessage(errBody)}")
+            }
+            val stream = response.body?.byteStream() ?: throw RuntimeException("Stream kosong")
+            BufferedReader(InputStreamReader(stream)).use { reader ->
+                var line: String?
+                while (reader.readLine().also { line = it } != null) {
+                    val trimmed = line?.trim().orEmpty()
+                    if (trimmed.startsWith("data:")) {
+                        val payload = trimmed.removePrefix("data:").trim()
+                        if (payload == "[DONE]" || payload.isEmpty()) continue
+                        try {
+                            val json = JSONObject(payload)
+                            val choices = json.optJSONArray("choices") ?: continue
+                            if (choices.length() > 0) {
+                                val delta = choices.getJSONObject(0).optJSONObject("delta")
+                                val content = delta?.optString("content", "").orEmpty()
+                                if (content.isNotEmpty()) {
+                                    sb.append(content)
+                                    onChunk(content)
+                                }
+                            }
+                        } catch (_: Exception) {
                         }
-                    } catch (_: Exception) {}
+                    }
                 }
+            }
+        }
+        return sb.toString()
+    }
 
-                val finalStr = fullBuilder.toString()
-                val estTokens = (finalStr.length / 4).coerceAtLeast(1)
-                onEvent(StreamEvent.Completed(finalStr, estTokens))
-                return
-            }
-        } catch (ioe: IOException) {
-            if (attempt < maxRetries && currentCoroutineContext().isActive) {
-                attempt++
-                delay(750L * attempt)
-            } else {
-                onEvent(StreamEvent.Error("Gangguan jaringan: ${ioe.localizedMessage}"))
-                return
-            }
-        } catch (e: Exception) {
-            onEvent(StreamEvent.Error("Terjadi kesalahan: ${e.localizedMessage}"))
-            return
+    private fun extractErrorMessage(raw: String): String {
+        return try {
+            val obj = JSONObject(raw)
+            obj.optJSONObject("error")?.optString("message")
+                ?: obj.optString("message")
+                ?: raw.take(120)
+        } catch (_: Exception) {
+            raw.take(120)
         }
     }
 }
 """,
 
     # --------------------------------------------------------------------------
-    # 9. DATA REPOSITORY (MULTI-THREAD HISTORY, SEARCH, USAGE TRACKING, NOTES)
+    # 9. DATA REPOSITORY: MULTI-THREAD CONVERSATION, SEARCH & USAGE TRACKING
     # --------------------------------------------------------------------------
     "app/src/main/java/com/example/floatinggeminiai/data/ChatRepository.kt": r"""package com.example.floatinggeminiai.data
 
 import android.content.Context
-import com.example.floatinggeminiai.ai.AiProviderType
 import com.example.floatinggeminiai.ai.ChatMessage
 import com.example.floatinggeminiai.ai.ChatThread
 import org.json.JSONArray
 import org.json.JSONObject
-import java.util.UUID
 
 class ChatRepository(context: Context) {
 
-    private val prefs = context.applicationContext.getSharedPreferences("floamini_data_store", Context.MODE_PRIVATE)
+    private val prefs = context.applicationContext.getSharedPreferences("floamini_chat_data", Context.MODE_PRIVATE)
 
     fun loadAllThreads(): MutableList<ChatThread> {
-        val raw = prefs.getString("chat_threads_v6", null) ?: return mutableListOf()
-        val list = mutableListOf<ChatThread>()
-        try {
+        val raw = prefs.getString("threads_json", null) ?: return mutableListOf()
+        return try {
             val arr = JSONArray(raw)
+            val result = mutableListOf<ChatThread>()
             for (i in 0 until arr.length()) {
                 val obj = arr.getJSONObject(i)
-                val msgArr = obj.optJSONArray("messages") ?: JSONArray()
-                val messages = mutableListOf<ChatMessage>()
-                for (j in 0 until msgArr.length()) {
-                    val m = msgArr.getJSONObject(j)
-                    messages.add(
+                val msgsArr = obj.optJSONArray("messages") ?: JSONArray()
+                val msgs = mutableListOf<ChatMessage>()
+                for (j in 0 until msgsArr.length()) {
+                    val m = msgsArr.getJSONObject(j)
+                    msgs.add(
                         ChatMessage(
-                            id = m.optString("id", UUID.randomUUID().toString()),
+                            id = m.optString("id", System.nanoTime().toString()),
                             role = m.optString("role", "user"),
-                            text = m.optString("text", ""),
-                            timestamp = m.optString("timestamp", ""),
-                            providerBadge = m.optString("providerBadge", "Gemini"),
-                            modelName = m.optString("modelName", ""),
-                            attachmentLabel = m.optString("attachmentLabel", "").ifEmpty { null }
+                            content = m.optString("content", ""),
+                            providerTag = m.optString("providerTag", ""),
+                            timestamp = m.optLong("timestamp", System.currentTimeMillis())
                         )
                     )
                 }
-                list.add(
+                result.add(
                     ChatThread(
-                        id = obj.optString("id", UUID.randomUUID().toString()),
-                        title = obj.optString("title", "Sesi Baru"),
-                        updatedAt = obj.optLong("updatedAt", System.currentTimeMillis()),
-                        messages = messages
+                        id = obj.getString("id"),
+                        title = obj.optString("title", "Sesi Floamini"),
+                        messages = msgs,
+                        updatedAt = obj.optLong("updatedAt", System.currentTimeMillis())
                     )
                 )
             }
-        } catch (_: Exception) {}
-        return list
+            result
+        } catch (_: Exception) {
+            mutableListOf()
+        }
     }
 
     fun saveAllThreads(threads: List<ChatThread>) {
         val arr = JSONArray()
-        for (t in threads.take(40)) {
-            val msgArr = JSONArray()
-            for (m in t.messages.takeLast(120)) {
-                msgArr.put(JSONObject().apply {
-                    put("id", m.id)
-                    put("role", m.role)
-                    put("text", m.text)
-                    put("timestamp", m.timestamp)
-                    put("providerBadge", m.providerBadge)
-                    put("modelName", m.modelName)
-                    put("attachmentLabel", m.attachmentLabel ?: "")
-                })
+        for (t in threads.take(30)) {
+            val msgsArr = JSONArray()
+            for (m in t.messages.takeLast(80)) {
+                msgsArr.put(
+                    JSONObject()
+                        .put("id", m.id)
+                        .put("role", m.role)
+                        .put("content", m.content)
+                        .put("providerTag", m.providerTag)
+                        .put("timestamp", m.timestamp)
+                )
             }
-            arr.put(JSONObject().apply {
-                put("id", t.id)
-                put("title", t.title)
-                put("updatedAt", t.updatedAt)
-                put("messages", msgArr)
-            })
+            arr.put(
+                JSONObject()
+                    .put("id", t.id)
+                    .put("title", t.title)
+                    .put("messages", msgsArr)
+                    .put("updatedAt", t.updatedAt)
+            )
         }
-        prefs.edit().putString("chat_threads_v6", arr.toString()).apply()
+        prefs.edit().putString("threads_json", arr.toString()).apply()
     }
 
-    fun getActiveThreadId(): String {
-        return prefs.getString("active_thread_id", "") ?: ""
+    fun getOrCreateActiveThread(): ChatThread {
+        val all = loadAllThreads()
+        val activeId = prefs.getString("active_thread_id", null)
+        val found = all.find { it.id == activeId } ?: all.firstOrNull()
+        if (found != null) return found
+
+        val created = ChatThread(id = "session_${System.currentTimeMillis()}", title = "Sesi Utama")
+        all.add(0, created)
+        saveAllThreads(all)
+        setActiveThreadId(created.id)
+        return created
+    }
+
+    fun createNewThread(title: String = "Sesi Baru"): ChatThread {
+        val all = loadAllThreads()
+        val created = ChatThread(id = "session_${System.currentTimeMillis()}", title = title)
+        all.add(0, created)
+        saveAllThreads(all)
+        setActiveThreadId(created.id)
+        return created
+    }
+
+    fun saveThread(thread: ChatThread) {
+        val all = loadAllThreads()
+        val idx = all.indexOfFirst { it.id == thread.id }
+        thread.updatedAt = System.currentTimeMillis()
+        if (idx >= 0) {
+            all[idx] = thread
+        } else {
+            all.add(0, thread)
+        }
+        saveAllThreads(all)
     }
 
     fun setActiveThreadId(id: String) {
@@ -1152,65 +967,44 @@ class ChatRepository(context: Context) {
         val q = query.trim().lowercase()
         val all = loadAllThreads()
         if (q.isEmpty()) return all
-        return all.filter { thread ->
-            thread.title.lowercase().contains(q) ||
-                    thread.messages.any { it.text.lowercase().contains(q) }
+        return all.filter { t ->
+            t.title.lowercase().contains(q) || t.messages.any { it.content.lowercase().contains(q) }
         }
     }
 
-    fun clearAllThreads() {
-        prefs.edit().remove("chat_threads_v6").remove("active_thread_id").apply()
+    fun clearAllHistory() {
+        prefs.edit().remove("threads_json").remove("active_thread_id").apply()
     }
 
-    // Usage Statistics per Provider
-    fun recordUsage(provider: AiProviderType, estimatedTokens: Int) {
-        val reqKey = "usage_req_${provider.id}"
-        val tokKey = "usage_tok_${provider.id}"
-        val curReq = prefs.getInt(reqKey, 0) + 1
-        val curTok = prefs.getLong(tokKey, 0L) + estimatedTokens.coerceAtLeast(1)
+    fun recordUsage(providerName: String, charsOut: Int) {
+        val totalReq = prefs.getInt("usage_total_req", 0) + 1
+        val totalChars = prefs.getLong("usage_total_chars", 0L) + charsOut
+        val provCount = prefs.getInt("usage_prov_$providerName", 0) + 1
         prefs.edit()
-            .putInt(reqKey, curReq)
-            .putLong(tokKey, curTok)
+            .putInt("usage_total_req", totalReq)
+            .putLong("usage_total_chars", totalChars)
+            .putInt("usage_prov_$providerName", provCount)
             .apply()
     }
 
-    fun getUsageSummaryText(): String {
-        val sb = StringBuilder()
-        var totalReq = 0
-        var totalTok = 0L
-        for (p in AiProviderType.values()) {
-            val req = prefs.getInt("usage_req_${p.id}", 0)
-            val tok = prefs.getLong("usage_tok_${p.id}", 0L)
-            if (req > 0) {
-                totalReq += req
-                totalTok += tok
-                sb.append("• ${p.displayName}: $req request (~$tok token)\n")
-            }
-        }
-        if (totalReq == 0) {
-            return "Belum ada pemakaian API tercatat pada sesi ini."
-        }
-        return "Total Keseluruhan: $totalReq request (~$totalTok token)\n\n$sb".trim()
+    fun getUsageSummary(): String {
+        val req = prefs.getInt("usage_total_req", 0)
+        val chars = prefs.getLong("usage_total_chars", 0L)
+        val estTokens = chars / 4
+        return "Total Permintaan: $req kali | Estimasi Token Output: ~$estTokens token"
     }
 
-    fun resetUsageStats() {
-        val ed = prefs.edit()
-        for (p in AiProviderType.values()) {
-            ed.remove("usage_req_${p.id}").remove("usage_tok_${p.id}")
-        }
-        ed.apply()
+    fun resetUsage() {
+        prefs.edit().putInt("usage_total_req", 0).putLong("usage_total_chars", 0L).apply()
     }
 
-    // Quick Notes Storage
-    fun getQuickNotes(): String = prefs.getString("quick_notes_text", "") ?: ""
-    fun saveQuickNotes(text: String) {
-        prefs.edit().putString("quick_notes_text", text).apply()
-    }
+    fun getQuickNotes(): String = prefs.getString("quick_notes", "").orEmpty()
+    fun saveQuickNotes(notes: String) = prefs.edit().putString("quick_notes", notes).apply()
 }
 """,
 
     # --------------------------------------------------------------------------
-    # 10. VOICE SYSTEM MANAGER (STT, TTS, VOICE SELECTION, INTERRUPTION)
+    # 10. VOICE SYSTEM MANAGER (STT + TTS + INTERRUPT + AMPLITUDE)
     # --------------------------------------------------------------------------
     "app/src/main/java/com/example/floatinggeminiai/voice/VoiceSystemManager.kt": r"""package com.example.floatinggeminiai.voice
 
@@ -1221,156 +1015,113 @@ import android.speech.RecognitionListener
 import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
 import android.speech.tts.TextToSpeech
-import android.speech.tts.UtteranceProgressListener
-import android.speech.tts.Voice
 import java.util.Locale
 
 class VoiceSystemManager(
-    context: Context,
-    private val onRmsChanged: (Float) -> Unit,
-    private val onPartialSpeech: (String) -> Unit,
-    private val onFinalSpeech: (String) -> Unit,
-    private val onListeningStateChanged: (Boolean) -> Unit,
-    private val onSpeakingStateChanged: (Boolean) -> Unit,
-    private val onVoiceError: (String) -> Unit
+    private val context: Context,
+    private val onAmplitudeChanged: (Float) -> Unit,
+    private val onSpeechResult: (String) -> Unit,
+    private val onSpeechStateChanged: (Boolean, String) -> Unit
 ) {
-    private val appContext = context.applicationContext
+
     private var speechRecognizer: SpeechRecognizer? = null
     private var tts: TextToSpeech? = null
     private var isTtsReady = false
     var isListening = false
         private set
-    var isSpeaking = false
-        private set
 
     init {
-        initTts()
-    }
-
-    private fun initTts() {
-        tts = TextToSpeech(appContext) { status ->
+        tts = TextToSpeech(context.applicationContext) { status ->
             if (status == TextToSpeech.SUCCESS) {
                 val res = tts?.setLanguage(Locale("id", "ID"))
                 if (res == TextToSpeech.LANG_MISSING_DATA || res == TextToSpeech.LANG_NOT_SUPPORTED) {
-                    tts?.setLanguage(Locale.US)
+                    tts?.language = Locale.US
                 }
-                tts?.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
-                    override fun onStart(utteranceId: String?) {
-                        isSpeaking = true
-                        onSpeakingStateChanged(true)
-                    }
-
-                    override fun onDone(utteranceId: String?) {
-                        isSpeaking = false
-                        onSpeakingStateChanged(false)
-                    }
-
-                    @Deprecated("Deprecated in Java")
-                    override fun onError(utteranceId: String?) {
-                        isSpeaking = false
-                        onSpeakingStateChanged(false)
-                    }
-                })
                 isTtsReady = true
             }
         }
     }
 
     fun startListening() {
-        // Interupsi TTS secara otomatis jika AI sedang berbicara
         stopSpeaking()
-
-        if (!SpeechRecognizer.isRecognitionAvailable(appContext)) {
-            onVoiceError("Layanan Speech-to-Text tidak tersedia di perangkat ini.")
+        if (!SpeechRecognizer.isRecognitionAvailable(context)) {
+            onSpeechStateChanged(false, "Pengenal suara tidak tersedia di perangkat ini.")
             return
         }
+        stopListening()
 
-        try {
-            speechRecognizer?.destroy()
-            speechRecognizer = SpeechRecognizer.createSpeechRecognizer(appContext).apply {
-                setRecognitionListener(object : RecognitionListener {
-                    override fun onReadyForSpeech(params: Bundle?) {
-                        isListening = true
-                        onListeningStateChanged(true)
+        speechRecognizer = SpeechRecognizer.createSpeechRecognizer(context.applicationContext).apply {
+            setRecognitionListener(object : RecognitionListener {
+                override fun onReadyForSpeech(params: Bundle?) {
+                    isListening = true
+                    onSpeechStateChanged(true, "Mendengarkan...")
+                }
+
+                override fun onBeginningOfSpeech() {}
+
+                override fun onRmsChanged(rmsdB: Float) {
+                    val norm = ((rmsdB + 2f) / 12f).coerceIn(0.08f, 1.0f)
+                    onAmplitudeChanged(norm)
+                }
+
+                override fun onBufferReceived(buffer: ByteArray?) {}
+
+                override fun onEndOfSpeech() {
+                    isListening = false
+                    onSpeechStateChanged(false, "Memproses suara...")
+                }
+
+                override fun onError(error: Int) {
+                    isListening = false
+                    onAmplitudeChanged(0f)
+                    onSpeechStateChanged(false, "Suara selesai / tidak terdeteksi.")
+                }
+
+                override fun onResults(results: Bundle?) {
+                    isListening = false
+                    onAmplitudeChanged(0f)
+                    val matches = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
+                    val spoken = matches?.firstOrNull().orEmpty()
+                    onSpeechStateChanged(false, "")
+                    if (spoken.isNotBlank()) {
+                        onSpeechResult(spoken)
                     }
+                }
 
-                    override fun onBeginningOfSpeech() {}
-
-                    override fun onRmsChanged(rmsdB: Float) {
-                        val normalized = ((rmsdB + 2f) / 12f).coerceIn(0.08f, 1.0f)
-                        onRmsChanged(normalized)
+                override fun onPartialResults(partialResults: Bundle?) {
+                    val partial = partialResults?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.firstOrNull()
+                    if (!partial.isNullOrBlank()) {
+                        onSpeechStateChanged(true, partial)
                     }
+                }
 
-                    override fun onBufferReceived(buffer: ByteArray?) {}
-
-                    override fun onEndOfSpeech() {
-                        isListening = false
-                        onListeningStateChanged(false)
-                    }
-
-                    override fun onError(error: Int) {
-                        isListening = false
-                        onListeningStateChanged(false)
-                        if (error != SpeechRecognizer.ERROR_CLIENT && error != SpeechRecognizer.ERROR_NO_MATCH) {
-                            onVoiceError("Suara kurang jelas (Kode $error), coba bicara lagi.")
-                        }
-                    }
-
-                    override fun onResults(results: Bundle?) {
-                        isListening = false
-                        onListeningStateChanged(false)
-                        val matches = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
-                        val text = matches?.firstOrNull()?.trim() ?: ""
-                        if (text.isNotEmpty()) {
-                            onFinalSpeech(text)
-                        }
-                    }
-
-                    override fun onPartialResults(partialResults: Bundle?) {
-                        val partial = partialResults?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.firstOrNull() ?: ""
-                        if (partial.isNotEmpty()) {
-                            onPartialSpeech(partial)
-                        }
-                    }
-
-                    override fun onEvent(eventType: Int, params: Bundle?) {}
-                })
-            }
-
-            val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
-                putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-                putExtra(RecognizerIntent.EXTRA_LANGUAGE, "id-ID")
-                putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
-                putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1)
-            }
-            speechRecognizer?.startListening(intent)
-        } catch (e: Exception) {
-            isListening = false
-            onListeningStateChanged(false)
-            onVoiceError("Gagal memulai mikrofon: ${e.localizedMessage}")
+                override fun onEvent(eventType: Int, params: Bundle?) {}
+            })
         }
+
+        val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE, "id-ID")
+            putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
+        }
+        speechRecognizer?.startListening(intent)
     }
 
     fun stopListening() {
+        isListening = false
+        onAmplitudeChanged(0f)
         try {
             speechRecognizer?.stopListening()
-        } catch (_: Exception) {}
-        isListening = false
-        onListeningStateChanged(false)
+            speechRecognizer?.destroy()
+        } catch (_: Exception) {
+        }
+        speechRecognizer = null
     }
 
-    fun speak(text: String, speechRate: Float = 1.05f, preferredVoiceName: String = "") {
+    fun speak(text: String) {
         if (!isTtsReady || text.isBlank()) return
         stopSpeaking()
-        tts?.setSpeechRate(speechRate.coerceIn(0.6f, 1.8f))
-        if (preferredVoiceName.isNotEmpty()) {
-            val match = tts?.voices?.firstOrNull { it.name == preferredVoiceName }
-            if (match != null) {
-                tts?.voice = match
-            }
-        }
-        val cleanText = text.take(1500)
-        tts?.speak(cleanText, TextToSpeech.QUEUE_FLUSH, null, "floamini_tts_${System.currentTimeMillis()}")
+        tts?.speak(text.take(1500), TextToSpeech.QUEUE_FLUSH, null, "floamini_tts")
     }
 
     fun stopSpeaking() {
@@ -1378,299 +1129,194 @@ class VoiceSystemManager(
             if (tts?.isSpeaking == true) {
                 tts?.stop()
             }
-        } catch (_: Exception) {}
-        isSpeaking = false
-        onSpeakingStateChanged(false)
-    }
-
-    fun getAvailableVoices(): List<Voice> {
-        return try {
-            tts?.voices?.filter { !it.isNetworkConnectionRequired }?.sortedBy { it.locale.displayName } ?: emptyList()
         } catch (_: Exception) {
-            emptyList()
         }
     }
 
     fun release() {
         stopListening()
         stopSpeaking()
-        try { speechRecognizer?.destroy() } catch (_: Exception) {}
-        try { tts?.shutdown() } catch (_: Exception) {}
-        speechRecognizer = null
-        tts = null
+        try {
+            tts?.shutdown()
+        } catch (_: Exception) {
+        }
     }
 }
 """,
 
     # --------------------------------------------------------------------------
-    # 11. SMART TOOLS HELPER (PDF RENDERER, IMAGE B64, MATH PARSER, CODE FORMATTER)
+    # 11. SMART FLOATING TOOLS (PDF RENDERER, FILE READER, SAFE CALCULATOR)
     # --------------------------------------------------------------------------
     "app/src/main/java/com/example/floatinggeminiai/tools/SmartToolsHelper.kt": r"""package com.example.floatinggeminiai.tools
 
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.Canvas
 import android.graphics.Color
-import android.graphics.Typeface
 import android.graphics.pdf.PdfRenderer
 import android.net.Uri
-import android.text.Spannable
-import android.text.SpannableStringBuilder
-import android.text.style.BackgroundColorSpan
-import android.text.style.ForegroundColorSpan
-import android.text.style.StyleSpan
-import android.text.style.TypefaceSpan
+import android.provider.OpenableColumns
 import android.util.Base64
 import java.io.ByteArrayOutputStream
 import java.io.InputStreamReader
-import kotlin.math.pow
 
 data class ProcessedAttachment(
     val displayName: String,
-    val extractedText: String,
-    val imageBase64List: List<String>
+    val extractedText: String = "",
+    val base64Images: List<String> = emptyList()
 )
 
 object SmartToolsHelper {
 
-    fun processUriAttachment(context: Context, uri: Uri): ProcessedAttachment? {
-        val resolver = context.contentResolver
-        val mime = resolver.getType(uri) ?: ""
-        val name = uri.lastPathSegment?.substringAfterLast('/') ?: "Lampiran"
+    fun processUri(context: Context, uri: Uri): ProcessedAttachment {
+        val name = queryFileName(context, uri)
+        val mime = context.contentResolver.getType(uri).orEmpty().lowercase()
 
         return when {
-            mime == "application/pdf" || name.endsWith(".pdf", ignoreCase = true) -> {
-                extractPdfPagesAsImages(context, uri, name)
+            mime.contains("pdf") || name.lowercase().endsWith(".pdf") -> {
+                extractPdfPagesAsBase64(context, uri, name)
             }
             mime.startsWith("image/") -> {
-                val b64 = encodeImageUriToBase64(context, uri) ?: return null
+                val b64 = encodeImageUriToBase64(context, uri)
                 ProcessedAttachment(
-                    displayName = "Gambar: $name",
-                    extractedText = "",
-                    imageBase64List = listOf(b64)
+                    displayName = name,
+                    base64Images = if (b64 != null) listOf(b64) else emptyList()
                 )
             }
             else -> {
-                val text = readTextFromUri(context, uri)
-                if (text.isBlank()) null
-                else ProcessedAttachment(
-                    displayName = "Dokumen: $name",
-                    extractedText = text.take(12000),
-                    imageBase64List = emptyList()
-                )
+                val text = readTextUri(context, uri)
+                ProcessedAttachment(displayName = name, extractedText = text)
             }
         }
     }
 
-    private fun extractPdfPagesAsImages(context: Context, uri: Uri, name: String): ProcessedAttachment? {
-        return try {
-            val pfd = context.contentResolver.openFileDescriptor(uri, "r") ?: return null
-            val renderer = PdfRenderer(pfd)
-            val pageCount = renderer.pageCount.coerceAtMost(3)
-            val images = mutableListOf<String>()
-
-            for (i in 0 until pageCount) {
-                val page = renderer.openPage(i)
-                val targetW = 768
-                val targetH = (page.height.toFloat() / page.width.toFloat() * targetW).toInt().coerceAtLeast(256)
-                val bmp = Bitmap.createBitmap(targetW, targetH, Bitmap.Config.ARGB_8888)
-                bmp.eraseColor(Color.WHITE)
-                page.render(bmp, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
-                page.close()
-
-                val out = ByteArrayOutputStream()
-                bmp.compress(Bitmap.CompressFormat.JPEG, 72, out)
-                bmp.recycle()
-                images.add(Base64.encodeToString(out.toByteArray(), Base64.NO_WRAP))
+    private fun queryFileName(context: Context, uri: Uri): String {
+        var result = "Lampiran"
+        try {
+            context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
+                val idx = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                if (idx >= 0 && cursor.moveToFirst()) {
+                    result = cursor.getString(idx) ?: result
+                }
             }
-            renderer.close()
-            pfd.close()
-
-            ProcessedAttachment(
-                displayName = "PDF ($pageCount hal): $name",
-                extractedText = "[Lampiran dokumen PDF $name berisi $pageCount halaman visual]",
-                imageBase64List = images
-            )
         } catch (_: Exception) {
-            null
         }
+        return result
     }
 
-    fun encodeImageUriToBase64(context: Context, uri: Uri): String? {
+    private fun readTextUri(context: Context, uri: Uri): String {
         return try {
-            val input = context.contentResolver.openInputStream(uri) ?: return null
-            val original = BitmapFactory.decodeStream(input)
-            input.close()
-            if (original == null) return null
-
-            val maxDim = 960
-            val scale = if (original.width > maxDim || original.height > maxDim) {
-                maxDim.toFloat() / maxOf(original.width, original.height)
-            } else 1.0f
-
-            val scaled = if (scale < 1.0f) {
-                Bitmap.createScaledBitmap(
-                    original,
-                    (original.width * scale).toInt(),
-                    (original.height * scale).toInt(),
-                    true
-                )
-            } else original
-
-            val out = ByteArrayOutputStream()
-            scaled.compress(Bitmap.CompressFormat.JPEG, 72, out)
-            if (scaled !== original) scaled.recycle()
-            original.recycle()
-
-            Base64.encodeToString(out.toByteArray(), Base64.NO_WRAP)
-        } catch (_: Exception) {
-            null
-        }
-    }
-
-    private fun readTextFromUri(context: Context, uri: Uri): String {
-        return try {
-            val input = context.contentResolver.openInputStream(uri) ?: return ""
-            InputStreamReader(input, Charsets.UTF_8).use { it.readText() }
+            context.contentResolver.openInputStream(uri)?.use { stream ->
+                InputStreamReader(stream).readText().take(12000)
+            }.orEmpty()
         } catch (_: Exception) {
             ""
         }
     }
 
-    /**
-     * Rich Markdown & Code Syntax Highlighter untuk gelembung chat
-     */
-    fun formatRichMarkdown(raw: String): CharSequence {
-        val builder = SpannableStringBuilder()
-        val segments = raw.split("```")
-
-        for (i in segments.indices) {
-            val seg = segments[i]
-            if (i % 2 == 1) {
-                // Code Block
-                val firstNewline = seg.indexOf('\n')
-                val codeBody = if (firstNewline != -1) seg.substring(firstNewline + 1).trimEnd() else seg.trim()
-                val start = builder.length
-                builder.append("\n$codeBody\n")
-                val end = builder.length
-                builder.setSpan(TypefaceSpan("monospace"), start, end, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
-                builder.setSpan(BackgroundColorSpan(Color.parseColor("#CC070B14")), start, end, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
-                builder.setSpan(ForegroundColorSpan(Color.parseColor("#7DD3FC")), start, end, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
-            } else {
-                // Normal text with inline **bold** and `code`
-                appendFormattedInline(builder, seg)
-            }
-        }
-        return builder
-    }
-
-    private fun appendFormattedInline(builder: SpannableStringBuilder, text: String) {
-        var idx = 0
-        while (idx < text.length) {
-            if (text.startsWith("**", idx)) {
-                val endIdx = text.indexOf("**", idx + 2)
-                if (endIdx != -1) {
-                    val content = text.substring(idx + 2, endIdx)
-                    val s = builder.length
-                    builder.append(content)
-                    builder.setSpan(StyleSpan(Typeface.BOLD), s, builder.length, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
-                    idx = endIdx + 2
-                    continue
-                }
-            }
-            if (text[idx] == '`') {
-                val endIdx = text.indexOf('`', idx + 1)
-                if (endIdx != -1) {
-                    val content = text.substring(idx + 1, endIdx)
-                    val s = builder.length
-                    builder.append(" $content ")
-                    builder.setSpan(TypefaceSpan("monospace"), s, builder.length, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
-                    builder.setSpan(BackgroundColorSpan(Color.parseColor("#3338BDF8")), s, builder.length, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
-                    idx = endIdx + 1
-                    continue
-                }
-            }
-            builder.append(text[idx])
-            idx++
-        }
-    }
-
-    /**
-     * Safe Mathematical Expression Evaluator (Floating Calculator)
-     */
-    fun evaluateMathExpression(expr: String): String {
-        val clean = expr.replace("×", "*").replace("÷", "/").replace(",", ".").replace(" ", "")
-        if (clean.isEmpty()) return "0"
+    private fun encodeImageUriToBase64(context: Context, uri: Uri): String? {
         return try {
-            val result = object : Any() {
-                var pos = -1
-                var ch = 0
+            val raw = context.contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it) } ?: return null
+            bitmapToBase64(raw, 1024)
+        } catch (_: Exception) {
+            null
+        }
+    }
 
-                fun nextChar() {
-                    ch = if (++pos < clean.length) clean[pos].code else -1
-                }
-
-                fun eat(charToEat: Int): Boolean {
-                    while (ch == ' '.code) nextChar()
-                    if (ch == charToEat) {
-                        nextChar()
-                        return true
-                    }
-                    return false
-                }
-
-                fun parse(): Double {
-                    nextChar()
-                    val x = parseExpression()
-                    if (pos < clean.length) throw RuntimeException("Unexpected")
-                    return x
-                }
-
-                fun parseExpression(): Double {
-                    var x = parseTerm()
-                    while (true) {
-                        when {
-                            eat('+'.code) -> x += parseTerm()
-                            eat('-'.code) -> x -= parseTerm()
-                            else -> return x
+    private fun extractPdfPagesAsBase64(context: Context, uri: Uri, name: String): ProcessedAttachment {
+        val images = mutableListOf<String>()
+        try {
+            context.contentResolver.openFileDescriptor(uri, "r")?.use { pfd ->
+                PdfRenderer(pfd).use { renderer ->
+                    val maxPages = renderer.pageCount.coerceAtMost(3)
+                    for (i in 0 until maxPages) {
+                        renderer.openPage(i).use { page ->
+                            val bmp = Bitmap.createBitmap(page.width.coerceAtMost(1024), page.height.coerceAtMost(1400), Bitmap.Config.ARGB_8888)
+                            val canvas = Canvas(bmp)
+                            canvas.drawColor(Color.WHITE)
+                            page.render(bmp, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
+                            images.add(bitmapToBase64(bmp, 1024))
+                            bmp.recycle()
                         }
                     }
                 }
+            }
+        } catch (_: Exception) {
+        }
+        return ProcessedAttachment(displayName = "$name (${images.size} hal.)", base64Images = images)
+    }
 
+    fun bitmapToBase64(src: Bitmap, maxDim: Int): String {
+        val ratio = minOf(maxDim.toFloat() / src.width, maxDim.toFloat() / src.height, 1.0f)
+        val scaled = if (ratio < 1.0f) {
+            Bitmap.createScaledBitmap(src, (src.width * ratio).toInt().coerceAtLeast(1), (src.height * ratio).toInt().coerceAtLeast(1), true)
+        } else {
+            src
+        }
+        val out = ByteArrayOutputStream()
+        scaled.compress(Bitmap.CompressFormat.JPEG, 76, out)
+        if (scaled !== src) scaled.recycle()
+        return Base64.encodeToString(out.toByteArray(), Base64.NO_WRAP)
+    }
+
+    fun evaluateMath(expression: String): String {
+        val cleaned = expression.replace(" ", "").replace("×", "*").replace("÷", "/")
+        if (cleaned.isEmpty()) return "0"
+        return try {
+            var pos = -1
+            var ch = 0
+            fun nextChar() {
+                pos++
+                ch = if (pos < cleaned.length) cleaned[pos].code else -1
+            }
+            fun eat(charToEat: Int): Boolean {
+                while (ch == ' '.code) nextChar()
+                if (ch == charToEat) {
+                    nextChar()
+                    return true
+                }
+                return false
+            }
+            fun parseExpression(): Double {
                 fun parseTerm(): Double {
+                    fun parseFactor(): Double {
+                        if (eat('+'.code)) return parseFactor()
+                        if (eat('-'.code)) return -parseFactor()
+                        var x: Double
+                        val startPos = pos
+                        if (eat('('.code)) {
+                            x = parseExpression()
+                            eat(')'.code)
+                        } else if ((ch in '0'.code..'9'.code) || ch == '.'.code) {
+                            while ((ch in '0'.code..'9'.code) || ch == '.'.code) nextChar()
+                            x = cleaned.substring(startPos, pos).toDouble()
+                        } else {
+                            throw RuntimeException("Unexpected")
+                        }
+                        return x
+                    }
                     var x = parseFactor()
                     while (true) {
-                        when {
-                            eat('*'.code) -> x *= parseFactor()
-                            eat('/'.code) -> x /= parseFactor()
-                            eat('%'.code) -> x %= parseFactor()
+                        x = when {
+                            eat('*'.code) -> x * parseFactor()
+                            eat('/'.code) -> x / parseFactor()
                             else -> return x
                         }
                     }
                 }
-
-                fun parseFactor(): Double {
-                    if (eat('+'.code)) return parseFactor()
-                    if (eat('-'.code)) return -parseFactor()
-                    var x: Double
-                    val startPos = pos
-                    if (eat('('.code)) {
-                        x = parseExpression()
-                        eat(')'.code)
-                    } else if ((ch in '0'.code..'9'.code) || ch == '.'.code) {
-                        while ((ch in '0'.code..'9'.code) || ch == '.'.code) nextChar()
-                        x = clean.substring(startPos, pos).toDouble()
-                    } else {
-                        throw RuntimeException("Unexpected")
+                var x = parseTerm()
+                while (true) {
+                    x = when {
+                        eat('+'.code) -> x + parseTerm()
+                        eat('-'.code) -> x - parseTerm()
+                        else -> return x
                     }
-                    if (eat('^'.code)) x = x.pow(parseFactor())
-                    return x
                 }
-            }.parse()
-
-            if (result.isNaN() || result.isInfinite()) "Error"
-            else if (result % 1.0 == 0.0) result.toLong().toString()
-            else String.format("%.6f", result).trimEnd('0').trimEnd('.')
+            }
+            nextChar()
+            val v = parseExpression()
+            if (v % 1.0 == 0.0) v.toLong().toString() else String.format("%.4f", v).trimEnd('0').trimEnd('.')
         } catch (_: Exception) {
             "Format salah"
         }
@@ -1679,13 +1325,546 @@ object SmartToolsHelper {
 """,
 
     # --------------------------------------------------------------------------
-    # 12. CUSTOM VIEWS: SIRI EDGE GLOW AURA & 60 FPS VOICE WAVEFORM
+    # 12. KYANT0 LIQUID GLASS ENGINE + LIQUID GLASS BOTTOM NAVBAR
     # --------------------------------------------------------------------------
-    "app/src/main/java/com/example/floatinggeminiai/SiriEdgeGlowView.kt": r"""package com.example.floatinggeminiai
+    "app/src/main/java/com/example/floatinggeminiai/ui/LiquidGlassView.kt": r"""package com.example.floatinggeminiai.ui
 
 import android.animation.ValueAnimator
 import android.content.Context
-import android.graphics.BlurMaskFilter
+import android.content.res.Configuration
+import android.graphics.Canvas
+import android.graphics.Color
+import android.graphics.LinearGradient
+import android.graphics.Paint
+import android.graphics.Path
+import android.graphics.RectF
+import android.graphics.RuntimeShader
+import android.graphics.Shader
+import android.graphics.Typeface
+import android.os.Build
+import android.util.AttributeSet
+import android.view.Gravity
+import android.view.HapticFeedbackConstants
+import android.view.MotionEvent
+import android.view.animation.LinearInterpolator
+import android.widget.FrameLayout
+import android.widget.ImageView
+import android.widget.LinearLayout
+import android.widget.TextView
+import androidx.dynamicanimation.animation.FloatValueHolder
+import androidx.dynamicanimation.animation.SpringAnimation
+import androidx.dynamicanimation.animation.SpringForce
+
+/**
+ * LiquidGlassFrameLayout — Terinspirasi langsung dari Kyant0/AndroidLiquidGlass:
+ * - Signed Distance Field (SDF) Rounded-Box Lens Refraction
+ * - Physical RGB Chromatic Dispersion di sepanjang bevel kaca
+ * - Interactive Gel-Press Bulge & Angle-Aware Specular Rim Highlight
+ * - Mendukung varian REGULAR (readability-first untuk UI/Navbar) dan CLEAR (Dynamic Island)
+ */
+class LiquidGlassFrameLayout @JvmOverloads constructor(
+    context: Context,
+    attrs: AttributeSet? = null,
+    defStyleAttr: Int = 0
+) : FrameLayout(context, attrs, defStyleAttr) {
+
+    enum class GlassMaterialVariant {
+        REGULAR,
+        CLEAR
+    }
+
+    var cornerRadiusDp: Float = 24f
+        set(value) {
+            field = value
+            requestRebuildBounds()
+            invalidate()
+        }
+
+    var bevelWidthDp: Float = 14f
+        set(value) {
+            field = value
+            invalidate()
+        }
+
+    var dispersionStrength: Float = 0.28f
+        set(value) {
+            field = value
+            invalidate()
+        }
+
+    var specularIntensity: Float = 0.62f
+        set(value) {
+            field = value
+            invalidate()
+        }
+
+    var materialVariant: GlassMaterialVariant = GlassMaterialVariant.REGULAR
+        set(value) {
+            field = value
+            if (width > 0 && height > 0) {
+                updateFallbackGradients(width.toFloat(), height.toFloat())
+            }
+            invalidate()
+        }
+
+    var enableGelPress: Boolean = true
+
+    private var touchX: Float = -1f
+    private var touchY: Float = -1f
+    private var pressProgress: Float = 0f
+    private var shimmerPhase: Float = 0f
+
+    private val boundsRect = RectF()
+    private val clipPath = Path()
+    private val shaderPaint = Paint(Paint.ANTI_ALIAS_FLAG)
+    private val fallbackFillPaint = Paint(Paint.ANTI_ALIAS_FLAG)
+    private val fallbackRimPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.STROKE
+    }
+
+    private var agslShader: RuntimeShader? = null
+    private var ambientAnimator: ValueAnimator? = null
+    private var pressSpring: SpringAnimation? = null
+
+    init {
+        setWillNotDraw(false)
+        initAgslShaderIfSupported()
+    }
+
+    private fun initAgslShaderIfSupported() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            val agslCode = listOf(
+                "uniform float2 uResolution;",
+                "uniform float uCornerRadius;",
+                "uniform float uBevelWidth;",
+                "uniform float uDispersionStrength;",
+                "uniform float uSpecularIntensity;",
+                "uniform float2 uTouchPos;",
+                "uniform float uPressProgress;",
+                "uniform float uTime;",
+                "uniform float uIsDark;",
+                "uniform float uClearVariant;",
+                "float sdRoundedBox(float2 p, float2 b, float r) {",
+                "float2 q = abs(p) - b + float2(r);",
+                "return min(max(q.x, q.y), 0.0) + length(max(q, float2(0.0))) - r;",
+                "}",
+                "half4 main(float2 fragCoord) {",
+                "float2 center = uResolution * 0.5;",
+                "float maxR = min(center.x, center.y);",
+                "float radius = clamp(uCornerRadius, 1.0, maxR);",
+                "float2 halfSize = center - float2(0.75);",
+                "float2 p = fragCoord - center;",
+                "float d = sdRoundedBox(p, halfSize, radius);",
+                "if (d > 0.0) {",
+                "return half4(0.0);",
+                "}",
+                "// Surface normal via SDF gradient",
+                "float2 eps = float2(1.5, 0.0);",
+                "float2 grad = float2(",
+                "sdRoundedBox(p + eps.xy, halfSize, radius) - sdRoundedBox(p - eps.xy, halfSize, radius),",
+                "sdRoundedBox(p + eps.yx, halfSize, radius) - sdRoundedBox(p - eps.yx, halfSize, radius)",
+                ");",
+                "float2 normal = normalize(grad + float2(0.0001));",
+                "// Convex lens profile along bevel rim",
+                "float edgeDist = -d;",
+                "float rimFactor = clamp(1.0 - (edgeDist / max(uBevelWidth, 1.0)), 0.0, 1.0);",
+                "float lensCurve = pow(rimFactor, 2.2);",
+                "// Interactive gel-press bulge around touch",
+                "float touchDist = length(fragCoord - uTouchPos);",
+                "float gelBulge = uPressProgress * exp(-touchDist * 0.011);",
+                "// Directional specular light + dynamic touch shift",
+                "float2 touchOffset = (uTouchPos - center) * 0.0016 * uPressProgress;",
+                "float2 lightDir = normalize(float2(-0.62, -0.78) + touchOffset);",
+                "float topSpec = pow(max(dot(normal, lightDir), 0.0), 2.6) * (0.35 + 0.65 * lensCurve);",
+                "float bottomRim = pow(max(dot(normal, -lightDir), 0.0), 3.4) * lensCurve * 0.52;",
+                "// Physical RGB chromatic dispersion along bevel normal",
+                "float angle = atan(normal.y, normal.x) + uTime * 0.45;",
+                "float3 dispersion = float3(",
+                "0.5 + 0.5 * sin(angle),",
+                "0.5 + 0.5 * sin(angle + 2.09439),",
+                "0.5 + 0.5 * sin(angle + 4.18879)",
+                ") * lensCurve * uDispersionStrength;",
+                "// Adaptive Dark/Light & Regular/Clear base glass material",
+                "float3 baseDark = mix(float3(0.068, 0.102, 0.185), float3(0.015, 0.022, 0.038), uClearVariant);",
+                "float3 baseLight = mix(float3(0.92, 0.95, 0.99), float3(0.96, 0.98, 1.0), uClearVariant);",
+                "float3 baseCol = mix(baseLight, baseDark, uIsDark);",
+                "// Micro-grain dithering",
+                "float grain = (fract(sin(dot(fragCoord, float2(12.9898, 78.233))) * 43758.5453) - 0.5) * 0.015;",
+                "float3 rgb = baseCol",
+                "+ dispersion",
+                "+ float3(0.76, 0.90, 1.0) * (topSpec * uSpecularIntensity + gelBulge * 0.25)",
+                "+ float3(0.68, 0.54, 1.0) * bottomRim",
+                "+ float3(grain);",
+                "float targetAlpha = mix(0.84, 0.76, uClearVariant);",
+                "float alpha = clamp(targetAlpha + lensCurve * 0.15 + topSpec * 0.20, 0.0, 0.97);",
+                "return half4(half3(rgb * alpha), half(alpha));",
+                "}"
+            ).joinToString("\n")
+
+            try {
+                agslShader = RuntimeShader(agslCode)
+                shaderPaint.shader = agslShader
+            } catch (_: Throwable) {
+                agslShader = null
+            }
+        }
+    }
+
+    private fun isSystemDarkTheme(): Boolean {
+        val mode = resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK
+        return mode == Configuration.UI_MODE_NIGHT_YES
+    }
+
+    private fun requestRebuildBounds() {
+        val w = width.toFloat()
+        val h = height.toFloat()
+        if (w > 0f && h > 0f) {
+            boundsRect.set(0f, 0f, w, h)
+            val rPx = cornerRadiusDp * resources.displayMetrics.density
+            clipPath.reset()
+            clipPath.addRoundRect(boundsRect, rPx, rPx, Path.Direction.CW)
+        }
+    }
+
+    override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
+        super.onSizeChanged(w, h, oldw, oldh)
+        if (w > 0 && h > 0) {
+            requestRebuildBounds()
+            if (touchX < 0f) {
+                touchX = w / 2f
+                touchY = h / 2f
+            }
+            updateFallbackGradients(w.toFloat(), h.toFloat())
+        }
+    }
+
+    private fun updateFallbackGradients(w: Float, h: Float) {
+        val dark = isSystemDarkTheme()
+        fallbackFillPaint.shader = LinearGradient(
+            0f, 0f, 0f, h,
+            if (materialVariant == GlassMaterialVariant.CLEAR) {
+                intArrayOf(Color.parseColor("#E6060912"), Color.parseColor("#F2020306"))
+            } else if (dark) {
+                intArrayOf(Color.parseColor("#D818243E"), Color.parseColor("#E20B111E"))
+            } else {
+                intArrayOf(Color.parseColor("#EAFFFFFF"), Color.parseColor("#F0E2E8F0"))
+            },
+            null,
+            Shader.TileMode.CLAMP
+        )
+        fallbackRimPaint.strokeWidth = 1.4f * resources.displayMetrics.density
+        fallbackRimPaint.shader = LinearGradient(
+            0f, 0f, w, h,
+            intArrayOf(
+                Color.parseColor("#B8FFFFFF"),
+                Color.parseColor("#6638BDF8"),
+                Color.parseColor("#66E879F9")
+            ),
+            null,
+            Shader.TileMode.CLAMP
+        )
+    }
+
+    override fun dispatchDraw(canvas: Canvas) {
+        val w = width.toFloat()
+        val h = height.toFloat()
+        if (w <= 0f || h <= 0f) {
+            super.dispatchDraw(canvas)
+            return
+        }
+
+        val density = resources.displayMetrics.density
+        val rPx = cornerRadiusDp * density
+        val shader = agslShader
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && shader != null) {
+            try {
+                shader.setFloatUniform("uResolution", w, h)
+                shader.setFloatUniform("uCornerRadius", rPx)
+                shader.setFloatUniform("uBevelWidth", bevelWidthDp * density)
+                shader.setFloatUniform("uDispersionStrength", dispersionStrength)
+                shader.setFloatUniform("uSpecularIntensity", specularIntensity)
+                shader.setFloatUniform("uTouchPos", if (touchX >= 0f) touchX else w / 2f, if (touchY >= 0f) touchY else h / 2f)
+                shader.setFloatUniform("uPressProgress", pressProgress)
+                shader.setFloatUniform("uTime", shimmerPhase)
+                shader.setFloatUniform("uIsDark", if (isSystemDarkTheme()) 1.0f else 0.0f)
+                shader.setFloatUniform("uClearVariant", if (materialVariant == GlassMaterialVariant.CLEAR) 1.0f else 0.0f)
+                canvas.drawRect(0f, 0f, w, h, shaderPaint)
+            } catch (_: Throwable) {
+                drawFallbackGlass(canvas, rPx)
+            }
+        } else {
+            drawFallbackGlass(canvas, rPx)
+        }
+
+        val saveCount = canvas.save()
+        canvas.clipPath(clipPath)
+        super.dispatchDraw(canvas)
+        canvas.restoreToCount(saveCount)
+    }
+
+    private fun drawFallbackGlass(canvas: Canvas, rPx: Float) {
+        canvas.drawRoundRect(boundsRect, rPx, rPx, fallbackFillPaint)
+        val inset = fallbackRimPaint.strokeWidth * 0.5f
+        val rimRect = RectF(inset, inset, width - inset, height - inset)
+        canvas.drawRoundRect(rimRect, rPx, rPx, fallbackRimPaint)
+    }
+
+    override fun onInterceptTouchEvent(ev: MotionEvent): Boolean {
+        if (enableGelPress) {
+            handleGelTouch(ev)
+        }
+        return super.onInterceptTouchEvent(ev)
+    }
+
+    override fun onTouchEvent(event: MotionEvent): Boolean {
+        if (enableGelPress) {
+            handleGelTouch(event)
+        }
+        return super.onTouchEvent(event)
+    }
+
+    private fun handleGelTouch(event: MotionEvent) {
+        touchX = event.x
+        touchY = event.y
+        when (event.actionMasked) {
+            MotionEvent.ACTION_DOWN -> animateGelPress(1.0f)
+            MotionEvent.ACTION_MOVE -> invalidate()
+            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> animateGelPress(0.0f)
+        }
+    }
+
+    private fun animateGelPress(target: Float) {
+        pressSpring?.cancel()
+        val holder = FloatValueHolder(pressProgress * 100f)
+        pressSpring = SpringAnimation(holder, target * 100f).apply {
+            spring = SpringForce(target * 100f).apply {
+                dampingRatio = SpringForce.DAMPING_RATIO_MEDIUM_BOUNCY
+                stiffness = SpringForce.STIFFNESS_MEDIUM
+            }
+            addUpdateListener { _, value, _ ->
+                pressProgress = (value / 100f).coerceIn(0f, 1.25f)
+                invalidate()
+            }
+            start()
+        }
+    }
+
+    fun startAmbientRefraction() {
+        if (ambientAnimator?.isRunning == true) return
+        ambientAnimator = ValueAnimator.ofFloat(0f, 6.28318f).apply {
+            duration = 6000L
+            repeatCount = ValueAnimator.INFINITE
+            interpolator = LinearInterpolator()
+            addUpdateListener {
+                shimmerPhase = it.animatedValue as Float
+                invalidate()
+            }
+            start()
+        }
+    }
+
+    fun stopAmbientRefraction() {
+        ambientAnimator?.cancel()
+        ambientAnimator = null
+    }
+
+    override fun onDetachedFromWindow() {
+        stopAmbientRefraction()
+        pressSpring?.cancel()
+        super.onDetachedFromWindow()
+    }
+}
+
+/**
+ * LiquidGlassBottomNavBar — Floating Bottom Navigation Bar bergaya iOS 26 / Kyant0 Liquid Glass
+ * Dilengkapi kapsul indikator kaca cair (Liquid Droplet) yang meluncur dengan fisika pegas
+ * disertai chromatic edge dispersion saat berpindah tab.
+ */
+class LiquidGlassBottomNavBar @JvmOverloads constructor(
+    context: Context,
+    attrs: AttributeSet? = null,
+    defStyleAttr: Int = 0
+) : FrameLayout(context, attrs, defStyleAttr) {
+
+    data class NavTab(val label: String, val iconRes: Int)
+
+    private val dockContainer = LiquidGlassFrameLayout(context).apply {
+        cornerRadiusDp = 32f
+        bevelWidthDp = 15f
+        dispersionStrength = 0.34f
+        specularIntensity = 0.72f
+        materialVariant = LiquidGlassFrameLayout.GlassMaterialVariant.REGULAR
+    }
+
+    private val dropletPill = LiquidGlassFrameLayout(context).apply {
+        cornerRadiusDp = 24f
+        bevelWidthDp = 11f
+        dispersionStrength = 0.48f
+        specularIntensity = 0.92f
+        materialVariant = LiquidGlassFrameLayout.GlassMaterialVariant.CLEAR
+        enableGelPress = false
+    }
+
+    private val itemsRow = LinearLayout(context).apply {
+        orientation = LinearLayout.HORIZONTAL
+        gravity = Gravity.CENTER_VERTICAL
+    }
+
+    private val tabViews = mutableListOf<Pair<ImageView, TextView>>()
+    private var selectedIndex = 0
+    private var dropletSpringX: SpringAnimation? = null
+    private var dropletSpringScale: SpringAnimation? = null
+    var onTabSelected: ((Int) -> Unit)? = null
+
+    init {
+        val d = resources.displayMetrics.density
+        val pad = (6 * d).toInt()
+        dockContainer.setPadding(pad, pad, pad, pad)
+
+        val innerFrame = FrameLayout(context)
+        innerFrame.addView(dropletPill, LayoutParams(0, LayoutParams.MATCH_PARENT))
+        innerFrame.addView(itemsRow, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
+
+        dockContainer.addView(innerFrame, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
+        addView(dockContainer, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
+    }
+
+    fun setTabs(tabs: List<NavTab>) {
+        itemsRow.removeAllViews()
+        tabViews.clear()
+        val d = resources.displayMetrics.density
+
+        tabs.forEachIndexed { index, tab ->
+            val tabBox = LinearLayout(context).apply {
+                orientation = LinearLayout.VERTICAL
+                gravity = Gravity.CENTER
+                setPadding(0, (6 * d).toInt(), 0, (6 * d).toInt())
+                setOnClickListener {
+                    selectTab(index, animate = true, notify = true)
+                }
+            }
+
+            val iconView = ImageView(context).apply {
+                setImageResource(tab.iconRes)
+                setColorFilter(if (index == 0) Color.parseColor("#38BDF8") else Color.parseColor("#94A3B8"))
+            }
+
+            val labelView = TextView(context).apply {
+                text = tab.label
+                textSize = 10.5f
+                typeface = if (index == 0) Typeface.DEFAULT_BOLD else Typeface.DEFAULT
+                setTextColor(if (index == 0) Color.parseColor("#F8FAFC") else Color.parseColor("#94A3B8"))
+                gravity = Gravity.CENTER
+                setPadding(0, (3 * d).toInt(), 0, 0)
+            }
+
+            tabBox.addView(iconView, LinearLayout.LayoutParams((20 * d).toInt(), (20 * d).toInt()))
+            tabBox.addView(labelView, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT))
+
+            val lp = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1f)
+            itemsRow.addView(tabBox, lp)
+            tabViews.add(Pair(iconView, labelView))
+        }
+
+        post {
+            updateDropletGeometry(selectedIndex, animate = false)
+            dockContainer.startAmbientRefraction()
+        }
+    }
+
+    fun selectTab(index: Int, animate: Boolean = true, notify: Boolean = false) {
+        if (index !in tabViews.indices) return
+        if (index != selectedIndex) {
+            performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+        }
+        selectedIndex = index
+        val isDark = (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
+
+        tabViews.forEachIndexed { i, (icon, label) ->
+            val active = (i == index)
+            icon.setColorFilter(
+                if (active) Color.parseColor("#38BDF8")
+                else if (isDark) Color.parseColor("#94A3B8") else Color.parseColor("#475569")
+            )
+            label.setTextColor(
+                if (active) Color.parseColor("#F8FAFC")
+                else if (isDark) Color.parseColor("#94A3B8") else Color.parseColor("#475569")
+            )
+            label.typeface = if (active) Typeface.DEFAULT_BOLD else Typeface.DEFAULT
+            icon.animate()
+                .scaleX(if (active) 1.12f else 1.0f)
+                .scaleY(if (active) 1.12f else 1.0f)
+                .setDuration(180L)
+                .start()
+        }
+
+        updateDropletGeometry(index, animate)
+        if (notify) {
+            onTabSelected?.invoke(index)
+        }
+    }
+
+    private fun updateDropletGeometry(index: Int, animate: Boolean) {
+        if (tabViews.isEmpty() || itemsRow.width <= 0) return
+        val tabWidth = itemsRow.width.toFloat() / tabViews.size
+        val targetX = index * tabWidth
+        val lp = dropletPill.layoutParams
+        if (lp.width != tabWidth.toInt()) {
+            lp.width = tabWidth.toInt()
+            dropletPill.layoutParams = lp
+        }
+
+        if (!animate) {
+            dropletPill.translationX = targetX
+            return
+        }
+
+        dropletSpringX?.cancel()
+        val holderX = FloatValueHolder(dropletPill.translationX)
+        dropletSpringX = SpringAnimation(holderX, targetX).apply {
+            spring = SpringForce(targetX).apply {
+                dampingRatio = SpringForce.DAMPING_RATIO_LOW_BOUNCY
+                stiffness = SpringForce.STIFFNESS_LOW
+            }
+            addUpdateListener { _, value, _ ->
+                dropletPill.translationX = value
+            }
+            start()
+        }
+
+        dropletSpringScale?.cancel()
+        val holderS = FloatValueHolder(116f)
+        dropletSpringScale = SpringAnimation(holderS, 100f).apply {
+            spring = SpringForce(100f).apply {
+                dampingRatio = SpringForce.DAMPING_RATIO_MEDIUM_BOUNCY
+                stiffness = SpringForce.STIFFNESS_MEDIUM
+            }
+            addUpdateListener { _, value, _ ->
+                val s = value / 100f
+                dropletPill.scaleX = s
+                dropletPill.scaleY = 2.0f - s
+            }
+            start()
+        }
+    }
+
+    override fun onDetachedFromWindow() {
+        dockContainer.stopAmbientRefraction()
+        dropletSpringX?.cancel()
+        dropletSpringScale?.cancel()
+        super.onDetachedFromWindow()
+    }
+}
+""",
+
+    # --------------------------------------------------------------------------
+    # 13. CUSTOM VIEWS: SIRI EDGE GLOW AURA & 60 FPS VOICE WAVEFORM
+    # --------------------------------------------------------------------------
+    "app/src/main/java/com/example/floatinggeminiai/ui/OverlayEffectsViews.kt": r"""package com.example.floatinggeminiai.ui
+
+import android.animation.ValueAnimator
+import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Matrix
@@ -1695,78 +1874,57 @@ import android.graphics.SweepGradient
 import android.util.AttributeSet
 import android.view.View
 import android.view.animation.LinearInterpolator
+import kotlin.math.sin
 
 class SiriEdgeGlowView @JvmOverloads constructor(
     context: Context,
     attrs: AttributeSet? = null
 ) : View(context, attrs) {
 
-    private val gradientColors = intArrayOf(
+    private var rotationAngle = 0f
+    private var glowIntensity = 0f
+    private var animator: ValueAnimator? = null
+    private val shaderMatrix = Matrix()
+    private var sweepShader: SweepGradient? = null
+
+    private val outerGlowPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE }
+    private val innerRimPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE }
+    private val outerRect = RectF()
+    private val innerRect = RectF()
+
+    private val siriColors = intArrayOf(
         Color.parseColor("#38BDF8"),
         Color.parseColor("#818CF8"),
         Color.parseColor("#E879F9"),
-        Color.parseColor("#F472B6"),
-        Color.parseColor("#22D3EE"),
+        Color.parseColor("#FB7185"),
+        Color.parseColor("#34D399"),
         Color.parseColor("#38BDF8")
     )
-
-    private val glowPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        style = Paint.Style.STROKE
-        strokeWidth = 28f * resources.displayMetrics.density
-        maskFilter = BlurMaskFilter(24f * resources.displayMetrics.density, BlurMaskFilter.Blur.NORMAL)
-    }
-
-    private val coreRimPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        style = Paint.Style.STROKE
-        strokeWidth = 4.5f * resources.displayMetrics.density
-    }
-
-    private var sweepGradient: SweepGradient? = null
-    private val shaderMatrix = Matrix()
-    private val screenRect = RectF()
-    private var currentAngle = 0f
-    private var pulseScale = 1f
-    private var rotationAnimator: ValueAnimator? = null
-
-    init {
-        setLayerType(LAYER_TYPE_SOFTWARE, null)
-    }
 
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
         super.onSizeChanged(w, h, oldw, oldh)
         if (w > 0 && h > 0) {
-            sweepGradient = SweepGradient(w / 2f, h / 2f, gradientColors, null)
-            glowPaint.shader = sweepGradient
-            coreRimPaint.shader = sweepGradient
-            val inset = 4f * resources.displayMetrics.density
-            screenRect.set(inset, inset, w - inset, h - inset)
+            sweepShader = SweepGradient(w / 2f, h / 2f, siriColors, null)
+            outerGlowPaint.shader = sweepShader
+            innerRimPaint.shader = sweepShader
+            val d = resources.displayMetrics.density
+            outerGlowPaint.strokeWidth = 22f * d
+            innerRimPaint.strokeWidth = 5f * d
+            outerRect.set(11f * d, 11f * d, w - 11f * d, h - 11f * d)
+            innerRect.set(3f * d, 3f * d, w - 3f * d, h - 3f * d)
         }
     }
 
-    override fun onDraw(canvas: Canvas) {
-        super.onDraw(canvas)
-        val gradient = sweepGradient ?: return
-        shaderMatrix.setRotate(currentAngle, width / 2f, height / 2f)
-        gradient.setLocalMatrix(shaderMatrix)
-
-        val baseStroke = 24f * resources.displayMetrics.density
-        glowPaint.strokeWidth = baseStroke * pulseScale
-
-        val cornerRadius = 38f * resources.displayMetrics.density
-        canvas.drawRoundRect(screenRect, cornerRadius, cornerRadius, glowPaint)
-        canvas.drawRoundRect(screenRect, cornerRadius, cornerRadius, coreRimPaint)
-    }
-
     fun startSiriAnimation() {
-        if (rotationAnimator?.isRunning == true) return
-        rotationAnimator = ValueAnimator.ofFloat(0f, 360f).apply {
+        animate().alpha(1f).setDuration(240L).start()
+        if (animator?.isRunning == true) return
+        animator = ValueAnimator.ofFloat(0f, 360f).apply {
             duration = 2800L
             repeatCount = ValueAnimator.INFINITE
             interpolator = LinearInterpolator()
-            addUpdateListener { anim ->
-                currentAngle = anim.animatedValue as Float
-                val rad = Math.toRadians(currentAngle.toDouble() * 2.0)
-                pulseScale = 0.88f + (0.24f * ((Math.sin(rad).toFloat() + 1f) / 2f))
+            addUpdateListener {
+                rotationAngle = it.animatedValue as Float
+                glowIntensity = 0.78f + 0.22f * sin(Math.toRadians(rotationAngle * 2.0)).toFloat()
                 invalidate()
             }
             start()
@@ -1774,128 +1932,2090 @@ class SiriEdgeGlowView @JvmOverloads constructor(
     }
 
     fun stopAndFreezeAnimation() {
-        rotationAnimator?.cancel()
-        rotationAnimator = null
+        animator?.cancel()
+        animator = null
+        alpha = 0f
     }
 
-    override fun onDetachedFromWindow() {
-        stopAndFreezeAnimation()
-        super.onDetachedFromWindow()
+    override fun onDraw(canvas: Canvas) {
+        super.onDraw(canvas)
+        val shader = sweepShader ?: return
+        shaderMatrix.setRotate(rotationAngle, width / 2f, height / 2f)
+        shader.setLocalMatrix(shaderMatrix)
+        val corner = 38f * resources.displayMetrics.density
+        outerGlowPaint.alpha = (95 * glowIntensity).toInt().coerceIn(30, 140)
+        innerRimPaint.alpha = (230 * glowIntensity).toInt().coerceIn(120, 255)
+        canvas.drawRoundRect(outerRect, corner, corner, outerGlowPaint)
+        canvas.drawRoundRect(innerRect, corner, corner, innerRimPaint)
     }
 }
-""",
-
-    "app/src/main/java/com/example/floatinggeminiai/ui/VoiceWaveformView.kt": r"""package com.example.floatinggeminiai.ui
-
-import android.animation.ValueAnimator
-import android.content.Context
-import android.graphics.Canvas
-import android.graphics.Color
-import android.graphics.LinearGradient
-import android.graphics.Paint
-import android.graphics.RectF
-import android.graphics.Shader
-import android.util.AttributeSet
-import android.view.View
-import android.view.animation.LinearInterpolator
-import kotlin.math.sin
 
 class VoiceWaveformView @JvmOverloads constructor(
     context: Context,
     attrs: AttributeSet? = null
 ) : View(context, attrs) {
 
-    private val barCount = 18
-    private val barRect = RectF()
-    private val barPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        style = Paint.Style.FILL
-    }
+    private var amplitude = 0.1f
     private var phase = 0f
-    private var targetAmplitude = 0.15f
-    private var currentAmplitude = 0.15f
-    private var animator: ValueAnimator? = null
+    private val barPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.parseColor("#38BDF8")
+        strokeCap = Paint.Cap.ROUND
+    }
+    private val barRect = RectF()
 
-    override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
-        super.onSizeChanged(w, h, oldw, oldh)
-        if (w > 0 && h > 0) {
-            barPaint.shader = LinearGradient(
-                0f, 0f, w.toFloat(), 0f,
-                intArrayOf(
-                    Color.parseColor("#38BDF8"),
-                    Color.parseColor("#818CF8"),
-                    Color.parseColor("#E879F9")
-                ),
-                null,
-                Shader.TileMode.CLAMP
-            )
-        }
+    fun setAmplitude(amp: Float) {
+        amplitude = amp.coerceIn(0.08f, 1.0f)
+        phase += 0.35f
+        invalidate()
     }
 
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
         if (width <= 0 || height <= 0) return
+        val bars = 18
+        val step = width.toFloat() / bars
+        val barWidth = step * 0.45f
+        val cy = height / 2f
 
-        currentAmplitude += (targetAmplitude - currentAmplitude) * 0.28f
-        val spacing = width.toFloat() / (barCount * 2f)
-        val barWidth = spacing.coerceAtLeast(3f * resources.displayMetrics.density)
-        val centerY = height / 2f
-        val maxHalfH = height * 0.44f
-        val minHalfH = 3f * resources.displayMetrics.density
-
-        for (i in 0 until barCount) {
-            val normPos = i.toFloat() / (barCount - 1)
-            val envelope = sin(normPos * Math.PI).toFloat()
-            val wave = (sin((phase + i * 0.65f).toDouble()).toFloat() + 1f) / 2f
-            val halfH = minHalfH + (maxHalfH * envelope * currentAmplitude * (0.35f + 0.65f * wave))
-
-            val left = (i * 2f + 0.5f) * spacing
-            barRect.set(left, centerY - halfH, left + barWidth, centerY + halfH)
+        for (i in 0 until bars) {
+            val wave = sin(phase + i * 0.55f).toFloat()
+            val dynamicFactor = (0.35f + 0.65f * ((wave + 1f) / 2f)) * amplitude
+            val halfH = (height * 0.44f * dynamicFactor).coerceAtLeast(3f * resources.displayMetrics.density)
+            val cx = i * step + step / 2f
+            barRect.set(cx - barWidth / 2f, cy - halfH, cx + barWidth / 2f, cy + halfH)
             canvas.drawRoundRect(barRect, barWidth / 2f, barWidth / 2f, barPaint)
         }
-    }
-
-    fun setAmplitude(amp: Float) {
-        targetAmplitude = amp.coerceIn(0.1f, 1.0f)
-    }
-
-    fun startAnimation() {
-        if (animator?.isRunning == true) return
-        animator = ValueAnimator.ofFloat(0f, (Math.PI * 20).toFloat()).apply {
-            duration = 12000L
-            repeatCount = ValueAnimator.INFINITE
-            interpolator = LinearInterpolator()
-            addUpdateListener {
-                phase = it.animatedValue as Float
-                invalidate()
-            }
-            start()
-        }
-    }
-
-    fun stopAnimation() {
-        animator?.cancel()
-        animator = null
-        targetAmplitude = 0.12f
-        invalidate()
-    }
-
-    override fun onDetachedFromWindow() {
-        stopAnimation()
-        super.onDetachedFromWindow()
     }
 }
 """,
 
     # --------------------------------------------------------------------------
-    # 13. PROXY & TRIGGER ACTIVITIES (CONTROL CENTER, FILE PICKER, AUDIO, EXTERNAL)
+    # 14. LAYOUTS: MAIN ACTIVITY (KYANT0 LIQUID GLASS UI + FLOATING NAVBAR)
     # --------------------------------------------------------------------------
+    "app/src/main/res/layout/activity_main.xml": r"""<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/mainRootFrame"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#050811">
+
+    <!-- AMBIENT AURORA BACKDROP FOR LIQUID GLASS REFRACTION -->
+    <View
+        android:layout_width="290dp"
+        android:layout_height="290dp"
+        android:layout_gravity="top|start"
+        android:layout_marginStart="-70dp"
+        android:layout_marginTop="-40dp"
+        android:alpha="0.32"
+        android:background="@drawable/bg_ambient_orb_cyan" />
+
+    <View
+        android:layout_width="320dp"
+        android:layout_height="320dp"
+        android:layout_gravity="bottom|end"
+        android:layout_marginEnd="-80dp"
+        android:layout_marginBottom="40dp"
+        android:alpha="0.26"
+        android:background="@drawable/bg_ambient_orb_purple" />
+
+    <!-- SCROLLABLE CONTENT PAGES -->
+    <ScrollView
+        android:id="@+id/mainScrollView"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:fillViewport="true"
+        android:clipToPadding="false"
+        android:paddingTop="40dp"
+        android:paddingBottom="108dp"
+        android:paddingHorizontal="16dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <!-- TOP HEADER BAR -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginBottom="16dp">
+
+                <com.example.floatinggeminiai.ui.LiquidGlassFrameLayout
+                    android:id="@+id/glassHeaderBadge"
+                    android:layout_width="46dp"
+                    android:layout_height="46dp">
+
+                    <ImageView
+                        android:layout_width="24dp"
+                        android:layout_height="24dp"
+                        android:layout_gravity="center"
+                        android:src="@drawable/ic_sparkle"
+                        app:tint="#38BDF8" />
+                </com.example.floatinggeminiai.ui.LiquidGlassFrameLayout>
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_marginStart="12dp"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:id="@+id/tvMainTitle"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Floamini OS"
+                        android:textSize="24sp"
+                        android:textStyle="bold"
+                        android:textColor="#F8FAFC" />
+
+                    <TextView
+                        android:id="@+id/tvMainSubtitle"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Kyant0 Liquid Glass • Multi-AI Overlay"
+                        android:textSize="12sp"
+                        android:textColor="#94A3B8" />
+                </LinearLayout>
+
+                <Button
+                    android:id="@+id/btnOpenWelcome"
+                    android:layout_width="wrap_content"
+                    android:layout_height="38dp"
+                    android:text="Panduan"
+                    android:textAllCaps="false"
+                    android:textSize="12sp"
+                    android:textColor="#38BDF8"
+                    android:background="@drawable/bg_chip_glass" />
+            </LinearLayout>
+
+            <!-- ============================================================== -->
+            <!-- TAB 0: BERANDA (CONTROL HUB) -->
+            <!-- ============================================================== -->
+            <LinearLayout
+                android:id="@+id/pageHome"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical">
+
+                <!-- LIQUID GLASS STATUS & LAUNCHER CARD -->
+                <com.example.floatinggeminiai.ui.LiquidGlassFrameLayout
+                    android:id="@+id/glassCardHero"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="14dp">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="18dp">
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal"
+                            android:gravity="center_vertical"
+                            android:layout_marginBottom="12dp">
+
+                            <TextView
+                                android:id="@+id/tvActiveEngineSummary"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:text="Engine: Google Gemini (gemini-2.5-flash)"
+                                android:textSize="13sp"
+                                android:textStyle="bold"
+                                android:textColor="#E2E8F0" />
+
+                            <TextView
+                                android:id="@+id/tvPermissionBadge"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Overlay: Cek"
+                                android:textSize="11sp"
+                                android:textStyle="bold"
+                                android:textColor="#38BDF8"
+                                android:paddingHorizontal="10dp"
+                                android:paddingVertical="4dp"
+                                android:background="@drawable/bg_chip_glass" />
+                        </LinearLayout>
+
+                        <Button
+                            android:id="@+id/btnGrantOverlay"
+                            android:layout_width="match_parent"
+                            android:layout_height="44dp"
+                            android:text="1. Beri Izin Tampil di Atas Aplikasi Lain"
+                            android:textAllCaps="false"
+                            android:textColor="#F8FAFC"
+                            android:backgroundTint="#1E293B"
+                            android:layout_marginBottom="8dp" />
+
+                        <Button
+                            android:id="@+id/btnStartService"
+                            android:layout_width="match_parent"
+                            android:layout_height="48dp"
+                            android:text="2. Aktifkan Floamini Liquid Overlay"
+                            android:textAllCaps="false"
+                            android:textStyle="bold"
+                            android:textColor="#020617"
+                            android:backgroundTint="#38BDF8"
+                            android:layout_marginBottom="8dp" />
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal">
+
+                            <Button
+                                android:id="@+id/btnSummonSiriNow"
+                                android:layout_width="0dp"
+                                android:layout_height="42dp"
+                                android:layout_weight="1"
+                                android:layout_marginEnd="6dp"
+                                android:text="Panggil Siri Aura"
+                                android:textAllCaps="false"
+                                android:textSize="12sp"
+                                android:textColor="#E879F9"
+                                android:background="@drawable/bg_chip_glass" />
+
+                            <Button
+                                android:id="@+id/btnForceStopService"
+                                android:layout_width="0dp"
+                                android:layout_height="42dp"
+                                android:layout_weight="1"
+                                android:layout_marginStart="6dp"
+                                android:text="Quick Force Stop"
+                                android:textAllCaps="false"
+                                android:textSize="12sp"
+                                android:textColor="#FCA5A5"
+                                android:background="@drawable/bg_chip_glass" />
+                        </LinearLayout>
+                    </LinearLayout>
+                </com.example.floatinggeminiai.ui.LiquidGlassFrameLayout>
+
+                <!-- LIQUID GLASS USAGE & TELEMETRY CARD -->
+                <com.example.floatinggeminiai.ui.LiquidGlassFrameLayout
+                    android:id="@+id/glassCardStats"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="14dp">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="18dp">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="STATISTIK PENGGUNAAN &amp; PRIVASI"
+                            android:textSize="11sp"
+                            android:textStyle="bold"
+                            android:textColor="#38BDF8"
+                            android:layout_marginBottom="6dp" />
+
+                        <TextView
+                            android:id="@+id/tvUsageStats"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="Total Permintaan: 0 kali"
+                            android:textSize="13sp"
+                            android:textColor="#CBD5E1"
+                            android:layout_marginBottom="10dp" />
+
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="Semua API Key dienkripsi lokal dengan AES256-GCM. Layar &amp; clipboard tidak pernah dibaca tanpa ketukan Anda."
+                            android:textSize="11.5sp"
+                            android:textColor="#94A3B8" />
+                    </LinearLayout>
+                </com.example.floatinggeminiai.ui.LiquidGlassFrameLayout>
+            </LinearLayout>
+
+            <!-- ============================================================== -->
+            <!-- TAB 1: AI & KEYS (MULTI-PROVIDER VAULT) -->
+            <!-- ============================================================== -->
+            <LinearLayout
+                android:id="@+id/pageAiProviders"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:visibility="gone">
+
+                <com.example.floatinggeminiai.ui.LiquidGlassFrameLayout
+                    android:id="@+id/glassCardProvider"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="14dp">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="18dp">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="MULTI-AI PROVIDER &amp; ENCRYPTED VAULT"
+                            android:textSize="11sp"
+                            android:textStyle="bold"
+                            android:textColor="#38BDF8"
+                            android:layout_marginBottom="10dp" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Pilih Provider AI (11 Engine Didukung)"
+                            android:textSize="12sp"
+                            android:textColor="#94A3B8"
+                            android:layout_marginBottom="4dp" />
+
+                        <Spinner
+                            android:id="@+id/spinnerProvider"
+                            android:layout_width="match_parent"
+                            android:layout_height="44dp"
+                            android:background="@drawable/bg_input_glass"
+                            android:paddingHorizontal="12dp"
+                            android:layout_marginBottom="10dp" />
+
+                        <TextView
+                            android:id="@+id/tvProviderKeyStatus"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="Status Vault: Belum diisi"
+                            android:textSize="12sp"
+                            android:textColor="#38BDF8"
+                            android:layout_marginBottom="6dp" />
+
+                        <EditText
+                            android:id="@+id/etProviderApiKey"
+                            android:layout_width="match_parent"
+                            android:layout_height="46dp"
+                            android:hint="Tempel API Key Provider terpilih..."
+                            android:textColor="#F8FAFC"
+                            android:textColorHint="#64748B"
+                            android:textSize="13sp"
+                            android:inputType="textPassword"
+                            android:paddingHorizontal="14dp"
+                            android:background="@drawable/bg_input_glass"
+                            android:layout_marginBottom="8dp" />
+
+                        <LinearLayout
+                            android:id="@+id/layoutCustomEndpoint"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical"
+                            android:visibility="gone"
+                            android:layout_marginBottom="8dp">
+
+                            <EditText
+                                android:id="@+id/etCustomBaseUrl"
+                                android:layout_width="match_parent"
+                                android:layout_height="44dp"
+                                android:hint="Custom Base URL (mis. https://api.openai.com/v1)"
+                                android:textColor="#F8FAFC"
+                                android:textColorHint="#64748B"
+                                android:textSize="12.5sp"
+                                android:paddingHorizontal="12dp"
+                                android:background="@drawable/bg_input_glass"
+                                android:layout_marginBottom="6dp" />
+
+                            <EditText
+                                android:id="@+id/etCustomModelId"
+                                android:layout_width="match_parent"
+                                android:layout_height="44dp"
+                                android:hint="Custom Model ID (mis. gpt-4o-mini)"
+                                android:textColor="#F8FAFC"
+                                android:textColorHint="#64748B"
+                                android:textSize="12.5sp"
+                                android:paddingHorizontal="12dp"
+                                android:background="@drawable/bg_input_glass" />
+                        </LinearLayout>
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal"
+                            android:layout_marginBottom="10dp">
+
+                            <Button
+                                android:id="@+id/btnSaveProviderKey"
+                                android:layout_width="0dp"
+                                android:layout_height="42dp"
+                                android:layout_weight="1"
+                                android:layout_marginEnd="6dp"
+                                android:text="Simpan ke Vault"
+                                android:textAllCaps="false"
+                                android:textSize="12sp"
+                                android:textStyle="bold"
+                                android:textColor="#020617"
+                                android:backgroundTint="#38BDF8" />
+
+                            <Button
+                                android:id="@+id/btnTestProviderConnection"
+                                android:layout_width="0dp"
+                                android:layout_height="42dp"
+                                android:layout_weight="1"
+                                android:layout_marginStart="6dp"
+                                android:text="Tes Koneksi"
+                                android:textAllCaps="false"
+                                android:textSize="12sp"
+                                android:textColor="#F8FAFC"
+                                android:background="@drawable/bg_chip_glass" />
+                        </LinearLayout>
+
+                        <TextView
+                            android:id="@+id/tvTestConnectionResult"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text=""
+                            android:textSize="12sp"
+                            android:textColor="#34D399"
+                            android:visibility="gone"
+                            android:layout_marginBottom="8dp" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Model Aktif"
+                            android:textSize="12sp"
+                            android:textColor="#94A3B8"
+                            android:layout_marginBottom="4dp" />
+
+                        <Spinner
+                            android:id="@+id/spinnerModel"
+                            android:layout_width="match_parent"
+                            android:layout_height="44dp"
+                            android:background="@drawable/bg_input_glass"
+                            android:paddingHorizontal="12dp"
+                            android:layout_marginBottom="10dp" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Kepribadian &amp; Gaya Bicara AI"
+                            android:textSize="12sp"
+                            android:textColor="#94A3B8"
+                            android:layout_marginBottom="4dp" />
+
+                        <Spinner
+                            android:id="@+id/spinnerPersonality"
+                            android:layout_width="match_parent"
+                            android:layout_height="44dp"
+                            android:background="@drawable/bg_input_glass"
+                            android:paddingHorizontal="12dp"
+                            android:layout_marginBottom="10dp" />
+
+                        <EditText
+                            android:id="@+id/etCustomPersona"
+                            android:layout_width="match_parent"
+                            android:layout_height="68dp"
+                            android:hint="Instruksi sistem tambahan (opsional)..."
+                            android:textColor="#F8FAFC"
+                            android:textColorHint="#64748B"
+                            android:textSize="12.5sp"
+                            android:gravity="top"
+                            android:padding="12dp"
+                            android:background="@drawable/bg_input_glass" />
+                    </LinearLayout>
+                </com.example.floatinggeminiai.ui.LiquidGlassFrameLayout>
+            </LinearLayout>
+
+            <!-- ============================================================== -->
+            <!-- TAB 2: OVERLAY & LIQUID GLASS STUDIO -->
+            <!-- ============================================================== -->
+            <LinearLayout
+                android:id="@+id/pageOverlayGlass"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:visibility="gone">
+
+                <com.example.floatinggeminiai.ui.LiquidGlassFrameLayout
+                    android:id="@+id/glassCardOverlay"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="14dp">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="18dp">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="DYNAMIC ISLAND, SIRI &amp; KYANT0 LIQUID GLASS"
+                            android:textSize="11sp"
+                            android:textStyle="bold"
+                            android:textColor="#38BDF8"
+                            android:layout_marginBottom="10dp" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Mode Pemicu Overlay"
+                            android:textSize="12sp"
+                            android:textColor="#94A3B8"
+                            android:layout_marginBottom="4dp" />
+
+                        <Spinner
+                            android:id="@+id/spinnerOverlayStyle"
+                            android:layout_width="match_parent"
+                            android:layout_height="44dp"
+                            android:background="@drawable/bg_input_glass"
+                            android:paddingHorizontal="12dp"
+                            android:layout_marginBottom="10dp" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Tampilan Pil Dynamic Island"
+                            android:textSize="12sp"
+                            android:textColor="#94A3B8"
+                            android:layout_marginBottom="4dp" />
+
+                        <Spinner
+                            android:id="@+id/spinnerPillAppearance"
+                            android:layout_width="match_parent"
+                            android:layout_height="44dp"
+                            android:background="@drawable/bg_input_glass"
+                            android:paddingHorizontal="12dp"
+                            android:layout_marginBottom="10dp" />
+
+                        <Switch
+                            android:id="@+id/switchAutoHidePill"
+                            android:layout_width="match_parent"
+                            android:layout_height="42dp"
+                            android:text="Auto-Hide Pil Setelah 3 Detik Diam"
+                            android:textColor="#E2E8F0"
+                            android:textSize="13sp" />
+
+                        <Switch
+                            android:id="@+id/switchSmartFreeze"
+                            android:layout_width="match_parent"
+                            android:layout_height="42dp"
+                            android:text="Auto Smart Freeze (Hemat RAM &amp; Baterai)"
+                            android:textColor="#E2E8F0"
+                            android:textSize="13sp"
+                            android:checked="true" />
+
+                        <Switch
+                            android:id="@+id/switchLiquidBlur"
+                            android:layout_width="match_parent"
+                            android:layout_height="42dp"
+                            android:text="Real Window Blur &amp; Chromatic Dispersion"
+                            android:textColor="#E2E8F0"
+                            android:textSize="13sp"
+                            android:checked="true" />
+
+                        <TextView
+                            android:id="@+id/tvIslandWidthLabel"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Lebar Pil Dynamic Island: 164dp"
+                            android:textSize="12sp"
+                            android:textColor="#94A3B8"
+                            android:layout_marginTop="8dp" />
+
+                        <SeekBar
+                            android:id="@+id/seekIslandWidth"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:max="180"
+                            android:progress="64" />
+
+                        <TextView
+                            android:id="@+id/tvIslandYLabel"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Posisi Vertikal Atas (Y): 12dp"
+                            android:textSize="12sp"
+                            android:textColor="#94A3B8"
+                            android:layout_marginTop="6dp" />
+
+                        <SeekBar
+                            android:id="@+id/seekIslandY"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:max="120"
+                            android:progress="12" />
+
+                        <TextView
+                            android:id="@+id/tvIslandXLabel"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Geser Horizontal Kamera (X): 0dp"
+                            android:textSize="12sp"
+                            android:textColor="#94A3B8"
+                            android:layout_marginTop="6dp" />
+
+                        <SeekBar
+                            android:id="@+id/seekIslandX"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:max="240"
+                            android:progress="120" />
+
+                        <TextView
+                            android:id="@+id/tvOpacityLabel"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Transparansi Jendela Glass: 92%"
+                            android:textSize="12sp"
+                            android:textColor="#94A3B8"
+                            android:layout_marginTop="6dp" />
+
+                        <SeekBar
+                            android:id="@+id/seekPopupOpacity"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:max="45"
+                            android:progress="37" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Tema Adaptif UI"
+                            android:textSize="12sp"
+                            android:textColor="#94A3B8"
+                            android:layout_marginTop="8dp"
+                            android:layout_marginBottom="4dp" />
+
+                        <Spinner
+                            android:id="@+id/spinnerThemeMode"
+                            android:layout_width="match_parent"
+                            android:layout_height="44dp"
+                            android:background="@drawable/bg_input_glass"
+                            android:paddingHorizontal="12dp"
+                            android:layout_marginBottom="10dp" />
+
+                        <Button
+                            android:id="@+id/btnAddControlCenterTile"
+                            android:layout_width="match_parent"
+                            android:layout_height="44dp"
+                            android:text="Tambah Tombol Siri ke Control Center"
+                            android:textAllCaps="false"
+                            android:textSize="12.5sp"
+                            android:textColor="#38BDF8"
+                            android:background="@drawable/bg_chip_glass" />
+                    </LinearLayout>
+                </com.example.floatinggeminiai.ui.LiquidGlassFrameLayout>
+            </LinearLayout>
+
+            <!-- ============================================================== -->
+            <!-- TAB 3: TOOLS & DATA -->
+            <!-- ============================================================== -->
+            <LinearLayout
+                android:id="@+id/pageToolsData"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:visibility="gone">
+
+                <com.example.floatinggeminiai.ui.LiquidGlassFrameLayout
+                    android:id="@+id/glassCardTools"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="14dp">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="18dp">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="QUICK NOTES &amp; PROMPT LIBRARY"
+                            android:textSize="11sp"
+                            android:textStyle="bold"
+                            android:textColor="#38BDF8"
+                            android:layout_marginBottom="8dp" />
+
+                        <EditText
+                            android:id="@+id/etMainQuickNotes"
+                            android:layout_width="match_parent"
+                            android:layout_height="110dp"
+                            android:hint="Tulis catatan cepat yang juga bisa diakses dari jendela melayang..."
+                            android:textColor="#F8FAFC"
+                            android:textColorHint="#64748B"
+                            android:textSize="13sp"
+                            android:gravity="top"
+                            android:padding="12dp"
+                            android:background="@drawable/bg_input_glass"
+                            android:layout_marginBottom="10dp" />
+
+                        <Button
+                            android:id="@+id/btnSaveQuickNotes"
+                            android:layout_width="match_parent"
+                            android:layout_height="42dp"
+                            android:text="Simpan Catatan Cepat"
+                            android:textAllCaps="false"
+                            android:textSize="12.5sp"
+                            android:textColor="#020617"
+                            android:backgroundTint="#38BDF8"
+                            android:layout_marginBottom="12dp" />
+
+                        <Button
+                            android:id="@+id/btnClearAllHistory"
+                            android:layout_width="match_parent"
+                            android:layout_height="42dp"
+                            android:text="Hapus Semua Riwayat Percakapan"
+                            android:textAllCaps="false"
+                            android:textSize="12.5sp"
+                            android:textColor="#FCA5A5"
+                            android:background="@drawable/bg_chip_glass" />
+                    </LinearLayout>
+                </com.example.floatinggeminiai.ui.LiquidGlassFrameLayout>
+            </LinearLayout>
+
+        </LinearLayout>
+    </ScrollView>
+
+    <!-- KYANT0 FLOATING LIQUID GLASS BOTTOM NAVBAR -->
+    <com.example.floatinggeminiai.ui.LiquidGlassBottomNavBar
+        android:id="@+id/liquidBottomNavBar"
+        android:layout_width="match_parent"
+        android:layout_height="72dp"
+        android:layout_gravity="bottom"
+        android:layout_marginHorizontal="16dp"
+        android:layout_marginBottom="16dp"
+        android:elevation="20dp" />
+
+</FrameLayout>
+""",
+
+    # --------------------------------------------------------------------------
+    # 15. LAYOUTS: WELCOME ACTIVITY (FIRST WELCOME + API GUIDE)
+    # --------------------------------------------------------------------------
+    "app/src/main/res/layout/activity_welcome.xml": r"""<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#050811"
+    android:fillViewport="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="20dp">
+
+        <com.example.floatinggeminiai.ui.LiquidGlassFrameLayout
+            android:id="@+id/glassWelcomeHero"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            android:layout_marginBottom="16dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="20dp">
+
+                <ImageView
+                    android:layout_width="36dp"
+                    android:layout_height="36dp"
+                    android:src="@drawable/ic_sparkle"
+                    app:tint="#38BDF8"
+                    android:layout_marginBottom="10dp" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Selamat Datang di Floamini"
+                    android:textSize="22sp"
+                    android:textStyle="bold"
+                    android:textColor="#F8FAFC" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:text="Asisten AI melayang dengan Kyant0 Liquid Glass, Dynamic Island, Siri Mode, dan 11 AI Provider langsung di atas aplikasi apa pun."
+                    android:textSize="13sp"
+                    android:textColor="#CBD5E1" />
+            </LinearLayout>
+        </com.example.floatinggeminiai.ui.LiquidGlassFrameLayout>
+
+        <com.example.floatinggeminiai.ui.LiquidGlassFrameLayout
+            android:id="@+id/glassWelcomeGuide"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="20dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="CARA MENDAPATKAN GEMINI API KEY GRATIS"
+                    android:textSize="11sp"
+                    android:textStyle="bold"
+                    android:textColor="#38BDF8"
+                    android:layout_marginBottom="8dp" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="1. Ketuk tombol Buka Google AI Studio di bawah.\n2. Masuk dengan akun Google Anda, lalu pilih Create API key.\n3. Salin kunci (diawali AIzaSy...) dan tempelkan di kolom bawah ini."
+                    android:textSize="12.5sp"
+                    android:textColor="#E2E8F0"
+                    android:layout_marginBottom="12dp" />
+
+                <Button
+                    android:id="@+id/btnOpenAiStudio"
+                    android:layout_width="match_parent"
+                    android:layout_height="42dp"
+                    android:text="Buka Google AI Studio (aistudio.google.com)"
+                    android:textAllCaps="false"
+                    android:textSize="12.5sp"
+                    android:textColor="#38BDF8"
+                    android:background="@drawable/bg_chip_glass"
+                    android:layout_marginBottom="10dp" />
+
+                <EditText
+                    android:id="@+id/etWelcomeGeminiKey"
+                    android:layout_width="match_parent"
+                    android:layout_height="46dp"
+                    android:hint="Tempel Gemini API Key (AIzaSy...)..."
+                    android:textColor="#F8FAFC"
+                    android:textColorHint="#64748B"
+                    android:textSize="13sp"
+                    android:paddingHorizontal="14dp"
+                    android:background="@drawable/bg_input_glass"
+                    android:layout_marginBottom="10dp" />
+
+                <Button
+                    android:id="@+id/btnWelcomeSaveAndTest"
+                    android:layout_width="match_parent"
+                    android:layout_height="44dp"
+                    android:text="Simpan &amp; Tes Koneksi Token"
+                    android:textAllCaps="false"
+                    android:textSize="13sp"
+                    android:textStyle="bold"
+                    android:textColor="#020617"
+                    android:backgroundTint="#38BDF8" />
+
+                <TextView
+                    android:id="@+id/tvWelcomeTestStatus"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:text=""
+                    android:textSize="12sp"
+                    android:textColor="#34D399"
+                    android:visibility="gone" />
+            </LinearLayout>
+        </com.example.floatinggeminiai.ui.LiquidGlassFrameLayout>
+
+        <Button
+            android:id="@+id/btnWelcomeFinish"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:text="Mulai Gunakan Floamini"
+            android:textAllCaps="false"
+            android:textStyle="bold"
+            android:textColor="#F8FAFC"
+            android:background="@drawable/bg_chip_glass" />
+
+    </LinearLayout>
+</ScrollView>
+""",
+
+    # --------------------------------------------------------------------------
+    # 16. LAYOUTS: FLOATING OVERLAY (DYNAMIC ISLAND + LIQUID GLASS CHAT)
+    # --------------------------------------------------------------------------
+    "app/src/main/res/layout/layout_floating_assistant.xml": r"""<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/floatingRootContainer"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content">
+
+    <!-- 1A. DYNAMIC ISLAND PILL (KYANT0 CLEAR LIQUID GLASS) -->
+    <com.example.floatinggeminiai.ui.LiquidGlassFrameLayout
+        android:id="@+id/dynamicIslandGlassHost"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:elevation="16dp">
+
+        <LinearLayout
+            android:id="@+id/dynamicIslandView"
+            android:layout_width="164dp"
+            android:layout_height="34dp"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:paddingHorizontal="12dp">
+
+            <ImageView
+                android:id="@+id/ivIslandSparkle"
+                android:layout_width="15dp"
+                android:layout_height="15dp"
+                android:src="@drawable/ic_sparkle"
+                app:tint="#38BDF8" />
+
+            <TextView
+                android:id="@+id/tvIslandLabel"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:text="Floamini"
+                android:textSize="11.5sp"
+                android:textStyle="bold"
+                android:textColor="#F8FAFC"
+                android:singleLine="true" />
+
+            <View
+                android:id="@+id/viewIslandPulseDot"
+                android:layout_width="7dp"
+                android:layout_height="7dp"
+                android:background="@drawable/bg_island_pulse_dot" />
+        </LinearLayout>
+    </com.example.floatinggeminiai.ui.LiquidGlassFrameLayout>
+
+    <!-- 1B. CLASSIC FLOATING BUBBLE -->
+    <FrameLayout
+        android:id="@+id/bubbleView"
+        android:layout_width="54dp"
+        android:layout_height="54dp"
+        android:background="@drawable/bg_bubble_classic"
+        android:elevation="14dp"
+        android:visibility="gone">
+
+        <ImageView
+            android:layout_width="26dp"
+            android:layout_height="26dp"
+            android:layout_gravity="center"
+            android:src="@drawable/ic_sparkle"
+            app:tint="#38BDF8" />
+    </FrameLayout>
+
+    <!-- 1C. XIAOMI EDGE SIDEBAR PILL -->
+    <FrameLayout
+        android:id="@+id/xiaomiEdgeView"
+        android:layout_width="16dp"
+        android:layout_height="54dp"
+        android:background="@drawable/bg_xiaomi_edge"
+        android:elevation="14dp"
+        android:visibility="gone" />
+
+    <!-- 2. JENDELA CHAT GENUINE LIQUID GLASS (KYANT0 AGSL SHADER CONTAINER) -->
+    <com.example.floatinggeminiai.ui.LiquidGlassFrameLayout
+        android:id="@+id/popupChatView"
+        android:layout_width="352dp"
+        android:layout_height="500dp"
+        android:elevation="22dp"
+        android:visibility="gone">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:orientation="vertical">
+
+            <!-- TOP HEADER BAR -->
+            <LinearLayout
+                android:id="@+id/glassTitleBar"
+                android:layout_width="match_parent"
+                android:layout_height="44dp"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:paddingHorizontal="12dp">
+
+                <ImageView
+                    android:layout_width="17dp"
+                    android:layout_height="17dp"
+                    android:src="@drawable/ic_sparkle"
+                    app:tint="#38BDF8" />
+
+                <TextView
+                    android:id="@+id/tvActiveProviderHeader"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_marginStart="8dp"
+                    android:text="Gemini 2.5 Flash"
+                    android:textSize="12.5sp"
+                    android:textStyle="bold"
+                    android:textColor="#F8FAFC"
+                    android:singleLine="true" />
+
+                <ImageView
+                    android:id="@+id/btnCompareMode"
+                    android:layout_width="28dp"
+                    android:layout_height="28dp"
+                    android:padding="5dp"
+                    android:src="@drawable/ic_compare"
+                    app:tint="#94A3B8"
+                    android:contentDescription="Compare AI" />
+
+                <ImageView
+                    android:id="@+id/btnScreenShare"
+                    android:layout_width="28dp"
+                    android:layout_height="28dp"
+                    android:padding="5dp"
+                    android:src="@drawable/ic_screen_share"
+                    app:tint="#94A3B8"
+                    android:contentDescription="Live Screen Vision" />
+
+                <ImageView
+                    android:id="@+id/btnToggleMiniWindow"
+                    android:layout_width="28dp"
+                    android:layout_height="28dp"
+                    android:padding="6dp"
+                    android:src="@drawable/ic_expand"
+                    app:tint="#94A3B8"
+                    android:contentDescription="Mini/Full Window" />
+
+                <ImageView
+                    android:id="@+id/btnToggleSmartDrawer"
+                    android:layout_width="28dp"
+                    android:layout_height="28dp"
+                    android:padding="5dp"
+                    android:src="@drawable/ic_plus"
+                    app:tint="#38BDF8"
+                    android:contentDescription="Smart Tools" />
+
+                <ImageView
+                    android:id="@+id/btnClosePopup"
+                    android:layout_width="28dp"
+                    android:layout_height="28dp"
+                    android:padding="6dp"
+                    android:src="@drawable/ic_close"
+                    app:tint="#FCA5A5"
+                    android:contentDescription="Tutup" />
+            </LinearLayout>
+
+            <!-- STATUS STRIPS -->
+            <TextView
+                android:id="@+id/tvScreenShareStatus"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="LIVE SCREEN VISION AKTIF • AI DAPAT MELIHAT LAYAR ANDA"
+                android:textSize="10sp"
+                android:textStyle="bold"
+                android:textColor="#38BDF8"
+                android:gravity="center"
+                android:paddingVertical="3dp"
+                android:background="#2238BDF8"
+                android:visibility="gone" />
+
+            <TextView
+                android:id="@+id/tvAttachmentBadge"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text=""
+                android:textSize="11sp"
+                android:textColor="#E879F9"
+                android:paddingHorizontal="12dp"
+                android:paddingVertical="4dp"
+                android:background="#22E879F9"
+                android:visibility="gone" />
+
+            <!-- SMART TOOLS & SEARCH DRAWER -->
+            <LinearLayout
+                android:id="@+id/smartToolsDrawer"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:paddingHorizontal="12dp"
+                android:paddingVertical="8dp"
+                android:background="#33020617"
+                android:visibility="gone">
+
+                <HorizontalScrollView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:scrollbars="none"
+                    android:layout_marginBottom="6dp">
+
+                    <LinearLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal">
+
+                        <TextView
+                            android:id="@+id/chipSwitchProvider"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Ganti AI"
+                            android:textSize="11sp"
+                            android:textColor="#38BDF8"
+                            android:paddingHorizontal="10dp"
+                            android:paddingVertical="5dp"
+                            android:layout_marginEnd="6dp"
+                            android:background="@drawable/bg_chip_glass" />
+
+                        <TextView
+                            android:id="@+id/chipAutoRouter"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Auto-Router: OFF"
+                            android:textSize="11sp"
+                            android:textColor="#E2E8F0"
+                            android:paddingHorizontal="10dp"
+                            android:paddingVertical="5dp"
+                            android:layout_marginEnd="6dp"
+                            android:background="@drawable/bg_chip_glass" />
+
+                        <TextView
+                            android:id="@+id/chipClipboard"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Baca Clipboard"
+                            android:textSize="11sp"
+                            android:textColor="#E2E8F0"
+                            android:paddingHorizontal="10dp"
+                            android:paddingVertical="5dp"
+                            android:layout_marginEnd="6dp"
+                            android:background="@drawable/bg_chip_glass" />
+
+                        <TextView
+                            android:id="@+id/chipCalculator"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Kalkulator"
+                            android:textSize="11sp"
+                            android:textColor="#E2E8F0"
+                            android:paddingHorizontal="10dp"
+                            android:paddingVertical="5dp"
+                            android:layout_marginEnd="6dp"
+                            android:background="@drawable/bg_chip_glass" />
+
+                        <TextView
+                            android:id="@+id/chipNewSession"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Sesi Baru"
+                            android:textSize="11sp"
+                            android:textColor="#34D399"
+                            android:paddingHorizontal="10dp"
+                            android:paddingVertical="5dp"
+                            android:layout_marginEnd="6dp"
+                            android:background="@drawable/bg_chip_glass" />
+
+                        <TextView
+                            android:id="@+id/chipQuickForceStop"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Force Stop"
+                            android:textSize="11sp"
+                            android:textColor="#FCA5A5"
+                            android:paddingHorizontal="10dp"
+                            android:paddingVertical="5dp"
+                            android:background="@drawable/bg_chip_glass" />
+                    </LinearLayout>
+                </HorizontalScrollView>
+
+                <EditText
+                    android:id="@+id/etSearchHistory"
+                    android:layout_width="match_parent"
+                    android:layout_height="34dp"
+                    android:hint="Cari riwayat sesi..."
+                    android:textSize="11.5sp"
+                    android:textColor="#F8FAFC"
+                    android:textColorHint="#64748B"
+                    android:paddingHorizontal="10dp"
+                    android:background="@drawable/bg_input_glass" />
+
+                <LinearLayout
+                    android:id="@+id/historyResultsContainer"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:layout_marginTop="4dp" />
+            </LinearLayout>
+
+            <!-- CHAT MESSAGES SCROLL AREA -->
+            <ScrollView
+                android:id="@+id/chatScrollView"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:paddingHorizontal="12dp"
+                android:paddingVertical="6dp">
+
+                <LinearLayout
+                    android:id="@+id/chatMessagesContainer"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical" />
+            </ScrollView>
+
+            <!-- QUICK ACTION PROMPTS -->
+            <HorizontalScrollView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:scrollbars="none"
+                android:paddingHorizontal="10dp"
+                android:paddingVertical="4dp">
+
+                <LinearLayout
+                    android:id="@+id/quickPromptsRow"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal" />
+            </HorizontalScrollView>
+
+            <!-- VOICE WAVEFORM BAR -->
+            <LinearLayout
+                android:id="@+id/voiceWaveformBar"
+                android:layout_width="match_parent"
+                android:layout_height="34dp"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:paddingHorizontal="12dp"
+                android:visibility="gone">
+
+                <com.example.floatinggeminiai.ui.VoiceWaveformView
+                    android:id="@+id/voiceWaveformView"
+                    android:layout_width="0dp"
+                    android:layout_height="24dp"
+                    android:layout_weight="1" />
+
+                <TextView
+                    android:id="@+id/tvVoiceHint"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    android:text="Mendengarkan..."
+                    android:textSize="11sp"
+                    android:textColor="#38BDF8" />
+            </LinearLayout>
+
+            <!-- BOTTOM COMPOSER BAR + RESIZE HANDLE -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:paddingHorizontal="10dp"
+                android:paddingVertical="8dp">
+
+                <ImageView
+                    android:id="@+id/btnAttachFile"
+                    android:layout_width="32dp"
+                    android:layout_height="32dp"
+                    android:padding="6dp"
+                    android:src="@drawable/ic_attach"
+                    app:tint="#94A3B8"
+                    android:contentDescription="Lampirkan PDF/Gambar" />
+
+                <ImageView
+                    android:id="@+id/btnVoiceMic"
+                    android:layout_width="32dp"
+                    android:layout_height="32dp"
+                    android:padding="6dp"
+                    android:src="@drawable/ic_mic"
+                    app:tint="#94A3B8"
+                    android:contentDescription="Voice Input" />
+
+                <EditText
+                    android:id="@+id/etPromptInput"
+                    android:layout_width="0dp"
+                    android:layout_height="38dp"
+                    android:layout_weight="1"
+                    android:layout_marginHorizontal="4dp"
+                    android:hint="Tanya apa saja..."
+                    android:textColor="#F8FAFC"
+                    android:textColorHint="#64748B"
+                    android:textSize="12.5sp"
+                    android:maxLines="3"
+                    android:paddingHorizontal="12dp"
+                    android:background="@drawable/bg_input_glass" />
+
+                <ImageView
+                    android:id="@+id/btnSendOrStop"
+                    android:layout_width="34dp"
+                    android:layout_height="34dp"
+                    android:padding="7dp"
+                    android:src="@drawable/ic_send"
+                    app:tint="#38BDF8"
+                    android:contentDescription="Kirim" />
+
+                <ImageView
+                    android:id="@+id/btnResizeHandle"
+                    android:layout_width="20dp"
+                    android:layout_height="26dp"
+                    android:layout_marginStart="3dp"
+                    android:padding="2dp"
+                    android:src="@drawable/ic_resize_handle"
+                    app:tint="#64748B"
+                    android:contentDescription="Resize" />
+            </LinearLayout>
+
+        </LinearLayout>
+    </com.example.floatinggeminiai.ui.LiquidGlassFrameLayout>
+</FrameLayout>
+""",
+
+    # --------------------------------------------------------------------------
+    # 17. DRAWABLES: AMBIENT ORBS, GLASS SHAPES & CUSTOM SVG VECTORS
+    # --------------------------------------------------------------------------
+    "app/src/main/res/drawable/bg_ambient_orb_cyan.xml": r"""<?xml version="1.0" encoding="utf-8"?>
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="oval">
+    <gradient
+        android:type="radial"
+        android:gradientRadius="145dp"
+        android:startColor="#6638BDF8"
+        android:endColor="#0038BDF8" />
+</shape>
+""",
+
+    "app/src/main/res/drawable/bg_ambient_orb_purple.xml": r"""<?xml version="1.0" encoding="utf-8"?>
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="oval">
+    <gradient
+        android:type="radial"
+        android:gradientRadius="160dp"
+        android:startColor="#66A855F7"
+        android:endColor="#00A855F7" />
+</shape>
+""",
+
+    "app/src/main/res/drawable/bg_dynamic_island_polos.xml": r"""<?xml version="1.0" encoding="utf-8"?>
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <solid android:color="#FF000000" />
+    <corners android:radius="18dp" />
+</shape>
+""",
+
+    "app/src/main/res/drawable/bg_island_pulse_dot.xml": r"""<?xml version="1.0" encoding="utf-8"?>
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="oval">
+    <solid android:color="#38BDF8" />
+</shape>
+""",
+
+    "app/src/main/res/drawable/bg_bubble_classic.xml": r"""<?xml version="1.0" encoding="utf-8"?>
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="oval">
+    <gradient
+        android:angle="135"
+        android:startColor="#E60F172A"
+        android:endColor="#F21E293B" />
+    <stroke android:width="1.5dp" android:color="#6638BDF8" />
+</shape>
+""",
+
+    "app/src/main/res/drawable/bg_xiaomi_edge.xml": r"""<?xml version="1.0" encoding="utf-8"?>
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <solid android:color="#CC38BDF8" />
+    <corners android:radius="8dp" />
+</shape>
+""",
+
+    "app/src/main/res/drawable/bg_input_glass.xml": r"""<?xml version="1.0" encoding="utf-8"?>
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <solid android:color="#26020617" />
+    <stroke android:width="1dp" android:color="#3394A3B8" />
+    <corners android:radius="14dp" />
+</shape>
+""",
+
+    "app/src/main/res/drawable/bg_chip_glass.xml": r"""<?xml version="1.0" encoding="utf-8"?>
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <solid android:color="#281E293B" />
+    <stroke android:width="1dp" android:color="#4038BDF8" />
+    <corners android:radius="12dp" />
+</shape>
+""",
+
+    "app/src/main/res/drawable/bg_msg_user.xml": r"""<?xml version="1.0" encoding="utf-8"?>
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <gradient
+        android:angle="135"
+        android:startColor="#CC0284C7"
+        android:endColor="#CC2563EB" />
+    <stroke android:width="1dp" android:color="#557DD3FC" />
+    <corners android:radius="16dp" />
+</shape>
+""",
+
+    "app/src/main/res/drawable/bg_msg_ai.xml": r"""<?xml version="1.0" encoding="utf-8"?>
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <solid android:color="#440F172A" />
+    <stroke android:width="1dp" android:color="#33CBD5E1" />
+    <corners android:radius="16dp" />
+</shape>
+""",
+
+    "app/src/main/res/drawable/ic_sparkle.xml": r"""<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="24dp" android:height="24dp" android:viewportWidth="24" android:viewportHeight="24">
+    <path android:fillColor="#FFFFFF" android:pathData="M12,2L14.4,9.6L22,12L14.4,14.4L12,22L9.6,14.4L2,12L9.6,9.6L12,2Z" />
+</vector>
+""",
+
+    "app/src/main/res/drawable/ic_home.xml": r"""<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="24dp" android:height="24dp" android:viewportWidth="24" android:viewportHeight="24">
+    <path android:fillColor="#FFFFFF" android:pathData="M12,3L3,10.5V20C3,20.55 3.45,21 4,21H9V15H15V21H20C20.55,21 21,20.55 21,20V10.5L12,3Z" />
+</vector>
+""",
+
+    "app/src/main/res/drawable/ic_key.xml": r"""<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="24dp" android:height="24dp" android:viewportWidth="24" android:viewportHeight="24">
+    <path android:fillColor="#FFFFFF" android:pathData="M12.65,10C11.83,7.67 9.61,6 7,6C3.69,6 1,8.69 1,12C1,15.31 3.69,18 7,18C9.61,18 11.83,16.33 12.65,14H17V18H21V14H23V10H12.65ZM7,14C5.9,14 5,13.1 5,12C5,10.9 5.9,10 7,10C8.1,10 9,10.9 9,12C9,13.1 8.1,14 7,14Z" />
+</vector>
+""",
+
+    "app/src/main/res/drawable/ic_layers.xml": r"""<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="24dp" android:height="24dp" android:viewportWidth="24" android:viewportHeight="24">
+    <path android:fillColor="#FFFFFF" android:pathData="M11.99,18.54L4.62,12.81L3,14.07L12,21.07L21,14.07L19.37,12.8L11.99,18.54ZM12,16L19.36,10.27L21,9L12,2L3,9L4.63,10.27L12,16Z" />
+</vector>
+""",
+
+    "app/src/main/res/drawable/ic_tools.xml": r"""<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="24dp" android:height="24dp" android:viewportWidth="24" android:viewportHeight="24">
+    <path android:fillColor="#FFFFFF" android:pathData="M22.7,19L13.6,9.9C14.5,7.6 14,4.9 12.1,3C10.1,1 7.1,0.6 4.7,1.7L9,6L6,9L1.6,4.7C0.4,7.1 0.9,10.1 2.9,12.1C4.8,14 7.5,14.5 9.8,13.6L18.9,22.7C19.3,23.1 19.9,23.1 20.3,22.7L22.6,20.4C23.1,20 23.1,19.3 22.7,19Z" />
+</vector>
+""",
+
+    "app/src/main/res/drawable/ic_send.xml": r"""<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="24dp" android:height="24dp" android:viewportWidth="24" android:viewportHeight="24">
+    <path android:fillColor="#FFFFFF" android:pathData="M2.01,21L23,12L2.01,3L2,10L17,12L2,14L2.01,21Z" />
+</vector>
+""",
+
+    "app/src/main/res/drawable/ic_stop.xml": r"""<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="24dp" android:height="24dp" android:viewportWidth="24" android:viewportHeight="24">
+    <path android:fillColor="#FFFFFF" android:pathData="M6,6H18V18H6V6Z" />
+</vector>
+""",
+
+    "app/src/main/res/drawable/ic_screen_share.xml": r"""<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="24dp" android:height="24dp" android:viewportWidth="24" android:viewportHeight="24">
+    <path android:fillColor="#FFFFFF" android:pathData="M20,18C21.1,18 21.99,17.1 21.99,16L22,6C22,4.89 21.1,4 20,4H4C2.89,4 2,4.89 2,6V16C2,17.1 2.89,18 4,18H0V20H24V18H20ZM13,14.47V12.28C10.22,12.28 8.39,13.13 7,15C7.56,12.33 9.11,9.67 13,9.13V7L17,10.73L13,14.47Z" />
+</vector>
+""",
+
+    "app/src/main/res/drawable/ic_mic.xml": r"""<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="24dp" android:height="24dp" android:viewportWidth="24" android:viewportHeight="24">
+    <path android:fillColor="#FFFFFF" android:pathData="M12,14C13.66,14 14.99,12.66 14.99,11L15,5C15,3.34 13.66,2 12,2C10.34,2 9,3.34 9,5V11C9,12.66 10.34,14 12,14ZM17.3,11C17.3,14 14.76,16.1 12,16.1C9.24,16.1 6.7,14 6.7,11H5C5,14.41 7.72,17.23 11,17.72V21H13V17.72C16.28,17.24 19,14.42 19,11H17.3Z" />
+</vector>
+""",
+
+    "app/src/main/res/drawable/ic_plus.xml": r"""<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="24dp" android:height="24dp" android:viewportWidth="24" android:viewportHeight="24">
+    <path android:fillColor="#FFFFFF" android:pathData="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z" />
+</vector>
+""",
+
+    "app/src/main/res/drawable/ic_close.xml": r"""<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="24dp" android:height="24dp" android:viewportWidth="24" android:viewportHeight="24">
+    <path android:fillColor="#FFFFFF" android:pathData="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z" />
+</vector>
+""",
+
+    "app/src/main/res/drawable/ic_expand.xml": r"""<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="24dp" android:height="24dp" android:viewportWidth="24" android:viewportHeight="24">
+    <path android:fillColor="#FFFFFF" android:pathData="M15,3L21,3L21,9L19,9L19,6.41L13.41,12L12,10.59L17.59,5L15,5L15,3ZM9,21L3,21L3,15L5,15L5,17.59L10.59,12L12,13.41L6.41,19L9,19L9,21Z" />
+</vector>
+""",
+
+    "app/src/main/res/drawable/ic_attach.xml": r"""<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="24dp" android:height="24dp" android:viewportWidth="24" android:viewportHeight="24">
+    <path android:fillColor="#FFFFFF" android:pathData="M16.5,6V17.5C16.5,19.71 14.71,21.5 12.5,21.5C10.29,21.5 8.5,19.71 8.5,17.5V5C8.5,3.62 9.62,2.5 11,2.5C12.38,2.5 13.5,3.62 13.5,5V15.5C13.5,16.05 13.05,16.5 12.5,16.5C11.95,16.5 11.5,16.05 11.5,15.5V6H10V15.5C10,16.88 11.12,18 12.5,18C13.88,18 15,16.88 15,15.5V5C15,2.79 13.21,1 11,1C8.79,1 7,2.79 7,5V17.5C7,20.54 9.46,23 12.5,23C15.54,23 18,20.54 18,17.5V6H16.5Z" />
+</vector>
+""",
+
+    "app/src/main/res/drawable/ic_compare.xml": r"""<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="24dp" android:height="24dp" android:viewportWidth="24" android:viewportHeight="24">
+    <path android:fillColor="#FFFFFF" android:pathData="M10,3H5C3.9,3 3,3.9 3,5V19C3,20.1 3.9,21 5,21H10V23H12V1H10V3ZM10,18H5L10,12V18ZM19,3H14V5H19V18L14,12V21H19C20.1,21 21,20.1 21,19V5C21,3.9 20.1,3 19,3Z" />
+</vector>
+""",
+
+    "app/src/main/res/drawable/ic_resize_handle.xml": r"""<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="24dp" android:height="24dp" android:viewportWidth="24" android:viewportHeight="24">
+    <path android:fillColor="#FFFFFF" android:pathData="M22,22H20V20H22V22ZM22,18H20V16H22V18ZM18,22H16V20H18V22ZM18,18H16V16H18V18ZM14,22H12V20H14V22ZM22,14H20V12H22V14Z" />
+</vector>
+""",
+
+    # --------------------------------------------------------------------------
+    # 18. ACTIVITIES & SERVICES (MAIN, WELCOME, OVERLAY, TILE, TRIGGERS)
+    # --------------------------------------------------------------------------
+    "app/src/main/java/com/example/floatinggeminiai/MainActivity.kt": r"""package com.example.floatinggeminiai
+
+import android.Manifest
+import android.app.StatusBarManager
+import android.content.ComponentName
+import android.content.Context
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.graphics.drawable.Icon
+import android.net.Uri
+import android.os.Build
+import android.os.Bundle
+import android.provider.Settings
+import android.view.View
+import android.widget.AdapterView
+import android.widget.ArrayAdapter
+import android.widget.Button
+import android.widget.EditText
+import android.widget.LinearLayout
+import android.widget.SeekBar
+import android.widget.Spinner
+import android.widget.Switch
+import android.widget.TextView
+import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
+import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.app.AppCompatDelegate
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
+import androidx.lifecycle.lifecycleScope
+import com.example.floatinggeminiai.ai.AiEngine
+import com.example.floatinggeminiai.ai.AiProvider
+import com.example.floatinggeminiai.data.ChatRepository
+import com.example.floatinggeminiai.security.SecureVault
+import com.example.floatinggeminiai.ui.LiquidGlassBottomNavBar
+import com.example.floatinggeminiai.ui.LiquidGlassFrameLayout
+import kotlinx.coroutines.launch
+
+class MainActivity : AppCompatActivity() {
+
+    private lateinit var vault: SecureVault
+    private lateinit var repo: ChatRepository
+    private lateinit var aiEngine: AiEngine
+    private var selectedProvider = AiProvider.GEMINI
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        val prefs = getSharedPreferences("gemini_prefs", Context.MODE_PRIVATE)
+        applySavedThemeMode(prefs.getInt("theme_mode", 0))
+        super.onCreate(savedInstanceState)
+
+        if (!prefs.getBoolean("welcome_completed", false)) {
+            startActivity(Intent(this, WelcomeActivity::class.java))
+        }
+
+        setContentView(R.layout.activity_main)
+
+        vault = SecureVault(this)
+        repo = ChatRepository(this)
+        aiEngine = AiEngine(vault)
+
+        initLiquidGlassSurfaces()
+        initFloatingBottomNavbar()
+        setupHomeControls(prefs)
+        setupAiProviderVault(prefs)
+        setupOverlayAndGlassStudio(prefs)
+        setupToolsAndData()
+        requestRuntimePermissionsIfNeeded()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        refreshDashboardStatus()
+    }
+
+    private fun applySavedThemeMode(modeIndex: Int) {
+        when (modeIndex) {
+            1 -> AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_YES)
+            2 -> AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO)
+            else -> AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM)
+        }
+    }
+
+    private fun initLiquidGlassSurfaces() {
+        val heroCard = findViewById<LiquidGlassFrameLayout>(R.id.glassCardHero)
+        val statsCard = findViewById<LiquidGlassFrameLayout>(R.id.glassCardStats)
+        val providerCard = findViewById<LiquidGlassFrameLayout>(R.id.glassCardProvider)
+        val overlayCard = findViewById<LiquidGlassFrameLayout>(R.id.glassCardOverlay)
+        val toolsCard = findViewById<LiquidGlassFrameLayout>(R.id.glassCardTools)
+        val headerBadge = findViewById<LiquidGlassFrameLayout>(R.id.glassHeaderBadge)
+
+        headerBadge.cornerRadiusDp = 16f
+        headerBadge.bevelWidthDp = 8f
+        headerBadge.dispersionStrength = 0.42f
+        headerBadge.startAmbientRefraction()
+
+        listOf(heroCard, statsCard, providerCard, overlayCard, toolsCard).forEach { card ->
+            card.cornerRadiusDp = 26f
+            card.bevelWidthDp = 15f
+            card.dispersionStrength = 0.28f
+            card.specularIntensity = 0.65f
+            card.startAmbientRefraction()
+        }
+    }
+
+    private fun initFloatingBottomNavbar() {
+        val navBar = findViewById<LiquidGlassBottomNavBar>(R.id.liquidBottomNavBar)
+        val pageHome = findViewById<LinearLayout>(R.id.pageHome)
+        val pageAi = findViewById<LinearLayout>(R.id.pageAiProviders)
+        val pageOverlay = findViewById<LinearLayout>(R.id.pageOverlayGlass)
+        val pageTools = findViewById<LinearLayout>(R.id.pageToolsData)
+        val pages = listOf(pageHome, pageAi, pageOverlay, pageTools)
+
+        navBar.setTabs(
+            listOf(
+                LiquidGlassBottomNavBar.NavTab("Beranda", R.drawable.ic_home),
+                LiquidGlassBottomNavBar.NavTab("AI & Keys", R.drawable.ic_key),
+                LiquidGlassBottomNavBar.NavTab("Liquid UI", R.drawable.ic_layers),
+                LiquidGlassBottomNavBar.NavTab("Tools", R.drawable.ic_tools)
+            )
+        )
+
+        navBar.onTabSelected = { index ->
+            pages.forEachIndexed { idx, view ->
+                if (idx == index) {
+                    view.alpha = 0f
+                    view.visibility = View.VISIBLE
+                    view.animate().alpha(1f).setDuration(220L).start()
+                } else {
+                    view.visibility = View.GONE
+                }
+            }
+        }
+    }
+
+    private fun setupHomeControls(prefs: android.content.SharedPreferences) {
+        findViewById<Button>(R.id.btnOpenWelcome).setOnClickListener {
+            startActivity(Intent(this, WelcomeActivity::class.java))
+        }
+
+        findViewById<Button>(R.id.btnGrantOverlay).setOnClickListener {
+            val intent = Intent(
+                Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                Uri.parse("package:$packageName")
+            )
+            startActivity(intent)
+        }
+
+        findViewById<Button>(R.id.btnStartService).setOnClickListener {
+            if (!Settings.canDrawOverlays(this)) {
+                Toast.makeText(this, "Aktifkan izin Overlay terlebih dahulu!", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+            val intent = Intent(this, FloatingAssistantService::class.java).apply {
+                action = FloatingAssistantService.ACTION_START_OR_UPDATE
+            }
+            ContextCompat.startForegroundService(this, intent)
+            Toast.makeText(this, "Floamini Liquid Overlay aktif!", Toast.LENGTH_SHORT).show()
+        }
+
+        findViewById<Button>(R.id.btnSummonSiriNow).setOnClickListener {
+            if (!Settings.canDrawOverlays(this)) {
+                Toast.makeText(this, "Aktifkan izin Overlay terlebih dahulu!", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+            val intent = Intent(this, FloatingAssistantService::class.java).apply {
+                action = FloatingAssistantService.ACTION_SUMMON_SIRI
+            }
+            ContextCompat.startForegroundService(this, intent)
+        }
+
+        findViewById<Button>(R.id.btnForceStopService).setOnClickListener {
+            stopService(Intent(this, FloatingAssistantService::class.java))
+            Toast.makeText(this, "Floamini dihentikan sepenuhnya.", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun setupAiProviderVault(prefs: android.content.SharedPreferences) {
+        val spinnerProvider = findViewById<Spinner>(R.id.spinnerProvider)
+        val spinnerModel = findViewById<Spinner>(R.id.spinnerModel)
+        val spinnerPersonality = findViewById<Spinner>(R.id.spinnerPersonality)
+        val tvKeyStatus = findViewById<TextView>(R.id.tvProviderKeyStatus)
+        val etApiKey = findViewById<EditText>(R.id.etProviderApiKey)
+        val layoutCustom = findViewById<LinearLayout>(R.id.layoutCustomEndpoint)
+        val etCustomUrl = findViewById<EditText>(R.id.etCustomBaseUrl)
+        val etCustomModel = findViewById<EditText>(R.id.etCustomModelId)
+        val tvTestResult = findViewById<TextView>(R.id.tvTestConnectionResult)
+        val etPersona = findViewById<EditText>(R.id.etCustomPersona)
+
+        selectedProvider = AiProvider.fromId(prefs.getString("active_provider", AiProvider.GEMINI.id))
+        val providerNames = AiProvider.entries.map { it.displayName }
+        spinnerProvider.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, providerNames)
+        spinnerProvider.setSelection(AiProvider.entries.indexOf(selectedProvider))
+
+        etCustomUrl.setText(vault.getCustomBaseUrl())
+        etCustomModel.setText(vault.getCustomModelId())
+        etPersona.setText(prefs.getString("custom_system_prompt", ""))
+
+        fun bindModelSpinner(provider: AiProvider) {
+            val models = if (provider == AiProvider.CUSTOM) {
+                listOf(vault.getCustomModelId().ifEmpty { "custom-model" })
+            } else {
+                provider.models
+            }
+            spinnerModel.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, models)
+            val savedModel = prefs.getString("active_model", "")
+            val idx = models.indexOf(savedModel)
+            if (idx >= 0) spinnerModel.setSelection(idx)
+            tvKeyStatus.text = "Status Vault (${provider.displayName}): ${vault.getMaskedKey(provider.id)}"
+            layoutCustom.visibility = if (provider == AiProvider.CUSTOM) View.VISIBLE else View.GONE
+        }
+
+        bindModelSpinner(selectedProvider)
+
+        spinnerProvider.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
+                selectedProvider = AiProvider.entries[position]
+                prefs.edit().putString("active_provider", selectedProvider.id).apply()
+                etApiKey.setText("")
+                tvTestResult.visibility = View.GONE
+                bindModelSpinner(selectedProvider)
+                refreshDashboardStatus()
+                notifyServiceConfigChanged()
+            }
+
+            override fun onNothingSelected(parent: AdapterView<*>?) {}
+        }
+
+        spinnerModel.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
+                val chosen = spinnerModel.selectedItem?.toString() ?: return
+                prefs.edit().putString("active_model", chosen).apply()
+                refreshDashboardStatus()
+                notifyServiceConfigChanged()
+            }
+
+            override fun onNothingSelected(parent: AdapterView<*>?) {}
+        }
+
+        val personalities = listOf(
+            "Asik & Santai (Natural)",
+            "Singkat & Padat (To The Point)",
+            "Detail & Terstruktur",
+            "Kreatif & Ekspresif",
+            "Coding & Teknis Pro"
+        )
+        spinnerPersonality.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, personalities)
+        spinnerPersonality.setSelection(prefs.getInt("personality_index", 0))
+        spinnerPersonality.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
+                prefs.edit().putInt("personality_index", position).apply()
+                notifyServiceConfigChanged()
+            }
+
+            override fun onNothingSelected(parent: AdapterView<*>?) {}
+        }
+
+        findViewById<Button>(R.id.btnSaveProviderKey).setOnClickListener {
+            val newKey = etApiKey.text.toString().trim()
+            if (newKey.isNotEmpty()) {
+                vault.saveApiKey(selectedProvider.id, newKey)
+                etApiKey.setText("")
+            }
+            if (selectedProvider == AiProvider.CUSTOM) {
+                vault.saveCustomEndpoint(etCustomUrl.text.toString(), etCustomModel.text.toString())
+                bindModelSpinner(selectedProvider)
+            }
+            prefs.edit().putString("custom_system_prompt", etPersona.text.toString().trim()).apply()
+            tvKeyStatus.text = "Status Vault (${selectedProvider.displayName}): ${vault.getMaskedKey(selectedProvider.id)}"
+            Toast.makeText(this, "Tersimpan aman di Encrypted Vault!", Toast.LENGTH_SHORT).show()
+            notifyServiceConfigChanged()
+        }
+
+        findViewById<Button>(R.id.btnTestProviderConnection).setOnClickListener {
+            val activeModel = spinnerModel.selectedItem?.toString() ?: selectedProvider.models.first()
+            tvTestResult.visibility = View.VISIBLE
+            tvTestResult.text = "Menguji koneksi ke ${selectedProvider.displayName}..."
+            lifecycleScope.launch {
+                val res = aiEngine.testConnection(selectedProvider, activeModel)
+                res.onSuccess { msg ->
+                    tvTestResult.text = msg
+                }.onFailure { err ->
+                    tvTestResult.text = "Gagal: ${err.message}"
+                }
+            }
+        }
+    }
+
+    private fun setupOverlayAndGlassStudio(prefs: android.content.SharedPreferences) {
+        val spinnerStyle = findViewById<Spinner>(R.id.spinnerOverlayStyle)
+        val spinnerPill = findViewById<Spinner>(R.id.spinnerPillAppearance)
+        val switchAutoHide = findViewById<Switch>(R.id.switchAutoHidePill)
+        val switchSmartFreeze = findViewById<Switch>(R.id.switchSmartFreeze)
+        val switchBlur = findViewById<Switch>(R.id.switchLiquidBlur)
+        val seekWidth = findViewById<SeekBar>(R.id.seekIslandWidth)
+        val seekY = findViewById<SeekBar>(R.id.seekIslandY)
+        val seekX = findViewById<SeekBar>(R.id.seekIslandX)
+        val seekOpacity = findViewById<SeekBar>(R.id.seekPopupOpacity)
+        val spinnerTheme = findViewById<Spinner>(R.id.spinnerThemeMode)
+
+        val styles = listOf("Dynamic Island (Atas)", "Mode Siri (Control Center)", "Xiaomi Edge Pill", "Classic Bubble")
+        val styleKeys = listOf("dynamic_island", "siri_mode", "xiaomi_edge", "classic_bubble")
+        spinnerStyle.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, styles)
+        val curStyle = prefs.getString("overlay_style", "dynamic_island")
+        spinnerStyle.setSelection(styleKeys.indexOf(curStyle).coerceAtLeast(0))
+        spinnerStyle.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(p: AdapterView<*>?, v: View?, pos: Int, id: Long) {
+                prefs.edit().putString("overlay_style", styleKeys[pos]).apply()
+                notifyServiceConfigChanged()
+            }
+            override fun onNothingSelected(p: AdapterView<*>?) {}
+        }
+
+        val pillModes = listOf("Lengkap (Ikon + Nama + Pulse)", "Polos (Kamera Punch-Hole)", "Ikon Saja")
+        val pillKeys = listOf("lengkap", "polos", "minimal")
+        spinnerPill.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, pillModes)
+        val curPill = prefs.getString("pill_appearance", "lengkap")
+        spinnerPill.setSelection(pillKeys.indexOf(curPill).coerceAtLeast(0))
+        spinnerPill.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(p: AdapterView<*>?, v: View?, pos: Int, id: Long) {
+                prefs.edit().putString("pill_appearance", pillKeys[pos]).apply()
+                notifyServiceConfigChanged()
+            }
+            override fun onNothingSelected(p: AdapterView<*>?) {}
+        }
+
+        switchAutoHide.isChecked = prefs.getBoolean("auto_hide_pill", false)
+        switchAutoHide.setOnCheckedChangeListener { _, checked ->
+            prefs.edit().putBoolean("auto_hide_pill", checked).apply()
+            notifyServiceConfigChanged()
+        }
+
+        switchSmartFreeze.isChecked = prefs.getBoolean("smart_freeze", true)
+        switchSmartFreeze.setOnCheckedChangeListener { _, checked ->
+            prefs.edit().putBoolean("smart_freeze", checked).apply()
+            notifyServiceConfigChanged()
+        }
+
+        switchBlur.isChecked = prefs.getBoolean("liquid_blur", true)
+        switchBlur.setOnCheckedChangeListener { _, checked ->
+            prefs.edit().putBoolean("liquid_blur", checked).apply()
+            notifyServiceConfigChanged()
+        }
+
+        val tvW = findViewById<TextView>(R.id.tvIslandWidthLabel)
+        val savedW = prefs.getInt("island_width_dp", 164)
+        seekWidth.progress = (savedW - 100).coerceIn(0, 180)
+        tvW.text = "Lebar Pil Dynamic Island: ${savedW}dp"
+        seekWidth.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(sb: SeekBar?, prog: Int, fromUser: Boolean) {
+                val w = 100 + prog
+                tvW.text = "Lebar Pil Dynamic Island: ${w}dp"
+                prefs.edit().putInt("island_width_dp", w).apply()
+                if (fromUser) notifyServiceConfigChanged()
+            }
+            override fun onStartTrackingTouch(sb: SeekBar?) {}
+            override fun onStopTrackingTouch(sb: SeekBar?) {}
+        })
+
+        val tvY = findViewById<TextView>(R.id.tvIslandYLabel)
+        val savedY = prefs.getInt("island_pos_y_dp", 12)
+        seekY.progress = savedY.coerceIn(0, 120)
+        tvY.text = "Posisi Vertikal Atas (Y): ${savedY}dp"
+        seekY.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(sb: SeekBar?, prog: Int, fromUser: Boolean) {
+                tvY.text = "Posisi Vertikal Atas (Y): ${prog}dp"
+                prefs.edit().putInt("island_pos_y_dp", prog).apply()
+                if (fromUser) notifyServiceConfigChanged()
+            }
+            override fun onStartTrackingTouch(sb: SeekBar?) {}
+            override fun onStopTrackingTouch(sb: SeekBar?) {}
+        })
+
+        val tvX = findViewById<TextView>(R.id.tvIslandXLabel)
+        val savedX = prefs.getInt("island_offset_x_dp", 0)
+        seekX.progress = (savedX + 120).coerceIn(0, 240)
+        tvX.text = "Geser Horizontal Kamera (X): ${savedX}dp"
+        seekX.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(sb: SeekBar?, prog: Int, fromUser: Boolean) {
+                val offset = prog - 120
+                tvX.text = "Geser Horizontal Kamera (X): ${offset}dp"
+                prefs.edit().putInt("island_offset_x_dp", offset).apply()
+                if (fromUser) notifyServiceConfigChanged()
+            }
+            override fun onStartTrackingTouch(sb: SeekBar?) {}
+            override fun onStopTrackingTouch(sb: SeekBar?) {}
+        })
+
+        val tvOp = findViewById<TextView>(R.id.tvOpacityLabel)
+        val savedOp = prefs.getInt("popup_opacity_pct", 92)
+        seekOpacity.progress = (savedOp - 55).coerceIn(0, 45)
+        tvOp.text = "Transparansi Jendela Glass: $savedOp%"
+        seekOpacity.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(sb: SeekBar?, prog: Int, fromUser: Boolean) {
+                val pct = 55 + prog
+                tvOp.text = "Transparansi Jendela Glass: $pct%"
+                prefs.edit().putInt("popup_opacity_pct", pct).apply()
+                if (fromUser) notifyServiceConfigChanged()
+            }
+            override fun onStartTrackingTouch(sb: SeekBar?) {}
+            override fun onStopTrackingTouch(sb: SeekBar?) {}
+        })
+
+        val themes = listOf("Ikuti Sistem (Adaptif)", "Dark Liquid Glass", "Light Liquid Glass")
+        spinnerTheme.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, themes)
+        spinnerTheme.setSelection(prefs.getInt("theme_mode", 0))
+        spinnerTheme.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(p: AdapterView<*>?, v: View?, pos: Int, id: Long) {
+                if (prefs.getInt("theme_mode", 0) != pos) {
+                    prefs.edit().putInt("theme_mode", pos).apply()
+                    applySavedThemeMode(pos)
+                }
+            }
+            override fun onNothingSelected(p: AdapterView<*>?) {}
+        }
+
+        findViewById<Button>(R.id.btnAddControlCenterTile).setOnClickListener {
+            requestAddControlCenterTile()
+        }
+    }
+
+    private fun setupToolsAndData() {
+        val etNotes = findViewById<EditText>(R.id.etMainQuickNotes)
+        etNotes.setText(repo.getQuickNotes())
+
+        findViewById<Button>(R.id.btnSaveQuickNotes).setOnClickListener {
+            repo.saveQuickNotes(etNotes.text.toString())
+            Toast.makeText(this, "Catatan cepat tersimpan!", Toast.LENGTH_SHORT).show()
+        }
+
+        findViewById<Button>(R.id.btnClearAllHistory).setOnClickListener {
+            AlertDialog.Builder(this)
+                .setTitle("Hapus Semua Riwayat?")
+                .setMessage("Seluruh sesi percakapan Floamini akan dihapus permanen.")
+                .setPositiveButton("Hapus") { _, _ ->
+                    repo.clearAllHistory()
+                    repo.resetUsage()
+                    refreshDashboardStatus()
+                    Toast.makeText(this, "Riwayat dibersihkan.", Toast.LENGTH_SHORT).show()
+                }
+                .setNegativeButton("Batal", null)
+                .show()
+        }
+    }
+
+    private fun refreshDashboardStatus() {
+        val prefs = getSharedPreferences("gemini_prefs", Context.MODE_PRIVATE)
+        val prov = AiProvider.fromId(prefs.getString("active_provider", AiProvider.GEMINI.id))
+        val model = prefs.getString("active_model", prov.models.first()).orEmpty()
+        findViewById<TextView>(R.id.tvActiveEngineSummary).text = "Engine: ${prov.displayName} ($model)"
+        findViewById<TextView>(R.id.tvPermissionBadge).text =
+            if (Settings.canDrawOverlays(this)) "Overlay: Aktif" else "Overlay: Perlu Izin"
+        findViewById<TextView>(R.id.tvUsageStats).text = repo.getUsageSummary()
+    }
+
+    private fun notifyServiceConfigChanged() {
+        if (Settings.canDrawOverlays(this)) {
+            val intent = Intent(this, FloatingAssistantService::class.java).apply {
+                action = FloatingAssistantService.ACTION_RELOAD_CONFIG
+            }
+            try {
+                startService(intent)
+            } catch (_: Exception) {
+            }
+        }
+    }
+
+    private fun requestAddControlCenterTile() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            val sbm = getSystemService(StatusBarManager::class.java)
+            sbm?.requestAddTileService(
+                ComponentName(this, FloaminiTileService::class.java),
+                "Floamini AI",
+                Icon.createWithResource(this, R.drawable.ic_sparkle),
+                mainExecutor
+            ) { _ ->
+                Toast.makeText(this, "Permintaan tile Control Center diproses.", Toast.LENGTH_SHORT).show()
+            }
+        } else {
+            AlertDialog.Builder(this)
+                .setTitle("Shortcut Control Center")
+                .setMessage("Tarik panel Quick Settings dari atas layar > ketuk ikon Edit (Pensil) > seret ubin 'Floamini AI' ke area aktif.")
+                .setPositiveButton("Mengerti", null)
+                .show()
+        }
+    }
+
+    private fun requestRuntimePermissionsIfNeeded() {
+        val perms = mutableListOf(Manifest.permission.RECORD_AUDIO)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            perms.add(Manifest.permission.POST_NOTIFICATIONS)
+        }
+        val missing = perms.filter {
+            ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED
+        }
+        if (missing.isNotEmpty()) {
+            ActivityCompat.requestPermissions(this, missing.toTypedArray(), 101)
+        }
+    }
+}
+""",
+
+    "app/src/main/java/com/example/floatinggeminiai/WelcomeActivity.kt": r"""package com.example.floatinggeminiai
+
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
+import android.os.Bundle
+import android.view.View
+import android.widget.Button
+import android.widget.EditText
+import android.widget.TextView
+import android.widget.Toast
+import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.lifecycleScope
+import com.example.floatinggeminiai.ai.AiEngine
+import com.example.floatinggeminiai.ai.AiProvider
+import com.example.floatinggeminiai.security.SecureVault
+import com.example.floatinggeminiai.ui.LiquidGlassFrameLayout
+import kotlinx.coroutines.launch
+
+class WelcomeActivity : AppCompatActivity() {
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_welcome)
+
+        val vault = SecureVault(this)
+        val engine = AiEngine(vault)
+        val prefs = getSharedPreferences("gemini_prefs", Context.MODE_PRIVATE)
+
+        findViewById<LiquidGlassFrameLayout>(R.id.glassWelcomeHero).apply {
+            cornerRadiusDp = 28f
+            dispersionStrength = 0.35f
+            startAmbientRefraction()
+        }
+        findViewById<LiquidGlassFrameLayout>(R.id.glassWelcomeGuide).apply {
+            cornerRadiusDp = 26f
+            dispersionStrength = 0.28f
+            startAmbientRefraction()
+        }
+
+        findViewById<Button>(R.id.btnOpenAiStudio).setOnClickListener {
+            startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://aistudio.google.com/app/apikey")))
+        }
+
+        val etKey = findViewById<EditText>(R.id.etWelcomeGeminiKey)
+        val tvStatus = findViewById<TextView>(R.id.tvWelcomeTestStatus)
+
+        findViewById<Button>(R.id.btnWelcomeSaveAndTest).setOnClickListener {
+            val raw = etKey.text.toString().trim()
+            if (raw.isEmpty()) {
+                Toast.makeText(this, "Tempel Gemini API Key terlebih dahulu.", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+            vault.saveApiKey(AiProvider.GEMINI.id, raw)
+            prefs.edit().putString("active_provider", AiProvider.GEMINI.id).apply()
+            tvStatus.visibility = View.VISIBLE
+            tvStatus.text = "Menguji token Gemini..."
+            lifecycleScope.launch {
+                val res = engine.testConnection(AiProvider.GEMINI, AiProvider.GEMINI.models.first())
+                res.onSuccess { msg ->
+                    tvStatus.text = msg
+                }.onFailure { err ->
+                    tvStatus.text = "Gagal: ${err.message}"
+                }
+            }
+        }
+
+        findViewById<Button>(R.id.btnWelcomeFinish).setOnClickListener {
+            prefs.edit().putBoolean("welcome_completed", true).apply()
+            finish()
+        }
+    }
+}
+""",
+
     "app/src/main/java/com/example/floatinggeminiai/FloaminiTileService.kt": r"""package com.example.floatinggeminiai
 
-import android.app.PendingIntent
 import android.content.Intent
 import android.os.Build
+import android.provider.Settings
 import android.service.quicksettings.Tile
 import android.service.quicksettings.TileService
+import androidx.core.content.ContextCompat
 
 class FloaminiTileService : TileService() {
 
@@ -1905,7 +4025,7 @@ class FloaminiTileService : TileService() {
             state = Tile.STATE_ACTIVE
             label = "Floamini AI"
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                subtitle = "Panggil Siri"
+                subtitle = "Siri & Overlay"
             }
             updateTile()
         }
@@ -1913,60 +4033,18 @@ class FloaminiTileService : TileService() {
 
     override fun onClick() {
         super.onClick()
-        val triggerIntent = Intent(this, SiriTriggerActivity::class.java).apply {
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
-        }
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-            val pendingIntent = PendingIntent.getActivity(
-                this,
-                2026,
-                triggerIntent,
-                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-            )
-            startActivityAndCollapse(pendingIntent)
-        } else {
-            @Suppress("DEPRECATION")
-            startActivityAndCollapse(triggerIntent)
-        }
-    }
-}
-""",
-
-    "app/src/main/java/com/example/floatinggeminiai/SiriTriggerActivity.kt": r"""package com.example.floatinggeminiai
-
-import android.app.Activity
-import android.content.Intent
-import android.net.Uri
-import android.os.Build
-import android.os.Bundle
-import android.provider.Settings
-import android.widget.Toast
-
-class SiriTriggerActivity : Activity() {
-
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-
         if (!Settings.canDrawOverlays(this)) {
-            Toast.makeText(this, "Izinkan Floamini tampil di atas layar dulu", Toast.LENGTH_LONG).show()
-            startActivity(Intent(
-                Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                Uri.parse("package:$packageName")
-            ).apply { addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) })
-            finish()
+            val openApp = Intent(this, MainActivity::class.java).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            startActivityAndCollapse(openApp)
             return
         }
 
-        val serviceIntent = Intent(this, FloatingAssistantService::class.java).apply {
-            action = FloatingAssistantService.ACTION_TRIGGER_SIRI
+        val summonIntent = Intent(this, FloatingAssistantService::class.java).apply {
+            action = FloatingAssistantService.ACTION_SUMMON_SIRI
         }
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            startForegroundService(serviceIntent)
-        } else {
-            startService(serviceIntent)
-        }
-        finish()
+        ContextCompat.startForegroundService(this, summonIntent)
     }
 }
 """,
@@ -1978,27 +4056,25 @@ import android.content.Context
 import android.content.Intent
 import android.media.projection.MediaProjectionManager
 import android.os.Bundle
+import androidx.core.content.ContextCompat
 
 class ScreenCapturePermissionActivity : Activity() {
 
-    private val REQUEST_CODE_SCREEN_CAPTURE = 1001
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        val projectionManager = getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
-        startActivityForResult(projectionManager.createScreenCaptureIntent(), REQUEST_CODE_SCREEN_CAPTURE)
+        val mgr = getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
+        startActivityForResult(mgr.createScreenCaptureIntent(), 9001)
     }
 
-    @Deprecated("Deprecated in Java")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
-        if (requestCode == REQUEST_CODE_SCREEN_CAPTURE) {
+        if (requestCode == 9001 && resultCode == RESULT_OK && data != null) {
             val serviceIntent = Intent(this, FloatingAssistantService::class.java).apply {
-                action = FloatingAssistantService.ACTION_SCREEN_CAPTURE_RESULT
+                action = FloatingAssistantService.ACTION_MEDIA_PROJECTION_READY
                 putExtra("resultCode", resultCode)
                 putExtra("data", data)
             }
-            startService(serviceIntent)
+            ContextCompat.startForegroundService(this, serviceIntent)
         }
         finish()
     }
@@ -2010,82 +4086,34 @@ class ScreenCapturePermissionActivity : Activity() {
 import android.app.Activity
 import android.content.Intent
 import android.os.Bundle
+import androidx.core.content.ContextCompat
 
 class FilePickerProxyActivity : Activity() {
 
-    private val REQ_PICK_ATTACHMENT = 3001
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        val pickerIntent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+        val picker = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
             addCategory(Intent.CATEGORY_OPENABLE)
             type = "*/*"
             putExtra(
                 Intent.EXTRA_MIME_TYPES,
-                arrayOf("image/*", "application/pdf", "text/*")
+                arrayOf("application/pdf", "image/*", "text/*")
             )
-            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
-        startActivityForResult(pickerIntent, REQ_PICK_ATTACHMENT)
+        startActivityForResult(picker, 9002)
     }
 
-    @Deprecated("Deprecated in Java")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
-        if (requestCode == REQ_PICK_ATTACHMENT && resultCode == Activity.RESULT_OK && data?.data != null) {
-            val uri = data.data!!
-            try {
-                contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            } catch (_: Exception) {}
-
-            val serviceIntent = Intent(this, FloatingAssistantService::class.java).apply {
-                action = FloatingAssistantService.ACTION_ATTACH_URI
-                putExtra("uri_string", uri.toString())
+        val uri = data?.data
+        if (requestCode == 9002 && resultCode == RESULT_OK && uri != null) {
+            val svc = Intent(this, FloatingAssistantService::class.java).apply {
+                action = FloatingAssistantService.ACTION_FILE_PICKED
+                putExtra("file_uri", uri.toString())
             }
-            startService(serviceIntent)
+            ContextCompat.startForegroundService(this, svc)
         }
         finish()
-    }
-}
-""",
-
-    "app/src/main/java/com/example/floatinggeminiai/AudioPermissionProxyActivity.kt": r"""package com.example.floatinggeminiai
-
-import android.Manifest
-import android.app.Activity
-import android.content.Intent
-import android.content.pm.PackageManager
-import android.os.Bundle
-import android.widget.Toast
-
-class AudioPermissionProxyActivity : Activity() {
-
-    private val REQ_RECORD_AUDIO = 4001
-
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
-            notifyServiceReady()
-            finish()
-        } else {
-            requestPermissions(arrayOf(Manifest.permission.RECORD_AUDIO), REQ_RECORD_AUDIO)
-        }
-    }
-
-    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        if (requestCode == REQ_RECORD_AUDIO && grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-            notifyServiceReady()
-        } else {
-            Toast.makeText(this, "Izin mikrofon diperlukan untuk Voice Chat", Toast.LENGTH_SHORT).show()
-        }
-        finish()
-    }
-
-    private fun notifyServiceReady() {
-        startService(Intent(this, FloatingAssistantService::class.java).apply {
-            action = FloatingAssistantService.ACTION_AUDIO_PERMISSION_GRANTED
-        })
     }
 }
 """,
@@ -2099,2970 +4127,41 @@ import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import android.widget.Toast
+import androidx.core.content.ContextCompat
 
 class ExternalTriggerActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
         if (!Settings.canDrawOverlays(this)) {
-            Toast.makeText(this, "Aktifkan izin overlay Floamini terlebih dahulu", Toast.LENGTH_LONG).show()
-            startActivity(Intent(
-                Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                Uri.parse("package:$packageName")
-            ).apply { addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) })
+            Toast.makeText(this, "Aktifkan izin Overlay Floamini terlebih dahulu.", Toast.LENGTH_SHORT).show()
+            startActivity(Intent(this, MainActivity::class.java))
             finish()
             return
         }
 
-        val serviceIntent = Intent(this, FloatingAssistantService::class.java).apply {
-            action = FloatingAssistantService.ACTION_EXTERNAL_CONTEXT
-        }
-
-        when (intent?.action) {
-            Intent.ACTION_PROCESS_TEXT -> {
-                val selectedText = intent.getCharSequenceExtra(Intent.EXTRA_PROCESS_TEXT)?.toString() ?: ""
-                serviceIntent.putExtra("shared_text", selectedText)
-                serviceIntent.putExtra("source_mode", "selection")
-            }
-            Intent.ACTION_SEND -> {
-                val sharedText = intent.getStringExtra(Intent.EXTRA_TEXT) ?: ""
-                val streamUri: Uri? = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                    intent.getParcelableExtra(Intent.EXTRA_STREAM, Uri::class.java)
-                } else {
-                    @Suppress("DEPRECATION")
-                    intent.getParcelableExtra(Intent.EXTRA_STREAM)
-                }
-                serviceIntent.putExtra("shared_text", sharedText)
-                if (streamUri != null) {
-                    serviceIntent.putExtra("uri_string", streamUri.toString())
-                }
-                serviceIntent.putExtra("source_mode", "share")
-            }
-        }
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            startForegroundService(serviceIntent)
+        val selectedText = intent.getCharSequenceExtra(Intent.EXTRA_PROCESS_TEXT)?.toString()
+            ?: intent.getStringExtra(Intent.EXTRA_TEXT)
+        val sharedImageUri: Uri? = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            intent.getParcelableExtra(Intent.EXTRA_STREAM, Uri::class.java)
         } else {
-            startService(serviceIntent)
+            @Suppress("DEPRECATION")
+            intent.getParcelableExtra(Intent.EXTRA_STREAM)
         }
+
+        val svc = Intent(this, FloatingAssistantService::class.java).apply {
+            action = FloatingAssistantService.ACTION_EXTERNAL_QUERY
+            if (!selectedText.isNullOrBlank()) putExtra("external_text", selectedText)
+            if (sharedImageUri != null) putExtra("file_uri", sharedImageUri.toString())
+        }
+        ContextCompat.startForegroundService(this, svc)
         finish()
     }
 }
 """,
 
-    # --------------------------------------------------------------------------
-    # 14. LAYOUT FIRST WELCOME SCREEN
-    # --------------------------------------------------------------------------
-    "app/src/main/res/layout/activity_welcome.xml": r"""<?xml version="1.0" encoding="utf-8"?>
-<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
-    android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:background="@color/bg_screen"
-    android:fillViewport="true">
-
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:padding="20dp">
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:gravity="center"
-            android:paddingVertical="16dp">
-
-            <FrameLayout
-                android:layout_width="72dp"
-                android:layout_height="72dp"
-                android:background="@drawable/bg_dynamic_island">
-
-                <ImageView
-                    android:layout_width="34dp"
-                    android:layout_height="34dp"
-                    android:layout_gravity="center"
-                    android:src="@drawable/ic_sparkle"
-                    app:tint="#38BDF8" />
-            </FrameLayout>
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
-                android:paddingHorizontal="12dp"
-                android:paddingVertical="4dp"
-                android:background="@drawable/bg_badge_pill"
-                android:text="FLOAMINI OS • MULTI-AI &amp; LIQUID GLASS"
-                android:textSize="10sp"
-                android:textStyle="bold"
-                android:textColor="@color/accent_primary" />
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="10dp"
-                android:text="Selamat Datang di Floamini"
-                android:textSize="24sp"
-                android:textStyle="bold"
-                android:textColor="@color/text_primary"
-                android:gravity="center" />
-
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="6dp"
-                android:text="Asisten AI tingkat sistem operasi dengan 11 AI Provider, Streaming SSE, Voice Chat, PDF Vision, Dynamic Island, dan Siri Mode."
-                android:textSize="13sp"
-                android:lineHeight="19dp"
-                android:textColor="@color/text_secondary"
-                android:gravity="center" />
-        </LinearLayout>
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:background="@drawable/bg_liquid_glass_card"
-            android:padding="18dp"
-            android:layout_marginBottom="16dp">
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Setup Cepat API Key (Encrypted AES-256)"
-                android:textSize="16sp"
-                android:textStyle="bold"
-                android:textColor="#F8FAFC" />
-
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:text="1. Pilih provider utama Anda (Google Gemini gratis di Google AI Studio, atau OpenAI, Claude, DeepSeek, Grok, Groq, OpenRouter, Mistral, Qwen, Perplexity).\n2. Tempel API Key pada kolom di bawah dan tekan Tes Koneksi."
-                android:textSize="12.5sp"
-                android:lineHeight="18.5dp"
-                android:textColor="#CBD5E1" />
-
-            <Spinner
-                android:id="@+id/spWelcomeProvider"
-                android:layout_width="match_parent"
-                android:layout_height="44dp"
-                android:layout_marginTop="12dp"
-                android:background="@drawable/bg_input_glass"
-                android:paddingHorizontal="12dp" />
-
-            <Button
-                android:id="@+id/btnOpenAiStudio"
-                android:layout_width="match_parent"
-                android:layout_height="44dp"
-                android:layout_marginTop="10dp"
-                android:text="Buka Portal API Key Provider ↗"
-                android:textSize="12.5sp"
-                android:textStyle="bold"
-                android:backgroundTint="#1E293B"
-                android:textColor="#38BDF8" />
-
-            <com.google.android.material.textfield.TextInputLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="10dp"
-                android:hint="Tempel API Key di sini"
-                app:boxBackgroundColor="#0B111E"
-                app:boxStrokeColor="#38BDF8"
-                app:hintTextColor="#38BDF8"
-                app:endIconMode="password_toggle"
-                style="@style/Widget.Material3.TextInputLayout.OutlinedBox">
-
-                <com.google.android.material.textfield.TextInputEditText
-                    android:id="@+id/etWelcomeApiKey"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:textColor="#F8FAFC"
-                    android:textSize="13sp"
-                    android:inputType="textPassword" />
-            </com.google.android.material.textfield.TextInputLayout>
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:gravity="center_vertical"
-                android:layout_marginTop="10dp">
-
-                <Button
-                    android:id="@+id/btnTestTokenWelcome"
-                    android:layout_width="wrap_content"
-                    android:layout_height="40dp"
-                    android:text="Tes Koneksi"
-                    android:textSize="12sp"
-                    android:textStyle="bold"
-                    android:backgroundTint="#0284C7"
-                    android:textColor="#FFFFFF" />
-
-                <TextView
-                    android:id="@+id/tvTokenTestResult"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:layout_marginStart="12dp"
-                    android:text="Belum diuji"
-                    android:textSize="12sp"
-                    android:textColor="#94A3B8" />
-            </LinearLayout>
-        </LinearLayout>
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:background="@drawable/bg_liquid_glass_card"
-            android:padding="18dp"
-            android:layout_marginBottom="16dp">
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Privasi &amp; Kemampuan OS-Level"
-                android:textSize="15sp"
-                android:textStyle="bold"
-                android:textColor="#F8FAFC" />
-
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:text="• Zero Background Spying: Floamini tidak pernah membaca layar atau clipboard secara diam-diam tanpa tindakan Anda.\n• Seleksi Teks &amp; Share: Blok teks di aplikasi mana pun lalu pilih Tanya Floamini AI, atau bagikan PDF/Gambar langsung ke Floamini.\n• Mode Siri Control Center: Panggil aura Siri dari panel Quick Settings HP Anda kapan saja."
-                android:textSize="12sp"
-                android:lineHeight="18dp"
-                android:textColor="#CBD5E1" />
-        </LinearLayout>
-
-        <Button
-            android:id="@+id/btnContinueToFloamini"
-            android:layout_width="match_parent"
-            android:layout_height="54dp"
-            android:text="Masuk ke Dashboard Floamini"
-            android:textStyle="bold"
-            android:textSize="15sp"
-            android:backgroundTint="#38BDF8"
-            android:textColor="#04070F"
-            android:layout_marginBottom="24dp" />
-
-    </LinearLayout>
-</ScrollView>
-""",
-
-    # --------------------------------------------------------------------------
-    # 15. LAYOUT SETTINGS DASHBOARD (ALL 10 REQUIRED SETTINGS SECTIONS)
-    # --------------------------------------------------------------------------
-    "app/src/main/res/layout/activity_main.xml": r"""<?xml version="1.0" encoding="utf-8"?>
-<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
-    android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:background="@color/bg_screen"
-    android:fillViewport="true">
-
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:padding="18dp">
-
-        <!-- HEADER -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:gravity="center_vertical"
-            android:layout_marginBottom="16dp">
-
-            <FrameLayout
-                android:layout_width="46dp"
-                android:layout_height="46dp"
-                android:background="@drawable/bg_dynamic_island">
-
-                <ImageView
-                    android:layout_width="22dp"
-                    android:layout_height="22dp"
-                    android:layout_gravity="center"
-                    android:src="@drawable/ic_sparkle"
-                    app:tint="#38BDF8" />
-            </FrameLayout>
-
-            <LinearLayout
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:layout_marginStart="12dp"
-                android:orientation="vertical">
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Floamini OS"
-                    android:textSize="23sp"
-                    android:textStyle="bold"
-                    android:textColor="@color/text_primary" />
-
-                <TextView
-                    android:id="@+id/tvAppVersionInfo"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="11 AI Providers • Liquid Glass • Siri Aura"
-                    android:textSize="11.5sp"
-                    android:textColor="@color/text_secondary" />
-            </LinearLayout>
-
-            <Button
-                android:id="@+id/btnOpenWelcomeGuide"
-                android:layout_width="wrap_content"
-                android:layout_height="38dp"
-                android:text="Panduan"
-                android:textSize="12sp"
-                android:textColor="@color/accent_primary"
-                style="@style/Widget.Material3.Button.OutlinedButton" />
-        </LinearLayout>
-
-        <!-- 1. FLOATING WINDOW & CONTROL CENTER -->
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="1. FLOATING WINDOW &amp; CONTROL CENTER"
-            android:textSize="11sp"
-            android:textStyle="bold"
-            android:letterSpacing="0.06"
-            android:textColor="@color/text_secondary"
-            android:layout_marginStart="6dp"
-            android:layout_marginBottom="6dp" />
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:background="@drawable/bg_liquid_glass_card"
-            android:padding="16dp"
-            android:layout_marginBottom="16dp">
-
-            <Button
-                android:id="@+id/btnStartOverlay"
-                android:layout_width="match_parent"
-                android:layout_height="52dp"
-                android:text="Aktifkan Floamini Assistant"
-                android:textStyle="bold"
-                android:textSize="14sp"
-                app:icon="@drawable/ic_dynamic_island"
-                app:iconGravity="textStart"
-                app:iconTint="#04070F"
-                android:backgroundTint="#38BDF8"
-                android:textColor="#04070F" />
-
-            <Button
-                android:id="@+id/btnAddControlCenterTile"
-                android:layout_width="match_parent"
-                android:layout_height="44dp"
-                android:layout_marginTop="10dp"
-                android:text="Tambah Tombol ke Control Center (Siri Mode)"
-                android:textSize="12sp"
-                android:textStyle="bold"
-                app:icon="@drawable/ic_siri_orb"
-                app:iconSize="17dp"
-                app:iconGravity="textStart"
-                app:iconTint="#C084FC"
-                android:backgroundTint="#1E1B4B"
-                android:textColor="#E9D5FF" />
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:layout_marginTop="10dp">
-
-                <Button
-                    android:id="@+id/btnStopOverlay"
-                    android:layout_width="0dp"
-                    android:layout_height="42dp"
-                    android:layout_weight="1"
-                    android:text="Hentikan"
-                    android:textSize="12sp"
-                    android:textColor="#CBD5E1"
-                    app:strokeColor="#334155"
-                    style="@style/Widget.Material3.Button.OutlinedButton" />
-
-                <Button
-                    android:id="@+id/btnQuickForceStopMain"
-                    android:layout_width="0dp"
-                    android:layout_height="42dp"
-                    android:layout_weight="1.15"
-                    android:layout_marginStart="10dp"
-                    android:text="Quick Force Stop"
-                    android:textSize="12sp"
-                    android:textStyle="bold"
-                    app:icon="@drawable/ic_power_stop"
-                    app:iconSize="16dp"
-                    app:iconTint="#FCA5A5"
-                    android:backgroundTint="#450A0A"
-                    android:textColor="#FCA5A5" />
-            </LinearLayout>
-
-            <RadioGroup
-                android:id="@+id/rgOverlayStyle"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:layout_marginTop="12dp">
-
-                <RadioButton
-                    android:id="@+id/rbStyleDynamicIsland"
-                    android:layout_width="match_parent"
-                    android:layout_height="34dp"
-                    android:text="Dynamic Island (Pil Melayang Atas)"
-                    android:textSize="12.5sp"
-                    android:textColor="#F8FAFC"
-                    android:checked="true" />
-
-                <RadioButton
-                    android:id="@+id/rbStyleSiriMode"
-                    android:layout_width="match_parent"
-                    android:layout_height="34dp"
-                    android:text="Mode Siri (Tersembunyi, Panggil via Control Center)"
-                    android:textSize="12.5sp"
-                    android:textColor="#E9D5FF" />
-
-                <RadioButton
-                    android:id="@+id/rbStyleXiaomiEdge"
-                    android:layout_width="match_parent"
-                    android:layout_height="34dp"
-                    android:text="Xiaomi Edge Pill (Garis Tipis Tepi Layar)"
-                    android:textSize="12.5sp"
-                    android:textColor="#F8FAFC" />
-
-                <RadioButton
-                    android:id="@+id/rbStyleClassicBubble"
-                    android:layout_width="match_parent"
-                    android:layout_height="34dp"
-                    android:text="Classic Bubble (Gelembung Bebas)"
-                    android:textSize="12.5sp"
-                    android:textColor="#F8FAFC" />
-            </RadioGroup>
-
-            <RadioGroup
-                android:id="@+id/rgPillAppearance"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:layout_marginTop="6dp">
-
-                <RadioButton
-                    android:id="@+id/rbPillStandard"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="Pil Lengkap"
-                    android:textSize="11.5sp"
-                    android:textColor="#E2E8F0"
-                    android:checked="true" />
-
-                <RadioButton
-                    android:id="@+id/rbPillPolos"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="Polos Hitam"
-                    android:textSize="11.5sp"
-                    android:textColor="#E2E8F0" />
-
-                <RadioButton
-                    android:id="@+id/rbPillMinimal"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="Ikon Saja"
-                    android:textSize="11.5sp"
-                    android:textColor="#E2E8F0" />
-            </RadioGroup>
-
-            <com.google.android.material.switchmaterial.SwitchMaterial
-                android:id="@+id/swAutoHidePill"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="Auto-Hide Pil (Memudar Setelah 3 Detik Diam)"
-                android:textColor="#E2E8F0"
-                android:textSize="12sp" />
-
-            <com.google.android.material.switchmaterial.SwitchMaterial
-                android:id="@+id/swSmartFreeze"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="Auto Smart Freeze (Hemat RAM &amp; Baterai Saat Idle)"
-                android:textColor="#34D399"
-                android:textSize="12sp"
-                android:checked="true" />
-
-            <com.google.android.material.switchmaterial.SwitchMaterial
-                android:id="@+id/swTapOutsideClose"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="Ketuk di Luar Jendela untuk Menutup"
-                android:textColor="#E2E8F0"
-                android:textSize="12sp"
-                android:checked="true" />
-
-            <TextView
-                android:id="@+id/tvIslandWidthLabel"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="6dp"
-                android:text="Lebar Pil Dynamic Island: 164dp"
-                android:textSize="11.5sp"
-                android:textColor="#CBD5E1" />
-
-            <SeekBar
-                android:id="@+id/sbIslandWidth"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:max="130"
-                android:progress="54" />
-
-            <TextView
-                android:id="@+id/tvIslandPosYLabel"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Posisi Vertikal Atas (Y): 12dp"
-                android:textSize="11.5sp"
-                android:textColor="#CBD5E1" />
-
-            <SeekBar
-                android:id="@+id/sbIslandPosY"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:max="70"
-                android:progress="12" />
-
-            <TextView
-                android:id="@+id/tvIslandOffsetXLabel"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Geser Horizontal Kamera (X): 0dp"
-                android:textSize="11.5sp"
-                android:textColor="#CBD5E1" />
-
-            <SeekBar
-                android:id="@+id/sbIslandOffsetX"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:max="160"
-                android:progress="80" />
-        </LinearLayout>
-
-        <!-- 2. MULTI-AI PROVIDERS, API KEYS & MODEL MANAGER -->
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="2. AI PROVIDERS, API KEYS &amp; MODEL MANAGER (11 ENGINES)"
-            android:textSize="11sp"
-            android:textStyle="bold"
-            android:letterSpacing="0.06"
-            android:textColor="@color/text_secondary"
-            android:layout_marginStart="6dp"
-            android:layout_marginBottom="6dp" />
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:background="@drawable/bg_liquid_glass_card"
-            android:padding="16dp"
-            android:layout_marginBottom="16dp">
-
-            <com.google.android.material.switchmaterial.SwitchMaterial
-                android:id="@+id/swAutoRouter"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="AI Auto-Router (Pilih Provider Terbaik Otomatis)"
-                android:textColor="#38BDF8"
-                android:textSize="12.5sp" />
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:text="Pilih Provider untuk Dikonfigurasi / Dijadikan Aktif:"
-                android:textSize="12sp"
-                android:textColor="#94A3B8" />
-
-            <Spinner
-                android:id="@+id/spProviderSelector"
-                android:layout_width="match_parent"
-                android:layout_height="44dp"
-                android:layout_marginTop="6dp"
-                android:background="@drawable/bg_input_glass"
-                android:paddingHorizontal="12dp" />
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:gravity="center_vertical"
-                android:layout_marginTop="10dp">
-
-                <TextView
-                    android:id="@+id/tvProviderKeyStatus"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="Status Key: Belum diisi"
-                    android:textSize="12sp"
-                    android:textColor="#FBBF24" />
-
-                <TextView
-                    android:id="@+id/tvOpenProviderDocs"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Dapatkan Key ↗"
-                    android:textSize="12sp"
-                    android:textStyle="bold"
-                    android:textColor="#38BDF8" />
-            </LinearLayout>
-
-            <com.google.android.material.textfield.TextInputLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:hint="API Key Provider (Terenkripsi AES-256)"
-                app:boxBackgroundColor="#0B111E"
-                app:boxStrokeColor="#38BDF8"
-                app:hintTextColor="#38BDF8"
-                app:endIconMode="password_toggle"
-                style="@style/Widget.Material3.TextInputLayout.OutlinedBox">
-
-                <com.google.android.material.textfield.TextInputEditText
-                    android:id="@+id/etProviderApiKey"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:textColor="#F8FAFC"
-                    android:textSize="13sp"
-                    android:inputType="textPassword" />
-            </com.google.android.material.textfield.TextInputLayout>
-
-            <com.google.android.material.textfield.TextInputLayout
-                android:id="@+id/tilCustomBaseUrl"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:hint="Custom Base URL (Contoh: https://api.openai.com/v1)"
-                app:boxBackgroundColor="#0B111E"
-                app:boxStrokeColor="#38BDF8"
-                app:hintTextColor="#38BDF8"
-                android:visibility="gone"
-                style="@style/Widget.Material3.TextInputLayout.OutlinedBox">
-
-                <com.google.android.material.textfield.TextInputEditText
-                    android:id="@+id/etCustomBaseUrl"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:textColor="#F8FAFC"
-                    android:textSize="13sp"
-                    android:inputType="textUri" />
-            </com.google.android.material.textfield.TextInputLayout>
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="10dp"
-                android:text="Model Preset atau Ketik Model ID Kustom:"
-                android:textSize="12sp"
-                android:textColor="#94A3B8" />
-
-            <Spinner
-                android:id="@+id/spModelPresetSelector"
-                android:layout_width="match_parent"
-                android:layout_height="42dp"
-                android:layout_marginTop="4dp"
-                android:background="@drawable/bg_input_glass"
-                android:paddingHorizontal="12dp" />
-
-            <com.google.android.material.textfield.TextInputLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:hint="Model ID Aktif"
-                app:boxBackgroundColor="#0B111E"
-                app:boxStrokeColor="#38BDF8"
-                app:hintTextColor="#38BDF8"
-                style="@style/Widget.Material3.TextInputLayout.OutlinedBox">
-
-                <com.google.android.material.textfield.TextInputEditText
-                    android:id="@+id/etActiveModelId"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:textColor="#F8FAFC"
-                    android:textSize="13sp"
-                    android:inputType="text" />
-            </com.google.android.material.textfield.TextInputLayout>
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:layout_marginTop="10dp">
-
-                <Button
-                    android:id="@+id/btnSaveProviderConfig"
-                    android:layout_width="0dp"
-                    android:layout_height="42dp"
-                    android:layout_weight="1"
-                    android:text="Simpan Provider"
-                    android:textSize="12sp"
-                    android:textStyle="bold"
-                    android:backgroundTint="#0284C7"
-                    android:textColor="#FFFFFF" />
-
-                <Button
-                    android:id="@+id/btnTestProviderConnection"
-                    android:layout_width="0dp"
-                    android:layout_height="42dp"
-                    android:layout_weight="1"
-                    android:layout_marginStart="8dp"
-                    android:text="Tes Koneksi"
-                    android:textSize="12sp"
-                    android:textColor="#38BDF8"
-                    app:strokeColor="#38BDF8"
-                    style="@style/Widget.Material3.Button.OutlinedButton" />
-            </LinearLayout>
-
-            <TextView
-                android:id="@+id/tvProviderTestOutput"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="6dp"
-                android:text="Siap menguji koneksi provider"
-                android:textSize="11.5sp"
-                android:textColor="#94A3B8" />
-        </LinearLayout>
-
-        <!-- 3. APPEARANCE, THEME & ANIMATION SETTINGS -->
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="3. APPEARANCE, LIQUID GLASS &amp; ANIMATION"
-            android:textSize="11sp"
-            android:textStyle="bold"
-            android:letterSpacing="0.06"
-            android:textColor="@color/text_secondary"
-            android:layout_marginStart="6dp"
-            android:layout_marginBottom="6dp" />
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:background="@drawable/bg_liquid_glass_card"
-            android:padding="16dp"
-            android:layout_marginBottom="16dp">
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Tema Aplikasi (Adaptive Theme)"
-                android:textSize="12.5sp"
-                android:textStyle="bold"
-                android:textColor="#F8FAFC" />
-
-            <RadioGroup
-                android:id="@+id/rgAppTheme"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:layout_marginTop="4dp">
-
-                <RadioButton
-                    android:id="@+id/rbThemeSystem"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="Sistem"
-                    android:textSize="12sp"
-                    android:textColor="#E2E8F0" />
-
-                <RadioButton
-                    android:id="@+id/rbThemeDark"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="Dark Glass"
-                    android:textSize="12sp"
-                    android:textColor="#E2E8F0"
-                    android:checked="true" />
-
-                <RadioButton
-                    android:id="@+id/rbThemeLight"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="Light Glass"
-                    android:textSize="12sp"
-                    android:textColor="#E2E8F0" />
-            </RadioGroup>
-
-            <com.google.android.material.switchmaterial.SwitchMaterial
-                android:id="@+id/swLiquidBlur"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="Dynamic Real-Time Window Blur"
-                android:textColor="#E2E8F0"
-                android:textSize="12sp"
-                android:checked="true" />
-
-            <com.google.android.material.switchmaterial.SwitchMaterial
-                android:id="@+id/swHapticFeedback"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="Haptic Engine Feedback"
-                android:textColor="#E2E8F0"
-                android:textSize="12sp"
-                android:checked="true" />
-
-            <TextView
-                android:id="@+id/tvOpacityLabel"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="6dp"
-                android:text="Transparansi Liquid Glass: 84%"
-                android:textSize="11.5sp"
-                android:textColor="#CBD5E1" />
-
-            <SeekBar
-                android:id="@+id/sbOpacity"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:max="55"
-                android:progress="39" />
-
-            <TextView
-                android:id="@+id/tvAnimSpeedLabel"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Kecepatan Spring Animation: 1.0x"
-                android:textSize="11.5sp"
-                android:textColor="#CBD5E1" />
-
-            <SeekBar
-                android:id="@+id/sbAnimSpeed"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:max="10"
-                android:progress="5" />
-        </LinearLayout>
-
-        <!-- 4. VOICE SYSTEM, PERSONA & CUSTOM SYSTEM INSTRUCTION -->
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="4. VOICE SYSTEM &amp; AI PERSONALITY"
-            android:textSize="11sp"
-            android:textStyle="bold"
-            android:letterSpacing="0.06"
-            android:textColor="@color/text_secondary"
-            android:layout_marginStart="6dp"
-            android:layout_marginBottom="6dp" />
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:background="@drawable/bg_liquid_glass_card"
-            android:padding="16dp"
-            android:layout_marginBottom="16dp">
-
-            <com.google.android.material.switchmaterial.SwitchMaterial
-                android:id="@+id/swAutoSpeakTts"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="Auto-Speak Balasan AI di Mode Voice Chat"
-                android:textColor="#E2E8F0"
-                android:textSize="12sp"
-                android:checked="true" />
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="6dp"
-                android:text="Pilih Suara Text-to-Speech (TTS):"
-                android:textSize="12sp"
-                android:textColor="#94A3B8" />
-
-            <Spinner
-                android:id="@+id/spTtsVoiceSelector"
-                android:layout_width="match_parent"
-                android:layout_height="42dp"
-                android:layout_marginTop="4dp"
-                android:background="@drawable/bg_input_glass"
-                android:paddingHorizontal="12dp" />
-
-            <RadioGroup
-                android:id="@+id/rgPersona"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:layout_marginTop="10dp">
-
-                <RadioButton
-                    android:id="@+id/rbAsik"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="Asik"
-                    android:textSize="12sp"
-                    android:textColor="#E2E8F0"
-                    android:checked="true" />
-
-                <RadioButton
-                    android:id="@+id/rbRingkas"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="Singkat"
-                    android:textSize="12sp"
-                    android:textColor="#E2E8F0" />
-
-                <RadioButton
-                    android:id="@+id/rbDetail"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="Detail"
-                    android:textSize="12sp"
-                    android:textColor="#E2E8F0" />
-
-                <RadioButton
-                    android:id="@+id/rbTeknis"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="Teknis"
-                    android:textSize="12sp"
-                    android:textColor="#E2E8F0" />
-            </RadioGroup>
-
-            <com.google.android.material.textfield.TextInputLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:hint="Custom System Instruction (Opsional)"
-                app:boxBackgroundColor="#0B111E"
-                app:boxStrokeColor="#38BDF8"
-                app:hintTextColor="#38BDF8"
-                style="@style/Widget.Material3.TextInputLayout.OutlinedBox">
-
-                <com.google.android.material.textfield.TextInputEditText
-                    android:id="@+id/etCustomSystemInstruction"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:textColor="#F8FAFC"
-                    android:textSize="12.5sp"
-                    android:maxLines="3" />
-            </com.google.android.material.textfield.TextInputLayout>
-        </LinearLayout>
-
-        <!-- 5. PRIVACY, DATA MANAGEMENT & USAGE STATISTICS -->
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="5. PRIVACY, DATA MANAGEMENT &amp; USAGE STATISTICS"
-            android:textSize="11sp"
-            android:textStyle="bold"
-            android:letterSpacing="0.06"
-            android:textColor="@color/text_secondary"
-            android:layout_marginStart="6dp"
-            android:layout_marginBottom="6dp" />
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:background="@drawable/bg_liquid_glass_card"
-            android:padding="16dp"
-            android:layout_marginBottom="16dp">
-
-            <TextView
-                android:id="@+id/tvUsageStatistics"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="Memuat statistik penggunaan..."
-                android:textSize="12sp"
-                android:lineHeight="18dp"
-                android:textColor="#CBD5E1" />
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:layout_marginTop="12dp">
-
-                <Button
-                    android:id="@+id/btnClearAllHistoryMain"
-                    android:layout_width="0dp"
-                    android:layout_height="40dp"
-                    android:layout_weight="1"
-                    android:text="Hapus Semua Chat"
-                    android:textSize="11.5sp"
-                    android:textColor="#FBBF24"
-                    app:strokeColor="#475569"
-                    style="@style/Widget.Material3.Button.OutlinedButton" />
-
-                <Button
-                    android:id="@+id/btnResetUsageStats"
-                    android:layout_width="0dp"
-                    android:layout_height="40dp"
-                    android:layout_weight="1"
-                    android:layout_marginStart="8dp"
-                    android:text="Reset Statistik"
-                    android:textSize="11.5sp"
-                    android:textColor="#94A3B8"
-                    app:strokeColor="#475569"
-                    style="@style/Widget.Material3.Button.OutlinedButton" />
-            </LinearLayout>
-
-            <Button
-                android:id="@+id/btnWipeVaultKeys"
-                android:layout_width="match_parent"
-                android:layout_height="40dp"
-                android:layout_marginTop="8dp"
-                android:text="Hapus Seluruh API Keys dari Vault Terenkripsi"
-                android:textSize="11.5sp"
-                android:textColor="#FCA5A5"
-                app:strokeColor="#7F1D1D"
-                style="@style/Widget.Material3.Button.OutlinedButton" />
-        </LinearLayout>
-
-        <Button
-            android:id="@+id/btnSaveAllSettings"
-            android:layout_width="match_parent"
-            android:layout_height="52dp"
-            android:text="Simpan &amp; Terapkan Semua Pengaturan"
-            android:textStyle="bold"
-            android:backgroundTint="#2563EB"
-            android:textColor="#FFFFFF"
-            android:layout_marginBottom="24dp" />
-
-    </LinearLayout>
-</ScrollView>
-""",
-
-    # --------------------------------------------------------------------------
-    # 16. LAYOUT OVERLAY FLOATING ASSISTANT (LIQUID GLASS + MULTI-AI + VOICE + TOOLS)
-    # --------------------------------------------------------------------------
-    "app/src/main/res/layout/layout_floating_assistant.xml": r"""<?xml version="1.0" encoding="utf-8"?>
-<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
-    android:layout_width="wrap_content"
-    android:layout_height="wrap_content">
-
-    <!-- 1A. DYNAMIC ISLAND PILL -->
-    <LinearLayout
-        android:id="@+id/dynamicIslandView"
-        android:layout_width="164dp"
-        android:layout_height="34dp"
-        android:orientation="horizontal"
-        android:gravity="center_vertical"
-        android:paddingHorizontal="12dp"
-        android:background="@drawable/bg_dynamic_island"
-        android:elevation="16dp">
-
-        <ImageView
-            android:id="@+id/ivIslandSparkle"
-            android:layout_width="15dp"
-            android:layout_height="15dp"
-            android:src="@drawable/ic_sparkle"
-            app:tint="#38BDF8" />
-
-        <TextView
-            android:id="@+id/tvIslandLabel"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:gravity="center"
-            android:text="Floamini"
-            android:textSize="11.5sp"
-            android:textStyle="bold"
-            android:textColor="#F8FAFC"
-            android:singleLine="true" />
-
-        <View
-            android:id="@+id/viewIslandPulseDot"
-            android:layout_width="7dp"
-            android:layout_height="7dp"
-            android:background="@drawable/bg_island_pulse_dot" />
-    </LinearLayout>
-
-    <!-- 1B. CLASSIC FLOATING BUBBLE -->
-    <FrameLayout
-        android:id="@+id/bubbleView"
-        android:layout_width="54dp"
-        android:layout_height="54dp"
-        android:background="@drawable/bg_bubble"
-        android:elevation="14dp"
-        android:visibility="gone">
-
-        <ImageView
-            android:layout_width="25dp"
-            android:layout_height="25dp"
-            android:layout_gravity="center"
-            android:src="@drawable/ic_sparkle"
-            app:tint="#38BDF8" />
-    </FrameLayout>
-
-    <!-- 1C. XIAOMI EDGE PILL -->
-    <FrameLayout
-        android:id="@+id/xiaomiEdgeView"
-        android:layout_width="18dp"
-        android:layout_height="72dp"
-        android:background="@drawable/bg_xiaomi_edge_left"
-        android:elevation="14dp"
-        android:visibility="gone">
-
-        <View
-            android:layout_width="3dp"
-            android:layout_height="36dp"
-            android:layout_gravity="center"
-            android:background="@drawable/bg_xiaomi_inner_line" />
-    </FrameLayout>
-
-    <!-- 2. JENDELA CHAT GENUINE LIQUID GLASS -->
-    <LinearLayout
-        android:id="@+id/popupChatView"
-        android:layout_width="352dp"
-        android:layout_height="500dp"
-        android:orientation="vertical"
-        android:background="@drawable/bg_liquid_glass_window"
-        android:elevation="22dp"
-        android:visibility="gone">
-
-        <!-- TOP HEADER BAR -->
-        <LinearLayout
-            android:id="@+id/glassTitleBar"
-            android:layout_width="match_parent"
-            android:layout_height="46dp"
-            android:orientation="horizontal"
-            android:gravity="center_vertical"
-            android:paddingHorizontal="10dp"
-            android:background="@drawable/bg_liquid_glass_header">
-
-            <!-- Close X -->
-            <ImageView
-                android:id="@+id/btnCloseWindowX"
-                android:layout_width="26dp"
-                android:layout_height="26dp"
-                android:padding="5dp"
-                android:background="@drawable/bg_close_x_btn"
-                android:src="@drawable/ic_close_x"
-                app:tint="#F8FAFC"
-                android:contentDescription="Tutup" />
-
-            <!-- Mini / Full Window Toggle -->
-            <ImageView
-                android:id="@+id/btnToggleMiniWindow"
-                android:layout_width="26dp"
-                android:layout_height="26dp"
-                android:layout_marginStart="5dp"
-                android:padding="5dp"
-                android:background="@drawable/bg_close_x_btn"
-                android:src="@drawable/ic_minimize"
-                app:tint="#FBBF24"
-                android:contentDescription="Mini Window" />
-
-            <!-- Active Provider Switcher Pill -->
-            <LinearLayout
-                android:id="@+id/btnSwitchProviderPill"
-                android:layout_width="0dp"
-                android:layout_height="28dp"
-                android:layout_weight="1"
-                android:layout_marginHorizontal="6dp"
-                android:paddingHorizontal="8dp"
-                android:gravity="center"
-                android:background="@drawable/bg_badge_pill"
-                android:orientation="horizontal">
-
-                <ImageView
-                    android:layout_width="13dp"
-                    android:layout_height="13dp"
-                    android:src="@drawable/ic_sparkle"
-                    app:tint="#38BDF8" />
-
-                <TextView
-                    android:id="@+id/tvActiveProviderHeader"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="5dp"
-                    android:text="Gemini • 2.5 Flash"
-                    android:textSize="11sp"
-                    android:textStyle="bold"
-                    android:textColor="#F8FAFC"
-                    android:singleLine="true" />
-            </LinearLayout>
-
-            <!-- Live Screen Share -->
-            <ImageView
-                android:id="@+id/btnScreenShare"
-                android:layout_width="26dp"
-                android:layout_height="26dp"
-                android:padding="4dp"
-                android:src="@drawable/ic_screen_share"
-                app:tint="#94A3B8"
-                android:contentDescription="Screen Vision" />
-
-            <!-- Smart Tools & History Drawer Toggle -->
-            <ImageView
-                android:id="@+id/btnToolsDrawer"
-                android:layout_width="26dp"
-                android:layout_height="26dp"
-                android:layout_marginStart="4dp"
-                android:padding="4dp"
-                android:src="@drawable/ic_grid_tools"
-                app:tint="#C084FC"
-                android:contentDescription="Smart Tools" />
-
-            <!-- Plus Menu (+) -->
-            <ImageView
-                android:id="@+id/btnPlusMenu"
-                android:layout_width="26dp"
-                android:layout_height="26dp"
-                android:layout_marginStart="4dp"
-                android:padding="4dp"
-                android:background="@drawable/bg_plus_btn"
-                android:src="@drawable/ic_plus"
-                app:tint="#38BDF8"
-                android:contentDescription="Menu Plus" />
-        </LinearLayout>
-
-        <!-- STATUS BARS (SCREEN SHARE / ATTACHMENT / COMPARE MODE) -->
-        <TextView
-            android:id="@+id/tvScreenShareStatus"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:background="#330EA5E9"
-            android:paddingVertical="3dp"
-            android:paddingHorizontal="10dp"
-            android:text="Live Screen Vision Aktif"
-            android:textSize="10sp"
-            android:textColor="#7DD3FC"
-            android:gravity="center"
-            android:visibility="gone" />
-
-        <LinearLayout
-            android:id="@+id/attachmentPreviewBar"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:gravity="center_vertical"
-            android:background="#337C3AED"
-            android:paddingHorizontal="10dp"
-            android:paddingVertical="4dp"
-            android:visibility="gone">
-
-            <TextView
-                android:id="@+id/tvAttachmentName"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="Lampiran siap dikirim"
-                android:textSize="10.5sp"
-                android:textColor="#E9D5FF"
-                android:singleLine="true" />
-
-            <TextView
-                android:id="@+id/btnRemoveAttachment"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Hapus"
-                android:textSize="10.5sp"
-                android:textStyle="bold"
-                android:textColor="#FCA5A5" />
-        </LinearLayout>
-
-        <!-- DRAWER 1: MENU PLUS (+) & 9 QUICK ACTIONS -->
-        <LinearLayout
-            android:id="@+id/plusMenuDrawer"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:background="#F00F172A"
-            android:padding="10dp"
-            android:visibility="gone">
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal">
-
-                <LinearLayout
-                    android:id="@+id/actionCompareAi"
-                    android:layout_width="0dp"
-                    android:layout_height="32dp"
-                    android:layout_weight="1"
-                    android:gravity="center"
-                    android:background="@drawable/bg_chip_action"
-                    android:orientation="horizontal">
-
-                    <TextView
-                        android:id="@+id/tvCompareBadge"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Compare AI: OFF"
-                        android:textSize="10.5sp"
-                        android:textStyle="bold"
-                        android:textColor="#38BDF8" />
-                </LinearLayout>
-
-                <LinearLayout
-                    android:id="@+id/actionRegenerate"
-                    android:layout_width="0dp"
-                    android:layout_height="32dp"
-                    android:layout_weight="0.85"
-                    android:layout_marginStart="5dp"
-                    android:gravity="center"
-                    android:background="@drawable/bg_chip_action"
-                    android:orientation="horizontal">
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Regenerate"
-                        android:textSize="10.5sp"
-                        android:textColor="#F8FAFC" />
-                </LinearLayout>
-
-                <LinearLayout
-                    android:id="@+id/actionCyclePersona"
-                    android:layout_width="0dp"
-                    android:layout_height="32dp"
-                    android:layout_weight="0.75"
-                    android:layout_marginStart="5dp"
-                    android:gravity="center"
-                    android:background="@drawable/bg_chip_action"
-                    android:orientation="horizontal">
-
-                    <TextView
-                        android:id="@+id/tvCurrentPersonaBadge"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Asik"
-                        android:textSize="10.5sp"
-                        android:textColor="#C084FC" />
-                </LinearLayout>
-            </LinearLayout>
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:layout_marginTop="5dp">
-
-                <LinearLayout
-                    android:id="@+id/actionCopyLast"
-                    android:layout_width="0dp"
-                    android:layout_height="32dp"
-                    android:layout_weight="0.8"
-                    android:gravity="center"
-                    android:background="@drawable/bg_chip_action"
-                    android:orientation="horizontal">
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Salin"
-                        android:textSize="10.5sp"
-                        android:textColor="#34D399" />
-                </LinearLayout>
-
-                <LinearLayout
-                    android:id="@+id/actionNewThread"
-                    android:layout_width="0dp"
-                    android:layout_height="32dp"
-                    android:layout_weight="0.9"
-                    android:layout_marginStart="5dp"
-                    android:gravity="center"
-                    android:background="@drawable/bg_chip_action"
-                    android:orientation="horizontal">
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Sesi Baru"
-                        android:textSize="10.5sp"
-                        android:textColor="#FBBF24" />
-                </LinearLayout>
-
-                <LinearLayout
-                    android:id="@+id/actionOpenDashboard"
-                    android:layout_width="0dp"
-                    android:layout_height="32dp"
-                    android:layout_weight="0.9"
-                    android:layout_marginStart="5dp"
-                    android:gravity="center"
-                    android:background="@drawable/bg_chip_action"
-                    android:orientation="horizontal">
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Settings"
-                        android:textSize="10.5sp"
-                        android:textColor="#CBD5E1" />
-                </LinearLayout>
-
-                <LinearLayout
-                    android:id="@+id/actionQuickForceStop"
-                    android:layout_width="0dp"
-                    android:layout_height="32dp"
-                    android:layout_weight="0.95"
-                    android:layout_marginStart="5dp"
-                    android:gravity="center"
-                    android:background="@drawable/bg_chip_danger"
-                    android:orientation="horizontal">
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Force Stop"
-                        android:textSize="10.5sp"
-                        android:textStyle="bold"
-                        android:textColor="#FCA5A5" />
-                </LinearLayout>
-            </LinearLayout>
-
-            <!-- 9 QUICK ACTIONS HORIZONTAL SCROLLER -->
-            <HorizontalScrollView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="7dp"
-                android:scrollbars="none">
-
-                <LinearLayout
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal">
-
-                    <TextView
-                        android:id="@+id/qaTranslate"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:paddingHorizontal="9dp"
-                        android:paddingVertical="5dp"
-                        android:background="@drawable/bg_chip_prompt"
-                        android:text="Translate"
-                        android:textSize="10sp"
-                        android:textColor="#38BDF8" />
-
-                    <TextView
-                        android:id="@+id/qaSummarize"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginStart="5dp"
-                        android:paddingHorizontal="9dp"
-                        android:paddingVertical="5dp"
-                        android:background="@drawable/bg_chip_prompt"
-                        android:text="Summarize"
-                        android:textSize="10sp"
-                        android:textColor="#E2E8F0" />
-
-                    <TextView
-                        android:id="@+id/qaRewrite"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginStart="5dp"
-                        android:paddingHorizontal="9dp"
-                        android:paddingVertical="5dp"
-                        android:background="@drawable/bg_chip_prompt"
-                        android:text="Rewrite"
-                        android:textSize="10sp"
-                        android:textColor="#E2E8F0" />
-
-                    <TextView
-                        android:id="@+id/qaExplain"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginStart="5dp"
-                        android:paddingHorizontal="9dp"
-                        android:paddingVertical="5dp"
-                        android:background="@drawable/bg_chip_prompt"
-                        android:text="Explain"
-                        android:textSize="10sp"
-                        android:textColor="#E2E8F0" />
-
-                    <TextView
-                        android:id="@+id/qaBrainstorm"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginStart="5dp"
-                        android:paddingHorizontal="9dp"
-                        android:paddingVertical="5dp"
-                        android:background="@drawable/bg_chip_prompt"
-                        android:text="Brainstorm"
-                        android:textSize="10sp"
-                        android:textColor="#E2E8F0" />
-
-                    <TextView
-                        android:id="@+id/qaCoding"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginStart="5dp"
-                        android:paddingHorizontal="9dp"
-                        android:paddingVertical="5dp"
-                        android:background="@drawable/bg_chip_prompt"
-                        android:text="Coding"
-                        android:textSize="10sp"
-                        android:textColor="#34D399" />
-
-                    <TextView
-                        android:id="@+id/qaGrammar"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginStart="5dp"
-                        android:paddingHorizontal="9dp"
-                        android:paddingVertical="5dp"
-                        android:background="@drawable/bg_chip_prompt"
-                        android:text="Grammar"
-                        android:textSize="10sp"
-                        android:textColor="#E2E8F0" />
-
-                    <TextView
-                        android:id="@+id/qaExtractText"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginStart="5dp"
-                        android:paddingHorizontal="9dp"
-                        android:paddingVertical="5dp"
-                        android:background="@drawable/bg_chip_prompt"
-                        android:text="Extract Text"
-                        android:textSize="10sp"
-                        android:textColor="#E2E8F0" />
-
-                    <TextView
-                        android:id="@+id/qaAskSelection"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginStart="5dp"
-                        android:paddingHorizontal="9dp"
-                        android:paddingVertical="5dp"
-                        android:background="@drawable/bg_chip_prompt"
-                        android:text="Ask Clipboard"
-                        android:textSize="10sp"
-                        android:textColor="#FBBF24" />
-                </LinearLayout>
-            </HorizontalScrollView>
-        </LinearLayout>
-
-        <!-- DRAWER 2: SMART FLOATING TOOLS (CLIPBOARD, NOTES, CALCULATOR, HISTORY SEARCH) -->
-        <LinearLayout
-            android:id="@+id/smartToolsDrawer"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:background="#F00F172A"
-            android:padding="10dp"
-            android:visibility="gone">
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal">
-
-                <Button
-                    android:id="@+id/btnToolClipboard"
-                    android:layout_width="0dp"
-                    android:layout_height="34dp"
-                    android:layout_weight="1"
-                    android:text="Clipboard"
-                    android:textSize="10.5sp"
-                    android:backgroundTint="#1E293B"
-                    android:textColor="#38BDF8" />
-
-                <Button
-                    android:id="@+id/btnToolCalculator"
-                    android:layout_width="0dp"
-                    android:layout_height="34dp"
-                    android:layout_weight="1"
-                    android:layout_marginStart="4dp"
-                    android:text="Kalkulator"
-                    android:textSize="10.5sp"
-                    android:backgroundTint="#1E293B"
-                    android:textColor="#34D399" />
-
-                <Button
-                    android:id="@+id/btnToolNotes"
-                    android:layout_width="0dp"
-                    android:layout_height="34dp"
-                    android:layout_weight="1"
-                    android:layout_marginStart="4dp"
-                    android:text="Quick Notes"
-                    android:textSize="10.5sp"
-                    android:backgroundTint="#1E293B"
-                    android:textColor="#FBBF24" />
-
-                <Button
-                    android:id="@+id/btnToolHistory"
-                    android:layout_width="0dp"
-                    android:layout_height="34dp"
-                    android:layout_weight="1"
-                    android:layout_marginStart="4dp"
-                    android:text="Riwayat"
-                    android:textSize="10.5sp"
-                    android:backgroundTint="#1E293B"
-                    android:textColor="#C084FC" />
-            </LinearLayout>
-
-            <!-- Mini Floating Calculator Panel -->
-            <LinearLayout
-                android:id="@+id/panelCalculator"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:gravity="center_vertical"
-                android:layout_marginTop="8dp"
-                android:background="@drawable/bg_input_glass"
-                android:padding="6dp"
-                android:visibility="gone">
-
-                <EditText
-                    android:id="@+id/etCalcExpression"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:hint="Hitung: (125*4)+50"
-                    android:textColorHint="#64748B"
-                    android:textColor="#F8FAFC"
-                    android:textSize="12sp"
-                    android:background="@android:color/transparent"
-                    android:padding="4dp" />
-
-                <TextView
-                    android:id="@+id/tvCalcResult"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginHorizontal="8dp"
-                    android:text="= 0"
-                    android:textStyle="bold"
-                    android:textColor="#34D399"
-                    android:textSize="12.5sp" />
-
-                <Button
-                    android:id="@+id/btnEvalCalc"
-                    android:layout_width="wrap_content"
-                    android:layout_height="32dp"
-                    android:text="Hitung"
-                    android:textSize="10.5sp"
-                    android:backgroundTint="#0284C7"
-                    android:textColor="#FFFFFF" />
-            </LinearLayout>
-
-            <!-- Mini Quick Notes Panel -->
-            <LinearLayout
-                android:id="@+id/panelQuickNotes"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:layout_marginTop="8dp"
-                android:background="@drawable/bg_input_glass"
-                android:padding="8dp"
-                android:visibility="gone">
-
-                <EditText
-                    android:id="@+id/etQuickNotes"
-                    android:layout_width="match_parent"
-                    android:layout_height="64dp"
-                    android:hint="Catatan cepat Anda..."
-                    android:textColorHint="#64748B"
-                    android:textColor="#F8FAFC"
-                    android:textSize="12sp"
-                    android:gravity="top"
-                    android:background="@android:color/transparent" />
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:gravity="end">
-
-                    <Button
-                        android:id="@+id/btnSendNotesToAi"
-                        android:layout_width="wrap_content"
-                        android:layout_height="30dp"
-                        android:text="Tanya AI soal Catatan"
-                        android:textSize="10sp"
-                        android:backgroundTint="#7C3AED"
-                        android:textColor="#FFFFFF" />
-                </LinearLayout>
-            </LinearLayout>
-
-            <!-- Chat History & Search Panel -->
-            <LinearLayout
-                android:id="@+id/panelChatHistory"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:layout_marginTop="8dp"
-                android:background="@drawable/bg_input_glass"
-                android:padding="8dp"
-                android:visibility="gone">
-
-                <EditText
-                    android:id="@+id/etSearchChat"
-                    android:layout_width="match_parent"
-                    android:layout_height="34dp"
-                    android:hint="Cari riwayat percakapan..."
-                    android:textColorHint="#64748B"
-                    android:textColor="#F8FAFC"
-                    android:textSize="12sp"
-                    android:background="@android:color/transparent" />
-
-                <LinearLayout
-                    android:id="@+id/historyThreadsList"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:layout_marginTop="4dp" />
-            </LinearLayout>
-        </LinearLayout>
-
-        <!-- AREA PERCAKAPAN (STREAMING + COMPARE AI + RICH CODE) -->
-        <ScrollView
-            android:id="@+id/scrollChat"
-            android:layout_width="match_parent"
-            android:layout_height="0dp"
-            android:layout_weight="1"
-            android:padding="10dp">
-
-            <LinearLayout
-                android:id="@+id/chatContainer"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical" />
-        </ScrollView>
-
-        <!-- VOICE WAVEFORM BAR (STT & TTS LIVE ANIMATION) -->
-        <LinearLayout
-            android:id="@+id/voiceWaveformBar"
-            android:layout_width="match_parent"
-            android:layout_height="44dp"
-            android:orientation="horizontal"
-            android:gravity="center_vertical"
-            android:paddingHorizontal="12dp"
-            android:background="#2638BDF8"
-            android:visibility="gone">
-
-            <TextView
-                android:id="@+id/tvVoiceStatusLabel"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Mendengarkan..."
-                android:textSize="11sp"
-                android:textStyle="bold"
-                android:textColor="#38BDF8" />
-
-            <com.example.floatinggeminiai.ui.VoiceWaveformView
-                android:id="@+id/voiceWaveformView"
-                android:layout_width="0dp"
-                android:layout_height="28dp"
-                android:layout_weight="1"
-                android:layout_marginHorizontal="10dp" />
-
-            <TextView
-                android:id="@+id/btnStopVoiceAction"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Stop"
-                android:textSize="11sp"
-                android:textStyle="bold"
-                android:textColor="#FCA5A5" />
-        </LinearLayout>
-
-        <!-- STREAMING / THINKING & STOP GENERATION BAR -->
-        <LinearLayout
-            android:id="@+id/typingIndicatorRow"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:gravity="center_vertical"
-            android:paddingHorizontal="14dp"
-            android:paddingVertical="4dp"
-            android:visibility="gone">
-
-            <ImageView
-                android:layout_width="12dp"
-                android:layout_height="12dp"
-                android:src="@drawable/ic_sparkle"
-                app:tint="#38BDF8" />
-
-            <TextView
-                android:id="@+id/tvThinkingLabel"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:layout_marginStart="6dp"
-                android:text="Streaming respons..."
-                android:textSize="11sp"
-                android:textColor="#7DD3FC" />
-
-            <TextView
-                android:id="@+id/btnStopGeneration"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:paddingHorizontal="8dp"
-                android:paddingVertical="2dp"
-                android:background="@drawable/bg_chip_danger"
-                android:text="Stop"
-                android:textSize="10sp"
-                android:textStyle="bold"
-                android:textColor="#FCA5A5" />
-        </LinearLayout>
-
-        <!-- INPUT BAR: ATTACH (PDF/IMG/FILE), MIC (VOICE), PROMPT, SEND, RESIZE -->
-        <LinearLayout
-            android:id="@+id/bottomInputContainer"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:gravity="center_vertical"
-            android:paddingStart="8dp"
-            android:paddingEnd="5dp"
-            android:paddingTop="6dp"
-            android:paddingBottom="8dp">
-
-            <ImageButton
-                android:id="@+id/btnAttachFile"
-                android:layout_width="34dp"
-                android:layout_height="34dp"
-                android:background="@drawable/bg_close_x_btn"
-                android:src="@drawable/ic_attach"
-                app:tint="#CBD5E1"
-                android:contentDescription="Lampirkan PDF atau Gambar" />
-
-            <ImageButton
-                android:id="@+id/btnVoiceMic"
-                android:layout_width="34dp"
-                android:layout_height="34dp"
-                android:layout_marginStart="5dp"
-                android:background="@drawable/bg_close_x_btn"
-                android:src="@drawable/ic_mic"
-                app:tint="#38BDF8"
-                android:contentDescription="Voice Chat" />
-
-            <EditText
-                android:id="@+id/etPrompt"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:layout_marginStart="6dp"
-                android:hint="Tanya AI..."
-                android:textColorHint="#94A3B8"
-                android:textColor="#F8FAFC"
-                android:textSize="13sp"
-                android:maxLines="3"
-                android:paddingHorizontal="11dp"
-                android:paddingVertical="8dp"
-                android:background="@drawable/bg_input_glass" />
-
-            <ImageButton
-                android:id="@+id/btnSendPrompt"
-                android:layout_width="36dp"
-                android:layout_height="36dp"
-                android:layout_marginStart="6dp"
-                android:background="@drawable/bg_send_btn"
-                android:src="@drawable/ic_send"
-                app:tint="#FFFFFF"
-                android:contentDescription="Kirim" />
-
-            <ImageView
-                android:id="@+id/btnResizeHandle"
-                android:layout_width="20dp"
-                android:layout_height="26dp"
-                android:layout_marginStart="3dp"
-                android:padding="2dp"
-                android:src="@drawable/ic_resize_handle"
-                app:tint="#64748B"
-                android:contentDescription="Resize" />
-        </LinearLayout>
-
-    </LinearLayout>
-</FrameLayout>
-""",
-
-    # --------------------------------------------------------------------------
-    # 17. DRAWABLES: LIQUID GLASS & CUSTOM SVG ICONS
-    # --------------------------------------------------------------------------
-    "app/src/main/res/drawable/bg_dynamic_island.xml": r"""<?xml version="1.0" encoding="utf-8"?>
-<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-    <item>
-        <shape android:shape="rectangle">
-            <gradient
-                android:angle="135"
-                android:startColor="#66FFFFFF"
-                android:centerColor="#3338BDF8"
-                android:endColor="#26FFFFFF" />
-            <corners android:radius="100dp" />
-        </shape>
-    </item>
-    <item android:left="1dp" android:top="1dp" android:right="1dp" android:bottom="1dp">
-        <shape android:shape="rectangle">
-            <solid android:color="#FA020305" />
-            <corners android:radius="100dp" />
-        </shape>
-    </item>
-</layer-list>
-""",
-
-    "app/src/main/res/drawable/bg_dynamic_island_polos.xml": r"""<?xml version="1.0" encoding="utf-8"?>
-<shape xmlns:android="http://schemas.android.com/apk/res/android"
-    android:shape="rectangle">
-    <solid android:color="#FF000000" />
-    <corners android:radius="100dp" />
-</shape>
-""",
-
-    "app/src/main/res/drawable/bg_island_pulse_dot.xml": r"""<?xml version="1.0" encoding="utf-8"?>
-<shape xmlns:android="http://schemas.android.com/apk/res/android"
-    android:shape="oval">
-    <solid android:color="#34D399" />
-</shape>
-""",
-
-    "app/src/main/res/drawable/bg_liquid_glass_card.xml": r"""<?xml version="1.0" encoding="utf-8"?>
-<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-    <item>
-        <shape android:shape="rectangle">
-            <gradient
-                android:angle="135"
-                android:startColor="#59FFFFFF"
-                android:centerColor="#2638BDF8"
-                android:endColor="#26E879F9" />
-            <corners android:radius="22dp" />
-        </shape>
-    </item>
-    <item android:left="1dp" android:top="1dp" android:right="1dp" android:bottom="1dp">
-        <shape android:shape="rectangle">
-            <gradient
-                android:angle="270"
-                android:startColor="#EB141D30"
-                android:endColor="#EB0A0F1C" />
-            <corners android:radius="21dp" />
-        </shape>
-    </item>
-</layer-list>
-""",
-
-    "app/src/main/res/drawable/bg_liquid_glass_window.xml": r"""<?xml version="1.0" encoding="utf-8"?>
-<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-    <item>
-        <shape android:shape="rectangle">
-            <gradient
-                android:angle="135"
-                android:startColor="#A6FFFFFF"
-                android:centerColor="#597DD3FC"
-                android:endColor="#4DC084FC" />
-            <corners android:radius="28dp" />
-        </shape>
-    </item>
-    <item android:left="1.4dp" android:top="1.4dp" android:right="1.4dp" android:bottom="1.4dp">
-        <shape android:shape="rectangle">
-            <gradient
-                android:angle="270"
-                android:startColor="#D418233A"
-                android:centerColor="#C40E1628"
-                android:endColor="#D40A101E" />
-            <corners android:radius="26.5dp" />
-        </shape>
-    </item>
-</layer-list>
-""",
-
-    "app/src/main/res/drawable/bg_liquid_glass_window_share.xml": r"""<?xml version="1.0" encoding="utf-8"?>
-<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-    <item>
-        <shape android:shape="rectangle">
-            <gradient
-                android:angle="135"
-                android:startColor="#E638BDF8"
-                android:centerColor="#99818CF8"
-                android:endColor="#E6E879F9" />
-            <corners android:radius="28dp" />
-        </shape>
-    </item>
-    <item android:left="1.8dp" android:top="1.8dp" android:right="1.8dp" android:bottom="1.8dp">
-        <shape android:shape="rectangle">
-            <gradient
-                android:angle="270"
-                android:startColor="#D418233A"
-                android:centerColor="#C40E1628"
-                android:endColor="#D40A101E" />
-            <corners android:radius="26dp" />
-        </shape>
-    </item>
-</layer-list>
-""",
-
-    "app/src/main/res/drawable/bg_liquid_glass_header.xml": r"""<?xml version="1.0" encoding="utf-8"?>
-<shape xmlns:android="http://schemas.android.com/apk/res/android"
-    android:shape="rectangle">
-    <gradient
-        android:angle="270"
-        android:startColor="#52FFFFFF"
-        android:endColor="#14FFFFFF" />
-    <corners android:topLeftRadius="26.5dp" android:topRightRadius="26.5dp" />
-</shape>
-""",
-
-    "app/src/main/res/drawable/bg_close_x_btn.xml": r"""<?xml version="1.0" encoding="utf-8"?>
-<shape xmlns:android="http://schemas.android.com/apk/res/android"
-    android:shape="oval">
-    <solid android:color="#2EFFFFFF" />
-    <stroke android:width="0.8dp" android:color="#4DFFFFFF" />
-</shape>
-""",
-
-    "app/src/main/res/drawable/bg_bubble.xml": r"""<?xml version="1.0" encoding="utf-8"?>
-<shape xmlns:android="http://schemas.android.com/apk/res/android"
-    android:shape="oval">
-    <solid android:color="#EB0B111E" />
-    <stroke android:width="1.5dp" android:color="#66FFFFFF" />
-</shape>
-""",
-
-    "app/src/main/res/drawable/bg_xiaomi_edge_left.xml": r"""<?xml version="1.0" encoding="utf-8"?>
-<shape xmlns:android="http://schemas.android.com/apk/res/android"
-    android:shape="rectangle">
-    <solid android:color="#D90B111E" />
-    <corners android:topRightRadius="36dp" android:bottomRightRadius="36dp" />
-    <stroke android:width="1.2dp" android:color="#80FFFFFF" />
-</shape>
-""",
-
-    "app/src/main/res/drawable/bg_xiaomi_edge_right.xml": r"""<?xml version="1.0" encoding="utf-8"?>
-<shape xmlns:android="http://schemas.android.com/apk/res/android"
-    android:shape="rectangle">
-    <solid android:color="#D90B111E" />
-    <corners android:topLeftRadius="36dp" android:bottomLeftRadius="36dp" />
-    <stroke android:width="1.2dp" android:color="#80FFFFFF" />
-</shape>
-""",
-
-    "app/src/main/res/drawable/bg_xiaomi_inner_line.xml": r"""<?xml version="1.0" encoding="utf-8"?>
-<shape xmlns:android="http://schemas.android.com/apk/res/android"
-    android:shape="rectangle">
-    <solid android:color="#38BDF8" />
-    <corners android:radius="2dp" />
-</shape>
-""",
-
-    "app/src/main/res/drawable/bg_plus_btn.xml": r"""<?xml version="1.0" encoding="utf-8"?>
-<shape xmlns:android="http://schemas.android.com/apk/res/android"
-    android:shape="oval">
-    <solid android:color="#3338BDF8" />
-    <stroke android:width="0.8dp" android:color="#597DD3FC" />
-</shape>
-""",
-
-    "app/src/main/res/drawable/bg_badge_pill.xml": r"""<?xml version="1.0" encoding="utf-8"?>
-<shape xmlns:android="http://schemas.android.com/apk/res/android"
-    android:shape="rectangle">
-    <solid android:color="#2E38BDF8" />
-    <corners android:radius="12dp" />
-</shape>
-""",
-
-    "app/src/main/res/drawable/bg_chip_action.xml": r"""<?xml version="1.0" encoding="utf-8"?>
-<shape xmlns:android="http://schemas.android.com/apk/res/android"
-    android:shape="rectangle">
-    <solid android:color="#B30B111E" />
-    <corners android:radius="10dp" />
-    <stroke android:width="1dp" android:color="#33FFFFFF" />
-</shape>
-""",
-
-    "app/src/main/res/drawable/bg_chip_prompt.xml": r"""<?xml version="1.0" encoding="utf-8"?>
-<shape xmlns:android="http://schemas.android.com/apk/res/android"
-    android:shape="rectangle">
-    <solid android:color="#CC17223B" />
-    <corners android:radius="13dp" />
-    <stroke android:width="1dp" android:color="#4D38BDF8" />
-</shape>
-""",
-
-    "app/src/main/res/drawable/bg_chip_danger.xml": r"""<?xml version="1.0" encoding="utf-8"?>
-<shape xmlns:android="http://schemas.android.com/apk/res/android"
-    android:shape="rectangle">
-    <solid android:color="#450A0A" />
-    <corners android:radius="10dp" />
-    <stroke android:width="1dp" android:color="#991B1B" />
-</shape>
-""",
-
-    "app/src/main/res/drawable/bg_input_glass.xml": r"""<?xml version="1.0" encoding="utf-8"?>
-<shape xmlns:android="http://schemas.android.com/apk/res/android"
-    android:shape="rectangle">
-    <solid android:color="#8C1E293B" />
-    <corners android:radius="15dp" />
-    <stroke android:width="1dp" android:color="#4DFFFFFF" />
-</shape>
-""",
-
-    "app/src/main/res/drawable/bg_send_btn.xml": r"""<?xml version="1.0" encoding="utf-8"?>
-<shape xmlns:android="http://schemas.android.com/apk/res/android"
-    android:shape="oval">
-    <solid android:color="#0284C7" />
-    <stroke android:width="0.8dp" android:color="#73FFFFFF" />
-</shape>
-""",
-
-    "app/src/main/res/drawable/bg_chat_user.xml": r"""<?xml version="1.0" encoding="utf-8"?>
-<shape xmlns:android="http://schemas.android.com/apk/res/android"
-    android:shape="rectangle">
-    <gradient
-        android:angle="135"
-        android:startColor="#E60284C7"
-        android:endColor="#E62563EB" />
-    <corners android:topLeftRadius="16dp" android:topRightRadius="16dp" android:bottomLeftRadius="16dp" android:bottomRightRadius="4dp" />
-    <stroke android:width="0.8dp" android:color="#59FFFFFF" />
-</shape>
-""",
-
-    "app/src/main/res/drawable/bg_chat_bot.xml": r"""<?xml version="1.0" encoding="utf-8"?>
-<shape xmlns:android="http://schemas.android.com/apk/res/android"
-    android:shape="rectangle">
-    <solid android:color="#E01A2438" />
-    <corners android:topLeftRadius="16dp" android:topRightRadius="16dp" android:bottomRightRadius="16dp" android:bottomLeftRadius="4dp" />
-    <stroke android:width="0.8dp" android:color="#3BFFFFFF" />
-</shape>
-""",
-
-    "app/src/main/res/drawable/ic_sparkle.xml": r"""<?xml version="1.0" encoding="utf-8"?>
-<vector xmlns:android="http://schemas.android.com/apk/res/android"
-    android:width="24dp"
-    android:height="24dp"
-    android:viewportWidth="24"
-    android:viewportHeight="24">
-    <path
-        android:fillColor="#FFFFFF"
-        android:pathData="M12,2L14.4,9.6L22,12L14.4,14.4L12,22L9.6,14.4L2,12L9.6,9.6L12,2Z" />
-</vector>
-""",
-
-    "app/src/main/res/drawable/ic_siri_orb.xml": r"""<?xml version="1.0" encoding="utf-8"?>
-<vector xmlns:android="http://schemas.android.com/apk/res/android"
-    android:width="24dp"
-    android:height="24dp"
-    android:viewportWidth="24"
-    android:viewportHeight="24">
-    <path
-        android:fillColor="#FFFFFF"
-        android:pathData="M12,2C6.48,2 2,6.48 2,12C2,17.52 6.48,22 12,22C17.52,22 22,17.52 22,12C22,6.48 17.52,2 12,2ZM12,18C8.69,18 6,15.31 6,12C6,8.69 8.69,6 12,6C15.31,6 18,8.69 18,12C18,15.31 15.31,18 12,18ZM12,8.5C10.07,8.5 8.5,10.07 8.5,12C8.5,13.93 10.07,15.5 12,15.5C13.93,15.5 15.5,13.93 15.5,12C15.5,10.07 13.93,8.5 12,8.5Z" />
-</vector>
-""",
-
-    "app/src/main/res/drawable/ic_close_x.xml": r"""<?xml version="1.0" encoding="utf-8"?>
-<vector xmlns:android="http://schemas.android.com/apk/res/android"
-    android:width="24dp"
-    android:height="24dp"
-    android:viewportWidth="24"
-    android:viewportHeight="24">
-    <path
-        android:fillColor="#FFFFFF"
-        android:pathData="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z" />
-</vector>
-""",
-
-    "app/src/main/res/drawable/ic_minimize.xml": r"""<?xml version="1.0" encoding="utf-8"?>
-<vector xmlns:android="http://schemas.android.com/apk/res/android"
-    android:width="24dp"
-    android:height="24dp"
-    android:viewportWidth="24"
-    android:viewportHeight="24">
-    <path
-        android:fillColor="#FFFFFF"
-        android:pathData="M6,19H18V17H6V19Z" />
-</vector>
-""",
-
-    "app/src/main/res/drawable/ic_dynamic_island.xml": r"""<?xml version="1.0" encoding="utf-8"?>
-<vector xmlns:android="http://schemas.android.com/apk/res/android"
-    android:width="24dp"
-    android:height="24dp"
-    android:viewportWidth="24"
-    android:viewportHeight="24">
-    <path
-        android:fillColor="#FFFFFF"
-        android:pathData="M6,8H18C20.21,8 22,9.79 22,12C22,14.21 20.21,16 18,16H6C3.79,16 2,14.21 2,12C2,9.79 3.79,8 6,8ZM17.5,10.5C16.67,10.5 16,11.17 16,12C16,12.83 16.67,13.5 17.5,13.5C18.33,13.5 19,12.83 19,12C19,11.17 18.33,10.5 17.5,10.5Z" />
-</vector>
-""",
-
-    "app/src/main/res/drawable/ic_plus.xml": r"""<?xml version="1.0" encoding="utf-8"?>
-<vector xmlns:android="http://schemas.android.com/apk/res/android"
-    android:width="24dp"
-    android:height="24dp"
-    android:viewportWidth="24"
-    android:viewportHeight="24">
-    <path
-        android:fillColor="#FFFFFF"
-        android:pathData="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z" />
-</vector>
-""",
-
-    "app/src/main/res/drawable/ic_grid_tools.xml": r"""<?xml version="1.0" encoding="utf-8"?>
-<vector xmlns:android="http://schemas.android.com/apk/res/android"
-    android:width="24dp"
-    android:height="24dp"
-    android:viewportWidth="24"
-    android:viewportHeight="24">
-    <path
-        android:fillColor="#FFFFFF"
-        android:pathData="M4,8H8V4H4V8ZM10,20H14V16H10V20ZM4,20H8V16H4V20ZM4,14H8V10H4V14ZM10,14H14V10H10V14ZM16,4V8H20V4H16ZM10,8H14V4H10V8ZM16,14H20V10H16V14ZM16,20H20V16H16V20Z" />
-</vector>
-""",
-
-    "app/src/main/res/drawable/ic_attach.xml": r"""<?xml version="1.0" encoding="utf-8"?>
-<vector xmlns:android="http://schemas.android.com/apk/res/android"
-    android:width="24dp"
-    android:height="24dp"
-    android:viewportWidth="24"
-    android:viewportHeight="24">
-    <path
-        android:fillColor="#FFFFFF"
-        android:pathData="M16.5,6V17.5C16.5,19.71 14.71,21.5 12.5,21.5C10.29,21.5 8.5,19.71 8.5,17.5V5C8.5,3.62 9.62,2.5 11,2.5C12.38,2.5 13.5,3.62 13.5,5V15.5C13.5,16.05 13.05,16.5 12.5,16.5C11.95,16.5 11.5,16.05 11.5,15.5V6H10V15.5C10,16.88 11.12,18 12.5,18C13.88,18 15,16.88 15,15.5V5C15,2.79 13.21,1 11,1C8.79,1 7,2.79 7,5V17.5C7,20.54 9.46,23 12.5,23C15.54,23 18,20.54 18,17.5V6H16.5Z" />
-</vector>
-""",
-
-    "app/src/main/res/drawable/ic_mic.xml": r"""<?xml version="1.0" encoding="utf-8"?>
-<vector xmlns:android="http://schemas.android.com/apk/res/android"
-    android:width="24dp"
-    android:height="24dp"
-    android:viewportWidth="24"
-    android:viewportHeight="24">
-    <path
-        android:fillColor="#FFFFFF"
-        android:pathData="M12,14C13.66,14 14.99,12.66 14.99,11L15,5C15,3.34 13.66,2 12,2C10.34,2 9,3.34 9,5V11C9,12.66 10.34,14 12,14ZM17.3,11C17.3,14 14.76,16.1 12,16.1C9.24,16.1 6.7,14 6.7,11H5C5,14.41 7.72,17.23 11,17.72V21H13V17.72C16.28,17.23 19,14.41 19,11H17.3Z" />
-</vector>
-""",
-
-    "app/src/main/res/drawable/ic_send.xml": r"""<?xml version="1.0" encoding="utf-8"?>
-<vector xmlns:android="http://schemas.android.com/apk/res/android"
-    android:width="20dp"
-    android:height="20dp"
-    android:viewportWidth="24"
-    android:viewportHeight="24">
-    <path
-        android:fillColor="#FFFFFF"
-        android:pathData="M2.01,21L23,12L2.01,3L2,10L17,12L2,14L2.01,21Z" />
-</vector>
-""",
-
-    "app/src/main/res/drawable/ic_screen_share.xml": r"""<?xml version="1.0" encoding="utf-8"?>
-<vector xmlns:android="http://schemas.android.com/apk/res/android"
-    android:width="24dp"
-    android:height="24dp"
-    android:viewportWidth="24"
-    android:viewportHeight="24">
-    <path
-        android:fillColor="#FFFFFF"
-        android:pathData="M20,18C21.1,18 21.99,17.1 21.99,16L22,6C22,4.89 21.1,4 20,4H4C2.89,4 2,4.89 2,6V16C2,17.1 2.89,18 4,18H0V20H24V18H20ZM13,14.47V12.28C10.22,12.28 8.39,13.13 7,15C7.56,12.33 9.11,9.67 13,9.13V7L17,10.73L13,14.47Z" />
-</vector>
-""",
-
-    "app/src/main/res/drawable/ic_power_stop.xml": r"""<?xml version="1.0" encoding="utf-8"?>
-<vector xmlns:android="http://schemas.android.com/apk/res/android"
-    android:width="24dp"
-    android:height="24dp"
-    android:viewportWidth="24"
-    android:viewportHeight="24">
-    <path
-        android:fillColor="#FFFFFF"
-        android:pathData="M13,3H11V13H13V3ZM17.83,5.17L16.41,6.59C17.99,7.86 19,9.81 19,12C19,15.87 15.87,19 12,19C8.13,19 5,15.87 5,12C5,9.81 6.01,7.86 7.58,6.58L6.17,5.17C4.23,6.82 3,9.26 3,12C3,16.97 7.03,21 12,21C16.97,21 21,16.97 21,12C21,9.26 19.77,6.82 17.83,5.17Z" />
-</vector>
-""",
-
-    "app/src/main/res/drawable/ic_resize_handle.xml": r"""<?xml version="1.0" encoding="utf-8"?>
-<vector xmlns:android="http://schemas.android.com/apk/res/android"
-    android:width="24dp"
-    android:height="24dp"
-    android:viewportWidth="24"
-    android:viewportHeight="24">
-    <path
-        android:fillColor="#FFFFFF"
-        android:pathData="M22,22H20V20H22V22ZM22,18H20V16H22V18ZM18,22H16V20H18V22ZM18,18H16V16H18V18ZM14,22H12V20H14V22ZM22,14H20V12H22V14Z" />
-</vector>
-""",
-
-    # --------------------------------------------------------------------------
-    # 18. WELCOME ACTIVITY (MULTI-PROVIDER SETUP & ENCRYPTED VAULT TESTER)
-    # --------------------------------------------------------------------------
-    "app/src/main/java/com/example/floatinggeminiai/WelcomeActivity.kt": r"""package com.example.floatinggeminiai
-
-import android.content.Context
-import android.content.Intent
-import android.graphics.Color
-import android.net.Uri
-import android.os.Bundle
-import android.view.View
-import android.widget.AdapterView
-import android.widget.ArrayAdapter
-import android.widget.Button
-import android.widget.Spinner
-import android.widget.TextView
-import android.widget.Toast
-import androidx.appcompat.app.AppCompatActivity
-import com.example.floatinggeminiai.ai.AiEngineRegistry
-import com.example.floatinggeminiai.ai.AiProviderType
-import com.example.floatinggeminiai.security.SecureVault
-import com.google.android.material.textfield.TextInputEditText
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-
-class WelcomeActivity : AppCompatActivity() {
-
-    private val activityJob = Job()
-    private val uiScope = CoroutineScope(Dispatchers.Main + activityJob)
-    private lateinit var vault: SecureVault
-    private var selectedProvider = AiProviderType.GEMINI
-
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_welcome)
-
-        vault = SecureVault(this)
-        val prefs = getSharedPreferences("gemini_prefs", Context.MODE_PRIVATE)
-        val fromSettings = intent.getBooleanExtra("from_settings", false)
-
-        val spWelcomeProvider = findViewById<Spinner>(R.id.spWelcomeProvider)
-        val btnOpenAiStudio = findViewById<Button>(R.id.btnOpenAiStudio)
-        val etWelcomeApiKey = findViewById<TextInputEditText>(R.id.etWelcomeApiKey)
-        val btnTestTokenWelcome = findViewById<Button>(R.id.btnTestTokenWelcome)
-        val tvTokenTestResult = findViewById<TextView>(R.id.tvTokenTestResult)
-        val btnContinueToFloamini = findViewById<Button>(R.id.btnContinueToFloamini)
-
-        val providers = AiProviderType.values().toList()
-        val adapter = ArrayAdapter(
-            this,
-            android.R.layout.simple_spinner_dropdown_item,
-            providers.map { "${it.displayName} (${it.defaultModel})" }
-        )
-        spWelcomeProvider.adapter = adapter
-        spWelcomeProvider.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
-            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
-                selectedProvider = providers[position]
-                etWelcomeApiKey.setText(vault.getApiKey(selectedProvider))
-            }
-            override fun onNothingSelected(parent: AdapterView<*>?) {}
-        }
-
-        if (fromSettings) {
-            btnContinueToFloamini.text = "Kembali ke Pengaturan Floamini"
-        }
-
-        btnOpenAiStudio.setOnClickListener {
-            try {
-                startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(selectedProvider.docsUrl)))
-            } catch (_: Exception) {
-                Toast.makeText(this, "Kunjungi ${selectedProvider.docsUrl}", Toast.LENGTH_LONG).show()
-            }
-        }
-
-        btnTestTokenWelcome.setOnClickListener {
-            val token = etWelcomeApiKey.text.toString().trim()
-            if (token.isEmpty()) {
-                tvTokenTestResult.text = "Masukkan API Key terlebih dahulu"
-                tvTokenTestResult.setTextColor(Color.parseColor("#FBBF24"))
-                return@setOnClickListener
-            }
-
-            btnTestTokenWelcome.isEnabled = false
-            tvTokenTestResult.text = "Menguji ${selectedProvider.shortBadge}..."
-            tvTokenTestResult.setTextColor(Color.parseColor("#38BDF8"))
-
-            uiScope.launch {
-                val (ok, msg) = withContext(Dispatchers.IO) {
-                    AiEngineRegistry.getAdapter(selectedProvider)
-                        .testConnection(token, selectedProvider.defaultModel)
-                }
-                btnTestTokenWelcome.isEnabled = true
-                if (ok) {
-                    vault.setApiKey(selectedProvider, token)
-                    prefs.edit().putString("active_provider_id", selectedProvider.id).apply()
-                    tvTokenTestResult.text = "$msg • Tersimpan!"
-                    tvTokenTestResult.setTextColor(Color.parseColor("#34D399"))
-                } else {
-                    tvTokenTestResult.text = msg
-                    tvTokenTestResult.setTextColor(Color.parseColor("#FCA5A5"))
-                }
-            }
-        }
-
-        btnContinueToFloamini.setOnClickListener {
-            val enteredKey = etWelcomeApiKey.text.toString().trim()
-            if (enteredKey.isNotEmpty()) {
-                vault.setApiKey(selectedProvider, enteredKey)
-                prefs.edit().putString("active_provider_id", selectedProvider.id).apply()
-            }
-            prefs.edit().putBoolean("has_seen_welcome", true).apply()
-
-            if (!fromSettings) {
-                startActivity(Intent(this, MainActivity::class.java))
-            }
-            finish()
-        }
-    }
-
-    override fun onDestroy() {
-        super.onDestroy()
-        activityJob.cancel()
-    }
-}
-""",
-
-    # --------------------------------------------------------------------------
-    # 19. MAIN ACTIVITY (SETTINGS DASHBOARD WITH ALL 10 REQUIRED SECTIONS)
-    # --------------------------------------------------------------------------
-    "app/src/main/java/com/example/floatinggeminiai/MainActivity.kt": r"""package com.example.floatinggeminiai
-
-import android.app.StatusBarManager
-import android.content.ComponentName
-import android.content.Context
-import android.content.Intent
-import android.graphics.Color
-import android.graphics.drawable.Icon
-import android.net.Uri
-import android.os.Build
-import android.os.Bundle
-import android.provider.Settings
-import android.view.View
-import android.widget.AdapterView
-import android.widget.ArrayAdapter
-import android.widget.Button
-import android.widget.RadioButton
-import android.widget.RadioGroup
-import android.widget.SeekBar
-import android.widget.Spinner
-import android.widget.TextView
-import android.widget.Toast
-import androidx.appcompat.app.AppCompatActivity
-import androidx.appcompat.app.AppCompatDelegate
-import com.example.floatinggeminiai.ai.AiEngineRegistry
-import com.example.floatinggeminiai.ai.AiProviderType
-import com.example.floatinggeminiai.data.ChatRepository
-import com.example.floatinggeminiai.security.SecureVault
-import com.example.floatinggeminiai.voice.VoiceSystemManager
-import com.google.android.material.switchmaterial.SwitchMaterial
-import com.google.android.material.textfield.TextInputEditText
-import com.google.android.material.textfield.TextInputLayout
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import kotlin.system.exitProcess
-
-class MainActivity : AppCompatActivity() {
-
-    private val activityJob = Job()
-    private val uiScope = CoroutineScope(Dispatchers.Main + activityJob)
-    private lateinit var vault: SecureVault
-    private lateinit var repo: ChatRepository
-    private var voiceHelper: VoiceSystemManager? = null
-    private var editingProvider = AiProviderType.GEMINI
-
-    override fun onCreate(savedInstanceState: Bundle?) {
-        val prefs = getSharedPreferences("gemini_prefs", Context.MODE_PRIVATE)
-        applySavedNightMode(prefs.getString("app_theme", "dark") ?: "dark")
-
-        super.onCreate(savedInstanceState)
-
-        if (!prefs.getBoolean("has_seen_welcome", false)) {
-            startActivity(Intent(this, WelcomeActivity::class.java))
-            finish()
-            return
-        }
-
-        setContentView(R.layout.activity_main)
-
-        vault = SecureVault(this)
-        repo = ChatRepository(this)
-
-        val tvAppVersionInfo = findViewById<TextView>(R.id.tvAppVersionInfo)
-        val btnOpenWelcomeGuide = findViewById<Button>(R.id.btnOpenWelcomeGuide)
-        val btnStartOverlay = findViewById<Button>(R.id.btnStartOverlay)
-        val btnAddControlCenterTile = findViewById<Button>(R.id.btnAddControlCenterTile)
-        val btnStopOverlay = findViewById<Button>(R.id.btnStopOverlay)
-        val btnQuickForceStopMain = findViewById<Button>(R.id.btnQuickForceStopMain)
-
-        // 1. Floating Window Controls
-        val rgOverlayStyle = findViewById<RadioGroup>(R.id.rgOverlayStyle)
-        val rbStyleDynamicIsland = findViewById<RadioButton>(R.id.rbStyleDynamicIsland)
-        val rbStyleSiriMode = findViewById<RadioButton>(R.id.rbStyleSiriMode)
-        val rbStyleXiaomiEdge = findViewById<RadioButton>(R.id.rbStyleXiaomiEdge)
-        val rbStyleClassicBubble = findViewById<RadioButton>(R.id.rbStyleClassicBubble)
-
-        val rgPillAppearance = findViewById<RadioGroup>(R.id.rgPillAppearance)
-        val rbPillStandard = findViewById<RadioButton>(R.id.rbPillStandard)
-        val rbPillPolos = findViewById<RadioButton>(R.id.rbPillPolos)
-        val rbPillMinimal = findViewById<RadioButton>(R.id.rbPillMinimal)
-
-        val swAutoHidePill = findViewById<SwitchMaterial>(R.id.swAutoHidePill)
-        val swSmartFreeze = findViewById<SwitchMaterial>(R.id.swSmartFreeze)
-        val swTapOutsideClose = findViewById<SwitchMaterial>(R.id.swTapOutsideClose)
-
-        val tvIslandWidthLabel = findViewById<TextView>(R.id.tvIslandWidthLabel)
-        val sbIslandWidth = findViewById<SeekBar>(R.id.sbIslandWidth)
-        val tvIslandPosYLabel = findViewById<TextView>(R.id.tvIslandPosYLabel)
-        val sbIslandPosY = findViewById<SeekBar>(R.id.sbIslandPosY)
-        val tvIslandOffsetXLabel = findViewById<TextView>(R.id.tvIslandOffsetXLabel)
-        val sbIslandOffsetX = findViewById<SeekBar>(R.id.sbIslandOffsetX)
-
-        // 2. Multi-AI Providers & Model Manager
-        val swAutoRouter = findViewById<SwitchMaterial>(R.id.swAutoRouter)
-        val spProviderSelector = findViewById<Spinner>(R.id.spProviderSelector)
-        val tvProviderKeyStatus = findViewById<TextView>(R.id.tvProviderKeyStatus)
-        val tvOpenProviderDocs = findViewById<TextView>(R.id.tvOpenProviderDocs)
-        val etProviderApiKey = findViewById<TextInputEditText>(R.id.etProviderApiKey)
-        val tilCustomBaseUrl = findViewById<TextInputLayout>(R.id.tilCustomBaseUrl)
-        val etCustomBaseUrl = findViewById<TextInputEditText>(R.id.etCustomBaseUrl)
-        val spModelPresetSelector = findViewById<Spinner>(R.id.spModelPresetSelector)
-        val etActiveModelId = findViewById<TextInputEditText>(R.id.etActiveModelId)
-        val btnSaveProviderConfig = findViewById<Button>(R.id.btnSaveProviderConfig)
-        val btnTestProviderConnection = findViewById<Button>(R.id.btnTestProviderConnection)
-        val tvProviderTestOutput = findViewById<TextView>(R.id.tvProviderTestOutput)
-
-        // 3. Appearance & Animation
-        val rgAppTheme = findViewById<RadioGroup>(R.id.rgAppTheme)
-        val rbThemeSystem = findViewById<RadioButton>(R.id.rbThemeSystem)
-        val rbThemeDark = findViewById<RadioButton>(R.id.rbThemeDark)
-        val rbThemeLight = findViewById<RadioButton>(R.id.rbThemeLight)
-        val swLiquidBlur = findViewById<SwitchMaterial>(R.id.swLiquidBlur)
-        val swHapticFeedback = findViewById<SwitchMaterial>(R.id.swHapticFeedback)
-        val tvOpacityLabel = findViewById<TextView>(R.id.tvOpacityLabel)
-        val sbOpacity = findViewById<SeekBar>(R.id.sbOpacity)
-        val tvAnimSpeedLabel = findViewById<TextView>(R.id.tvAnimSpeedLabel)
-        val sbAnimSpeed = findViewById<SeekBar>(R.id.sbAnimSpeed)
-
-        // 4. Voice & Persona
-        val swAutoSpeakTts = findViewById<SwitchMaterial>(R.id.swAutoSpeakTts)
-        val spTtsVoiceSelector = findViewById<Spinner>(R.id.spTtsVoiceSelector)
-        val rgPersona = findViewById<RadioGroup>(R.id.rgPersona)
-        val rbAsik = findViewById<RadioButton>(R.id.rbAsik)
-        val rbRingkas = findViewById<RadioButton>(R.id.rbRingkas)
-        val rbDetail = findViewById<RadioButton>(R.id.rbDetail)
-        val rbTeknis = findViewById<RadioButton>(R.id.rbTeknis)
-        val etCustomSystemInstruction = findViewById<TextInputEditText>(R.id.etCustomSystemInstruction)
-
-        // 5. Privacy, Data & Usage
-        val tvUsageStatistics = findViewById<TextView>(R.id.tvUsageStatistics)
-        val btnClearAllHistoryMain = findViewById<Button>(R.id.btnClearAllHistoryMain)
-        val btnResetUsageStats = findViewById<Button>(R.id.btnResetUsageStats)
-        val btnWipeVaultKeys = findViewById<Button>(R.id.btnWipeVaultKeys)
-        val btnSaveAllSettings = findViewById<Button>(R.id.btnSaveAllSettings)
-
-        try {
-            val pInfo = packageManager.getPackageInfo(packageName, 0)
-            tvAppVersionInfo.text = "v${pInfo.versionName} • 11 AI Engines • Encrypted Vault"
-        } catch (_: Exception) {}
-
-        // Load Saved Values
-        when (prefs.getString("overlay_style", "dynamic_island")) {
-            "siri_mode" -> rbStyleSiriMode.isChecked = true
-            "xiaomi_edge" -> rbStyleXiaomiEdge.isChecked = true
-            "classic_bubble" -> rbStyleClassicBubble.isChecked = true
-            else -> rbStyleDynamicIsland.isChecked = true
-        }
-        when (prefs.getString("pill_appearance", "standard")) {
-            "polos" -> rbPillPolos.isChecked = true
-            "minimal" -> rbPillMinimal.isChecked = true
-            else -> rbPillStandard.isChecked = true
-        }
-        swAutoHidePill.isChecked = prefs.getBoolean("auto_hide_pill", false)
-        swSmartFreeze.isChecked = prefs.getBoolean("smart_freeze", true)
-        swTapOutsideClose.isChecked = prefs.getBoolean("tap_outside_close", true)
-        swAutoRouter.isChecked = prefs.getBoolean("auto_router_enabled", false)
-        swLiquidBlur.isChecked = prefs.getBoolean("liquid_blur", true)
-        swHapticFeedback.isChecked = prefs.getBoolean("haptic_feedback", true)
-        swAutoSpeakTts.isChecked = prefs.getBoolean("auto_speak_tts", true)
-
-        when (prefs.getString("app_theme", "dark")) {
-            "system" -> rbThemeSystem.isChecked = true
-            "light" -> rbThemeLight.isChecked = true
-            else -> rbThemeDark.isChecked = true
-        }
-
-        val savedIslandW = prefs.getInt("island_width_dp", 164)
-        sbIslandWidth.progress = (savedIslandW - 110).coerceIn(0, 130)
-        tvIslandWidthLabel.text = "Lebar Pil Dynamic Island: ${savedIslandW}dp"
-
-        val savedIslandY = prefs.getInt("island_pos_y_dp", 12)
-        sbIslandPosY.progress = savedIslandY.coerceIn(0, 70)
-        tvIslandPosYLabel.text = "Posisi Vertikal Atas (Y): ${savedIslandY}dp"
-
-        val savedIslandX = prefs.getInt("island_offset_x_dp", 0)
-        sbIslandOffsetX.progress = (savedIslandX + 80).coerceIn(0, 160)
-        tvIslandOffsetXLabel.text = "Geser Horizontal Kamera (X): ${savedIslandX}dp"
-
-        val savedOpacity = prefs.getInt("popup_opacity", 84)
-        sbOpacity.progress = (savedOpacity - 45).coerceIn(0, 55)
-        tvOpacityLabel.text = "Transparansi Liquid Glass: ${savedOpacity}%"
-
-        val savedAnimProg = prefs.getInt("anim_speed_prog", 5)
-        sbAnimSpeed.progress = savedAnimProg.coerceIn(0, 10)
-        val speedMult = 0.5f + (savedAnimProg * 0.1f)
-        tvAnimSpeedLabel.text = String.format("Kecepatan Spring Animation: %.1fx", speedMult)
-
-        when (prefs.getString("ai_persona", "asik")) {
-            "ringkas" -> rbRingkas.isChecked = true
-            "detail" -> rbDetail.isChecked = true
-            "teknis" -> rbTeknis.isChecked = true
-            else -> rbAsik.isChecked = true
-        }
-        etCustomSystemInstruction.setText(prefs.getString("custom_system_instruction", ""))
-        tvUsageStatistics.text = repo.getUsageSummaryText()
-
-        // Setup 11 AI Provider Selector
-        val providers = AiProviderType.values().toList()
-        editingProvider = AiProviderType.fromId(prefs.getString("active_provider_id", "gemini"))
-        spProviderSelector.adapter = ArrayAdapter(
-            this,
-            android.R.layout.simple_spinner_dropdown_item,
-            providers.map { p ->
-                val mark = if (vault.getApiKey(p).isNotEmpty()) " [Aktif]" else ""
-                "${p.displayName}$mark"
-            }
-        )
-        spProviderSelector.setSelection(providers.indexOf(editingProvider).coerceAtLeast(0))
-
-        fun bindProviderFields(provider: AiProviderType) {
-            editingProvider = provider
-            val savedKey = vault.getApiKey(provider)
-            etProviderApiKey.setText(savedKey)
-            if (savedKey.isNotEmpty()) {
-                tvProviderKeyStatus.text = "Status Key: Terenkripsi & Siap"
-                tvProviderKeyStatus.setTextColor(Color.parseColor("#34D399"))
-            } else {
-                tvProviderKeyStatus.text = "Status Key: Belum diisi"
-                tvProviderKeyStatus.setTextColor(Color.parseColor("#FBBF24"))
-            }
-
-            tilCustomBaseUrl.visibility = if (provider == AiProviderType.CUSTOM) View.VISIBLE else View.GONE
-            etCustomBaseUrl.setText(vault.getCustomBaseUrl())
-
-            val models = provider.availableModels
-            spModelPresetSelector.adapter = ArrayAdapter(
-                this,
-                android.R.layout.simple_spinner_dropdown_item,
-                models
-            )
-            val currentModel = vault.getSelectedModel(provider)
-            etActiveModelId.setText(currentModel)
-            val idx = models.indexOf(currentModel)
-            if (idx >= 0) spModelPresetSelector.setSelection(idx)
-        }
-
-        bindProviderFields(editingProvider)
-
-        spProviderSelector.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
-            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
-                bindProviderFields(providers[position])
-            }
-            override fun onNothingSelected(parent: AdapterView<*>?) {}
-        }
-
-        spModelPresetSelector.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
-            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
-                val chosen = editingProvider.availableModels[position]
-                if (chosen != "custom-model") {
-                    etActiveModelId.setText(chosen)
-                }
-            }
-            override fun onNothingSelected(parent: AdapterView<*>?) {}
-        }
-
-        tvOpenProviderDocs.setOnClickListener {
-            try {
-                startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(editingProvider.docsUrl)))
-            } catch (_: Exception) {
-                Toast.makeText(this, "Kunjungi ${editingProvider.docsUrl}", Toast.LENGTH_LONG).show()
-            }
-        }
-
-        btnSaveProviderConfig.setOnClickListener {
-            val key = etProviderApiKey.text.toString().trim()
-            val modelId = etActiveModelId.text.toString().trim().ifEmpty { editingProvider.defaultModel }
-            vault.setApiKey(editingProvider, key)
-            vault.setSelectedModel(editingProvider, modelId)
-            if (editingProvider == AiProviderType.CUSTOM) {
-                vault.setCustomBaseUrl(etCustomBaseUrl.text.toString())
-            }
-            prefs.edit().putString("active_provider_id", editingProvider.id).apply()
-            bindProviderFields(editingProvider)
-            Toast.makeText(this, "${editingProvider.displayName} ($modelId) disimpan & dijadikan aktif!", Toast.LENGTH_SHORT).show()
-        }
-
-        btnTestProviderConnection.setOnClickListener {
-            val key = etProviderApiKey.text.toString().trim()
-            val modelId = etActiveModelId.text.toString().trim().ifEmpty { editingProvider.defaultModel }
-            val customUrl = etCustomBaseUrl.text.toString().trim()
-            if (key.isEmpty()) {
-                tvProviderTestOutput.text = "Masukkan API Key terlebih dahulu"
-                tvProviderTestOutput.setTextColor(Color.parseColor("#FBBF24"))
-                return@setOnClickListener
-            }
-            btnTestProviderConnection.isEnabled = false
-            tvProviderTestOutput.text = "Menguji koneksi ${editingProvider.shortBadge}..."
-            tvProviderTestOutput.setTextColor(Color.parseColor("#38BDF8"))
-
-            uiScope.launch {
-                val (ok, msg) = withContext(Dispatchers.IO) {
-                    AiEngineRegistry.getAdapter(editingProvider).testConnection(key, modelId, customUrl)
-                }
-                btnTestProviderConnection.isEnabled = true
-                tvProviderTestOutput.text = msg
-                tvProviderTestOutput.setTextColor(Color.parseColor(if (ok) "#34D399" else "#FCA5A5"))
-            }
-        }
-
-        // Populate TTS Voice Selector
-        voiceHelper = VoiceSystemManager(this, {}, {}, {}, {}, {}, {})
-        android.os.Handler(mainLooper).postDelayed({
-            val voices = voiceHelper?.getAvailableVoices() ?: emptyList()
-            val voiceNames = mutableListOf("Default Sistem (Indonesia)")
-            voiceNames.addAll(voices.map { "${it.locale.displayLanguage} - ${it.name}" })
-            spTtsVoiceSelector.adapter = ArrayAdapter(
-                this,
-                android.R.layout.simple_spinner_dropdown_item,
-                voiceNames
-            )
-            val savedVoice = prefs.getString("tts_voice_name", "") ?: ""
-            if (savedVoice.isNotEmpty()) {
-                val idx = voices.indexOfFirst { it.name == savedVoice }
-                if (idx >= 0) spTtsVoiceSelector.setSelection(idx + 1)
-            }
-            spTtsVoiceSelector.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
-                override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
-                    val chosenVoice = if (position == 0) "" else voices.getOrNull(position - 1)?.name ?: ""
-                    prefs.edit().putString("tts_voice_name", chosenVoice).apply()
-                }
-                override fun onNothingSelected(parent: AdapterView<*>?) {}
-            }
-        }, 600L)
-
-        // SeekBar Listeners
-        sbIslandWidth.setOnSeekBarChangeListener(simpleSeek { p ->
-            tvIslandWidthLabel.text = "Lebar Pil Dynamic Island: ${p + 110}dp"
-        })
-        sbIslandPosY.setOnSeekBarChangeListener(simpleSeek { p ->
-            tvIslandPosYLabel.text = "Posisi Vertikal Atas (Y): ${p}dp"
-        })
-        sbIslandOffsetX.setOnSeekBarChangeListener(simpleSeek { p ->
-            tvIslandOffsetXLabel.text = "Geser Horizontal Kamera (X): ${p - 80}dp"
-        })
-        sbOpacity.setOnSeekBarChangeListener(simpleSeek { p ->
-            tvOpacityLabel.text = "Transparansi Liquid Glass: ${p + 45}%"
-        })
-        sbAnimSpeed.setOnSeekBarChangeListener(simpleSeek { p ->
-            tvAnimSpeedLabel.text = String.format("Kecepatan Spring Animation: %.1fx", 0.5f + p * 0.1f)
-        })
-
-        fun saveAllPreferences() {
-            val style = when (rgOverlayStyle.checkedRadioButtonId) {
-                R.id.rbStyleSiriMode -> "siri_mode"
-                R.id.rbStyleXiaomiEdge -> "xiaomi_edge"
-                R.id.rbStyleClassicBubble -> "classic_bubble"
-                else -> "dynamic_island"
-            }
-            val pillApp = when (rgPillAppearance.checkedRadioButtonId) {
-                R.id.rbPillPolos -> "polos"
-                R.id.rbPillMinimal -> "minimal"
-                else -> "standard"
-            }
-            val persona = when (rgPersona.checkedRadioButtonId) {
-                R.id.rbRingkas -> "ringkas"
-                R.id.rbDetail -> "detail"
-                R.id.rbTeknis -> "teknis"
-                else -> "asik"
-            }
-            val themeChoice = when (rgAppTheme.checkedRadioButtonId) {
-                R.id.rbThemeSystem -> "system"
-                R.id.rbThemeLight -> "light"
-                else -> "dark"
-            }
-
-            val key = etProviderApiKey.text.toString().trim()
-            val modelId = etActiveModelId.text.toString().trim().ifEmpty { editingProvider.defaultModel }
-            vault.setApiKey(editingProvider, key)
-            vault.setSelectedModel(editingProvider, modelId)
-            if (editingProvider == AiProviderType.CUSTOM) {
-                vault.setCustomBaseUrl(etCustomBaseUrl.text.toString())
-            }
-
-            prefs.edit()
-                .putString("active_provider_id", editingProvider.id)
-                .putBoolean("auto_router_enabled", swAutoRouter.isChecked)
-                .putString("overlay_style", style)
-                .putString("pill_appearance", pillApp)
-                .putBoolean("auto_hide_pill", swAutoHidePill.isChecked)
-                .putBoolean("smart_freeze", swSmartFreeze.isChecked)
-                .putBoolean("tap_outside_close", swTapOutsideClose.isChecked)
-                .putBoolean("liquid_blur", swLiquidBlur.isChecked)
-                .putBoolean("haptic_feedback", swHapticFeedback.isChecked)
-                .putBoolean("auto_speak_tts", swAutoSpeakTts.isChecked)
-                .putString("app_theme", themeChoice)
-                .putInt("island_width_dp", sbIslandWidth.progress + 110)
-                .putInt("island_pos_y_dp", sbIslandPosY.progress)
-                .putInt("island_offset_x_dp", sbIslandOffsetX.progress - 80)
-                .putInt("popup_opacity", sbOpacity.progress + 45)
-                .putInt("anim_speed_prog", sbAnimSpeed.progress)
-                .putString("ai_persona", persona)
-                .putString("custom_system_instruction", etCustomSystemInstruction.text.toString().trim())
-                .apply()
-
-            applySavedNightMode(themeChoice)
-
-            if (Settings.canDrawOverlays(this)) {
-                try {
-                    startService(Intent(this, FloatingAssistantService::class.java).apply {
-                        action = FloatingAssistantService.ACTION_RELOAD_SETTINGS
-                    })
-                } catch (_: Exception) {}
-            }
-        }
-
-        btnAddControlCenterTile.setOnClickListener {
-            saveAllPreferences()
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                val sbm = getSystemService(StatusBarManager::class.java)
-                sbm.requestAddTileService(
-                    ComponentName(this, FloaminiTileService::class.java),
-                    "Floamini AI",
-                    Icon.createWithResource(this, R.drawable.ic_sparkle),
-                    mainExecutor
-                ) { code ->
-                    runOnUiThread {
-                        if (code == StatusBarManager.TILE_ADD_REQUEST_RESULT_TILE_ADDED ||
-                            code == StatusBarManager.TILE_ADD_REQUEST_RESULT_TILE_ALREADY_ADDED
-                        ) {
-                            Toast.makeText(this, "Tombol Floamini AI siap di Control Center!", Toast.LENGTH_SHORT).show()
-                        }
-                    }
-                }
-            } else {
-                Toast.makeText(this, "Tarik Control Center, tekan Edit, lalu tambahkan tombol Floamini AI!", Toast.LENGTH_LONG).show()
-            }
-        }
-
-        btnOpenWelcomeGuide.setOnClickListener {
-            startActivity(Intent(this, WelcomeActivity::class.java).apply { putExtra("from_settings", true) })
-        }
-
-        btnClearAllHistoryMain.setOnClickListener {
-            repo.clearAllThreads()
-            try {
-                startService(Intent(this, FloatingAssistantService::class.java).apply {
-                    action = FloatingAssistantService.ACTION_RESET_SESSION
-                })
-            } catch (_: Exception) {}
-            Toast.makeText(this, "Seluruh riwayat chat dihapus", Toast.LENGTH_SHORT).show()
-        }
-
-        btnResetUsageStats.setOnClickListener {
-            repo.resetUsageStats()
-            tvUsageStatistics.text = repo.getUsageSummaryText()
-            Toast.makeText(this, "Statistik penggunaan di-reset", Toast.LENGTH_SHORT).show()
-        }
-
-        btnWipeVaultKeys.setOnClickListener {
-            vault.clearAllCredentials()
-            etProviderApiKey.setText("")
-            bindProviderFields(editingProvider)
-            Toast.makeText(this, "Seluruh API Key terenkripsi dihapus", Toast.LENGTH_SHORT).show()
-        }
-
-        btnSaveAllSettings.setOnClickListener {
-            saveAllPreferences()
-            Toast.makeText(this, "Semua pengaturan Floamini OS disimpan!", Toast.LENGTH_SHORT).show()
-        }
-
-        btnStartOverlay.setOnClickListener {
-            saveAllPreferences()
-            if (!Settings.canDrawOverlays(this)) {
-                Toast.makeText(this, "Izinkan Floamini tampil di atas aplikasi lain", Toast.LENGTH_LONG).show()
-                startActivity(Intent(
-                    Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                    Uri.parse("package:$packageName")
-                ))
-                return@setOnClickListener
-            }
-
-            val serviceIntent = Intent(this, FloatingAssistantService::class.java)
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                startForegroundService(serviceIntent)
-            } else {
-                startService(serviceIntent)
-            }
-            Toast.makeText(this, "Floamini OS aktif di layar!", Toast.LENGTH_SHORT).show()
-        }
-
-        btnStopOverlay.setOnClickListener {
-            stopService(Intent(this, FloatingAssistantService::class.java))
-            Toast.makeText(this, "Floamini dihentikan", Toast.LENGTH_SHORT).show()
-        }
-
-        btnQuickForceStopMain.setOnClickListener {
-            stopService(Intent(this, FloatingAssistantService::class.java))
-            startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-                data = Uri.parse("package:$packageName")
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            })
-            finishAffinity()
-            exitProcess(0)
-        }
-    }
-
-    private fun applySavedNightMode(theme: String) {
-        val mode = when (theme) {
-            "system" -> AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM
-            "light" -> AppCompatDelegate.MODE_NIGHT_NO
-            else -> AppCompatDelegate.MODE_NIGHT_YES
-        }
-        AppCompatDelegate.setDefaultNightMode(mode)
-    }
-
-    private fun simpleSeek(onChange: (Int) -> Unit) = object : SeekBar.OnSeekBarChangeListener {
-        override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) = onChange(progress)
-        override fun onStartTrackingTouch(seekBar: SeekBar?) {}
-        override fun onStopTrackingTouch(seekBar: SeekBar?) {}
-    }
-
-    override fun onResume() {
-        super.onResume()
-        if (::repo.isInitialized) {
-            findViewById<TextView>(R.id.tvUsageStatistics)?.text = repo.getUsageSummaryText()
-        }
-    }
-
-    override fun onDestroy() {
-        super.onDestroy()
-        voiceHelper?.release()
-        activityJob.cancel()
-    }
-}
-""",
-
-    # --------------------------------------------------------------------------
-    # 20. FLOATING ASSISTANT SERVICE (OS-LEVEL MULTI-AI, STREAMING, VOICE, TOOLS)
-    # --------------------------------------------------------------------------
     "app/src/main/java/com/example/floatinggeminiai/FloatingAssistantService.kt": r"""package com.example.floatinggeminiai
 
-import android.Manifest
-import android.animation.ValueAnimator
 import android.app.Activity
 import android.app.Notification
 import android.app.NotificationChannel
@@ -5074,7 +4173,6 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
-import android.content.pm.PackageManager
 import android.content.pm.ServiceInfo
 import android.graphics.Bitmap
 import android.graphics.Color
@@ -5089,24 +4187,16 @@ import android.os.Build
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
-import android.os.VibrationEffect
-import android.os.Vibrator
-import android.os.VibratorManager
-import android.provider.Settings
 import android.text.Editable
 import android.text.TextWatcher
-import android.util.Base64
-import android.util.DisplayMetrics
 import android.view.Gravity
+import android.view.HapticFeedbackConstants
 import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
-import android.view.animation.DecelerateInterpolator
-import android.widget.Button
 import android.widget.EditText
 import android.widget.FrameLayout
-import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ScrollView
@@ -5116,183 +4206,141 @@ import androidx.core.app.NotificationCompat
 import androidx.dynamicanimation.animation.DynamicAnimation
 import androidx.dynamicanimation.animation.SpringAnimation
 import androidx.dynamicanimation.animation.SpringForce
-import com.example.floatinggeminiai.ai.AiEngineRegistry
-import com.example.floatinggeminiai.ai.AiProviderType
-import com.example.floatinggeminiai.ai.AiRequestPayload
+import com.example.floatinggeminiai.ai.AiEngine
+import com.example.floatinggeminiai.ai.AiProvider
 import com.example.floatinggeminiai.ai.ChatMessage
 import com.example.floatinggeminiai.ai.ChatThread
-import com.example.floatinggeminiai.ai.StreamEvent
 import com.example.floatinggeminiai.data.ChatRepository
 import com.example.floatinggeminiai.security.SecureVault
 import com.example.floatinggeminiai.tools.ProcessedAttachment
 import com.example.floatinggeminiai.tools.SmartToolsHelper
+import com.example.floatinggeminiai.ui.LiquidGlassFrameLayout
+import com.example.floatinggeminiai.ui.SiriEdgeGlowView
 import com.example.floatinggeminiai.ui.VoiceWaveformView
 import com.example.floatinggeminiai.voice.VoiceSystemManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
-import java.io.ByteArrayOutputStream
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
-import java.util.UUID
+import kotlinx.coroutines.withContext
 import kotlin.math.abs
-import kotlin.system.exitProcess
 
 class FloatingAssistantService : Service() {
 
     companion object {
-        const val ACTION_SCREEN_CAPTURE_RESULT = "ACTION_SCREEN_CAPTURE_RESULT"
-        const val ACTION_RELOAD_SETTINGS = "ACTION_RELOAD_SETTINGS"
-        const val ACTION_RESET_SESSION = "ACTION_RESET_SESSION"
-        const val ACTION_TRIGGER_SIRI = "ACTION_TRIGGER_SIRI"
-        const val ACTION_ATTACH_URI = "ACTION_ATTACH_URI"
-        const val ACTION_AUDIO_PERMISSION_GRANTED = "ACTION_AUDIO_PERMISSION_GRANTED"
-        const val ACTION_EXTERNAL_CONTEXT = "ACTION_EXTERNAL_CONTEXT"
+        const val ACTION_START_OR_UPDATE = "com.example.floatinggeminiai.START_OR_UPDATE"
+        const val ACTION_RELOAD_CONFIG = "com.example.floatinggeminiai.RELOAD_CONFIG"
+        const val ACTION_SUMMON_SIRI = "com.example.floatinggeminiai.SUMMON_SIRI"
+        const val ACTION_MEDIA_PROJECTION_READY = "com.example.floatinggeminiai.MEDIA_PROJECTION_READY"
+        const val ACTION_FILE_PICKED = "com.example.floatinggeminiai.FILE_PICKED"
+        const val ACTION_EXTERNAL_QUERY = "com.example.floatinggeminiai.EXTERNAL_QUERY"
+        private const val CHANNEL_ID = "floamini_overlay_channel"
+        private const val NOTIF_ID = 4077
     }
 
     private lateinit var windowManager: WindowManager
     private lateinit var floatingView: View
     private lateinit var params: WindowManager.LayoutParams
-    private var isFloatingViewAttached = false
 
     private lateinit var vault: SecureVault
     private lateinit var repo: ChatRepository
-    private var voiceManager: VoiceSystemManager? = null
+    private lateinit var aiEngine: AiEngine
+    private lateinit var voiceManager: VoiceSystemManager
+    private lateinit var currentThread: ChatThread
 
-    private var siriGlowView: SiriEdgeGlowView? = null
-    private var isSiriAuraActive = false
-
-    private val serviceJob = Job()
-    private val serviceScope = CoroutineScope(Dispatchers.Main + serviceJob)
+    private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+    private val mainHandler = Handler(Looper.getMainLooper())
     private var activeGenerationJob: Job? = null
 
     // UI References
+    private lateinit var dynamicIslandGlassHost: LiquidGlassFrameLayout
     private lateinit var dynamicIslandView: LinearLayout
     private lateinit var ivIslandSparkle: ImageView
     private lateinit var tvIslandLabel: TextView
     private lateinit var viewIslandPulseDot: View
     private lateinit var bubbleView: FrameLayout
     private lateinit var xiaomiEdgeView: FrameLayout
-    private lateinit var popupChatView: LinearLayout
+    private lateinit var popupChatView: LiquidGlassFrameLayout
 
     private lateinit var tvActiveProviderHeader: TextView
     private lateinit var btnScreenShare: ImageView
     private lateinit var tvScreenShareStatus: TextView
-    private lateinit var attachmentPreviewBar: LinearLayout
-    private lateinit var tvAttachmentName: TextView
-    private lateinit var tvCompareBadge: TextView
-    private lateinit var tvCurrentPersonaBadge: TextView
-
-    private lateinit var scrollChat: ScrollView
-    private lateinit var chatContainer: LinearLayout
-    private lateinit var typingIndicatorRow: LinearLayout
-    private lateinit var tvThinkingLabel: TextView
+    private lateinit var tvAttachmentBadge: TextView
+    private lateinit var chatScrollView: ScrollView
+    private lateinit var chatMessagesContainer: LinearLayout
+    private lateinit var etPromptInput: EditText
+    private lateinit var btnSendOrStop: ImageView
     private lateinit var voiceWaveformBar: LinearLayout
-    private lateinit var tvVoiceStatusLabel: TextView
     private lateinit var voiceWaveformView: VoiceWaveformView
-    private lateinit var etPrompt: EditText
-    private lateinit var btnSendPrompt: ImageButton
+    private lateinit var tvVoiceHint: TextView
 
-    // State
-    private val mainHandler = Handler(Looper.getMainLooper())
-    private var snappedToRightEdge = false
-    private var fullScreenWidth = 1080
-    private var fullScreenHeight = 2400
-    private var isPillAutoHidden = false
+    private var siriGlowView: SiriEdgeGlowView? = null
+    private var isSiriAuraAttached = false
+    private var isFloatingViewAttached = false
     private var isSmartFrozen = false
+    private var isPillAutoHidden = false
     private var isMiniWindowMode = false
     private var isCompareMode = false
-    private var isVoiceChatLoop = false
+    private var isAutoRouterEnabled = false
+    private var snappedToRightEdge = true
 
-    // Preferences
-    private var activeProvider = AiProviderType.GEMINI
-    private var prefAutoRouter = false
-    private var prefOverlayStyle = "dynamic_island"
-    private var prefPillAppearance = "standard"
-    private var prefAutoHidePill = false
-    private var prefSmartFreeze = true
-    private var prefTapOutsideClose = true
-    private var prefLiquidBlur = true
-    private var prefHapticFeedback = true
-    private var prefAutoSpeakTts = true
-    private var prefTtsVoiceName = ""
-    private var prefAnimSpeedMultiplier = 1.0f
-    private var prefIslandWidthPx = 440
-    private var prefIslandPosYPx = 32
-    private var prefIslandOffsetXPx = 0
-    private var prefPopupAlpha = 0.84f
-    private var prefBubbleSizePx = 148
-    private var prefPersona = "asik"
-    private var prefCustomSystemInstruction = ""
-
-    // Multi-Thread Session State
-    private var allThreads = mutableListOf<ChatThread>()
-    private lateinit var currentThread: ChatThread
-    private var lastUserPrompt = ""
-    private var lastBotReply = ""
+    private var activeProvider = AiProvider.GEMINI
+    private var activeModel = "gemini-2.5-flash"
     private var pendingAttachment: ProcessedAttachment? = null
 
-    // Screen Capture
+    // Preferences Cache
+    private var prefOverlayStyle = "dynamic_island"
+    private var prefPillAppearance = "lengkap"
+    private var prefAutoHidePill = false
+    private var prefSmartFreeze = true
+    private var prefLiquidBlur = true
+    private var prefIslandWidthPx = 420
+    private var prefIslandPosYPx = 30
+    private var prefIslandOffsetXPx = 0
+    private var prefPopupAlpha = 0.92f
+    private var prefBubbleSizePx = 140
+
+    private var fullScreenWidth = 1080
+    private var fullScreenHeight = 2400
+
+    // MediaProjection Screen Vision
     private var mediaProjection: MediaProjection? = null
     private var virtualDisplay: VirtualDisplay? = null
     private var imageReader: ImageReader? = null
     private var isScreenShareActive = false
-    private var captureWidth = 540
-    private var captureHeight = 1200
-    private var screenDensity = 320
+
+    private val screenOffReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent?.action == Intent.ACTION_SCREEN_OFF && prefSmartFreeze) {
+                enterSmartFreezeState()
+            }
+        }
+    }
 
     private val autoHidePillRunnable = Runnable {
         if (prefOverlayStyle == "dynamic_island" &&
             prefAutoHidePill &&
-            dynamicIslandView.visibility == View.VISIBLE &&
+            dynamicIslandGlassHost.visibility == View.VISIBLE &&
             popupChatView.visibility != View.VISIBLE
         ) {
             isPillAutoHidden = true
-            dynamicIslandView.animate()
-                .alpha(0.02f)
+            dynamicIslandGlassHost.animate()
+                .alpha(0.03f)
                 .scaleX(0.45f)
                 .scaleY(0.45f)
-                .setDuration((420 / prefAnimSpeedMultiplier).toLong())
+                .setDuration(380L)
                 .start()
         }
     }
 
     private val transformToXiaomiEdgeRunnable = Runnable {
-        if (prefOverlayStyle == "xiaomi_edge" && bubbleView.visibility == View.VISIBLE) {
-            enterXiaomiEdgeMode()
-        }
-    }
-
-    private val smartFreezeRunnable = Runnable {
-        if (prefSmartFreeze && popupChatView.visibility != View.VISIBLE) {
-            enterSmartFreezeState()
-        }
-    }
-
-    private val screenStateReceiver = object : BroadcastReceiver() {
-        override fun onReceive(context: Context?, intent: Intent?) {
-            when (intent?.action) {
-                Intent.ACTION_SCREEN_OFF -> {
-                    if (prefSmartFreeze) {
-                        if (popupChatView.visibility == View.VISIBLE) {
-                            popupChatView.visibility = View.GONE
-                        }
-                        dismissSiriAura()
-                        voiceManager?.stopListening()
-                        voiceManager?.stopSpeaking()
-                        enterSmartFreezeState()
-                    }
-                }
-                Intent.ACTION_SCREEN_ON -> {
-                    if (isSmartFrozen && prefOverlayStyle != "siri_mode") {
-                        wakeFromSmartFreeze()
-                    }
-                }
-            }
+        if (prefOverlayStyle == "xiaomi_edge" && popupChatView.visibility != View.VISIBLE) {
+            bubbleView.visibility = View.GONE
+            xiaomiEdgeView.visibility = View.VISIBLE
+            params.x = if (snappedToRightEdge) (fullScreenWidth - xiaomiEdgeView.layoutParams.width) else 0
+            if (isFloatingViewAttached) windowManager.updateViewLayout(floatingView, params)
         }
     }
 
@@ -5300,456 +4348,148 @@ class FloatingAssistantService : Service() {
 
     override fun onCreate() {
         super.onCreate()
+        windowManager = getSystemService(Context.WINDOW_SERVICE) as WindowManager
+        val dm = resources.displayMetrics
+        fullScreenWidth = dm.widthPixels
+        fullScreenHeight = dm.heightPixels
+        prefBubbleSizePx = (54 * dm.density).toInt()
+
         vault = SecureVault(this)
         repo = ChatRepository(this)
-        startForegroundNotification(withMediaProjection = false)
-        setupScreenMetrics()
-        loadUserPreferences()
-        initVoiceSystem()
-        setupFloatingOverlay()
+        aiEngine = AiEngine(vault)
+        currentThread = repo.getOrCreateActiveThread()
 
-        val filter = IntentFilter().apply {
-            addAction(Intent.ACTION_SCREEN_OFF)
-            addAction(Intent.ACTION_SCREEN_ON)
-        }
-        registerReceiver(screenStateReceiver, filter)
+        startForegroundNotification(withMediaProjection = false)
+        registerReceiver(screenOffReceiver, IntentFilter(Intent.ACTION_SCREEN_OFF))
+
+        loadPreferences()
+        initFloatingOverlay()
+
+        voiceManager = VoiceSystemManager(
+            context = this,
+            onAmplitudeChanged = { amp ->
+                if (::voiceWaveformView.isInitialized) voiceWaveformView.setAmplitude(amp)
+            },
+            onSpeechResult = { spoken ->
+                if (::etPromptInput.isInitialized) {
+                    etPromptInput.setText(spoken)
+                    sendUserPrompt(spoken)
+                }
+            },
+            onSpeechStateChanged = { listening, hint ->
+                if (::voiceWaveformBar.isInitialized) {
+                    voiceWaveformBar.visibility = if (listening || hint.isNotEmpty()) View.VISIBLE else View.GONE
+                    tvVoiceHint.text = hint
+                }
+            }
+        )
+
+        showCollapsedTriggerState()
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        loadPreferences()
+        applyVisualPreferences()
+
         when (intent?.action) {
-            ACTION_SCREEN_CAPTURE_RESULT -> {
-                val resultCode = intent.getIntExtra("resultCode", Activity.RESULT_CANCELED)
+            ACTION_SUMMON_SIRI -> {
+                triggerSiriSummon()
+            }
+            ACTION_MEDIA_PROJECTION_READY -> {
+                val code = intent.getIntExtra("resultCode", Activity.RESULT_CANCELED)
                 val data: Intent? = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                     intent.getParcelableExtra("data", Intent::class.java)
                 } else {
                     @Suppress("DEPRECATION")
                     intent.getParcelableExtra("data")
                 }
-                if (resultCode == Activity.RESULT_OK && data != null) {
-                    startMediaProjection(resultCode, data)
-                } else {
-                    Toast.makeText(this, "Izin Screen Vision dibatalkan", Toast.LENGTH_SHORT).show()
+                if (code == Activity.RESULT_OK && data != null) {
+                    startMediaProjectionCapture(code, data)
                 }
             }
-            ACTION_RELOAD_SETTINGS -> {
-                loadUserPreferences()
-                wakeFromSmartFreeze()
-                applyVisualPreferences()
+            ACTION_FILE_PICKED -> {
+                val uriStr = intent.getStringExtra("file_uri")
+                if (!uriStr.isNullOrEmpty()) {
+                    handlePickedUri(Uri.parse(uriStr))
+                }
+            }
+            ACTION_EXTERNAL_QUERY -> {
+                openPopupChat(fromSiri = false)
+                val extText = intent.getStringExtra("external_text")
+                val uriStr = intent.getStringExtra("file_uri")
+                if (!uriStr.isNullOrEmpty()) {
+                    handlePickedUri(Uri.parse(uriStr))
+                }
+                if (!extText.isNullOrBlank()) {
+                    etPromptInput.setText("Bantu jelaskan/proses teks ini:\n$extText")
+                }
+            }
+            ACTION_RELOAD_CONFIG -> {
                 if (popupChatView.visibility != View.VISIBLE) {
                     showCollapsedTriggerState()
                 }
             }
-            ACTION_RESET_SESSION -> {
-                allThreads = repo.loadAllThreads()
-                startNewConversationThread()
-            }
-            ACTION_TRIGGER_SIRI -> {
-                triggerHaptic()
-                wakeFromSmartFreeze()
-                showSiriAura()
-                openPopupChat(fromSiri = true)
-            }
-            ACTION_AUDIO_PERMISSION_GRANTED -> {
-                startVoiceChatSession()
-            }
-            ACTION_ATTACH_URI -> {
-                val uriStr = intent.getStringExtra("uri_string") ?: return START_STICKY
-                val uri = Uri.parse(uriStr)
-                val processed = SmartToolsHelper.processUriAttachment(this, uri)
-                if (processed != null) {
-                    pendingAttachment = processed
-                    tvAttachmentName.text = processed.displayName
-                    attachmentPreviewBar.visibility = View.VISIBLE
-                    if (popupChatView.visibility != View.VISIBLE) {
-                        openPopupChat(fromSiri = false)
-                    }
-                } else {
-                    Toast.makeText(this, "Gagal membaca file lampiran", Toast.LENGTH_SHORT).show()
-                }
-            }
-            ACTION_EXTERNAL_CONTEXT -> {
-                val sharedText = intent.getStringExtra("shared_text") ?: ""
-                val uriStr = intent.getStringExtra("uri_string")
-                val mode = intent.getStringExtra("source_mode") ?: "share"
-
-                wakeFromSmartFreeze()
-                openPopupChat(fromSiri = false)
-
-                if (!uriStr.isNullOrEmpty()) {
-                    val processed = SmartToolsHelper.processUriAttachment(this, Uri.parse(uriStr))
-                    if (processed != null) {
-                        pendingAttachment = processed
-                        tvAttachmentName.text = processed.displayName
-                        attachmentPreviewBar.visibility = View.VISIBLE
-                    }
-                }
-
-                if (sharedText.isNotBlank()) {
-                    val prefix = if (mode == "selection") "Bantu jelaskan atau proses teks pilihan ini:\n\"$sharedText\"" else sharedText
-                    etPrompt.setText(prefix)
-                    etPrompt.setSelection(etPrompt.text.length)
+            else -> {
+                if (popupChatView.visibility != View.VISIBLE) {
+                    showCollapsedTriggerState()
                 }
             }
         }
         return START_STICKY
     }
 
-    // ==========================================================================
-    // VOICE SYSTEM (STT + TTS + WAVEFORM + INTERRUPTION)
-    // ==========================================================================
-    private fun initVoiceSystem() {
-        voiceManager = VoiceSystemManager(
-            context = this,
-            onRmsChanged = { amp ->
-                mainHandler.post { voiceWaveformView.setAmplitude(amp) }
-            },
-            onPartialSpeech = { partial ->
-                mainHandler.post {
-                    etPrompt.setText(partial)
-                    etPrompt.setSelection(partial.length)
-                }
-            },
-            onFinalSpeech = { finalSpoken ->
-                mainHandler.post {
-                    voiceWaveformView.stopAnimation()
-                    voiceWaveformBar.visibility = View.GONE
-                    etPrompt.setText(finalSpoken)
-                    triggerSendPrompt(finalSpoken, fromVoice = true)
-                }
-            },
-            onListeningStateChanged = { listening ->
-                mainHandler.post {
-                    if (listening) {
-                        voiceWaveformBar.visibility = View.VISIBLE
-                        tvVoiceStatusLabel.text = "Mendengarkan..."
-                        voiceWaveformView.startAnimation()
-                    } else if (voiceManager?.isSpeaking != true) {
-                        voiceWaveformView.stopAnimation()
-                        voiceWaveformBar.visibility = View.GONE
-                    }
-                }
-            },
-            onSpeakingStateChanged = { speaking ->
-                mainHandler.post {
-                    if (speaking) {
-                        voiceWaveformBar.visibility = View.VISIBLE
-                        tvVoiceStatusLabel.text = "Floamini Berbicara..."
-                        voiceWaveformView.setAmplitude(0.65f)
-                        voiceWaveformView.startAnimation()
-                    } else {
-                        voiceWaveformView.stopAnimation()
-                        voiceWaveformBar.visibility = View.GONE
-                    }
-                }
-            },
-            onVoiceError = { err ->
-                mainHandler.post {
-                    voiceWaveformView.stopAnimation()
-                    voiceWaveformBar.visibility = View.GONE
-                    Toast.makeText(this, err, Toast.LENGTH_SHORT).show()
-                }
-            }
-        )
-    }
-
-    private fun startVoiceChatSession() {
-        if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
-            startActivity(Intent(this, AudioPermissionProxyActivity::class.java).apply {
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            })
-            return
-        }
-        isVoiceChatLoop = true
-        triggerHaptic()
-        voiceManager?.startListening()
-    }
-
-    // ==========================================================================
-    // AUTO SMART FREEZE ENGINE
-    // ==========================================================================
-    private fun scheduleSmartFreeze() {
-        mainHandler.removeCallbacks(smartFreezeRunnable)
-        if (prefSmartFreeze) {
-            mainHandler.postDelayed(smartFreezeRunnable, 18_000L)
-        }
-    }
-
-    private fun enterSmartFreezeState() {
-        if (isSmartFrozen) return
-        isSmartFrozen = true
-        mainHandler.removeCallbacks(autoHidePillRunnable)
-        mainHandler.removeCallbacks(transformToXiaomiEdgeRunnable)
-
-        dynamicIslandView.animate().cancel()
-        bubbleView.animate().cancel()
-        xiaomiEdgeView.animate().cancel()
-        siriGlowView?.stopAndFreezeAnimation()
-
-        if (prefOverlayStyle == "siri_mode" && isFloatingViewAttached) {
-            try {
-                windowManager.removeViewImmediate(floatingView)
-                isFloatingViewAttached = false
-            } catch (_: Exception) {}
-        }
-        System.gc()
-    }
-
-    private fun wakeFromSmartFreeze() {
-        mainHandler.removeCallbacks(smartFreezeRunnable)
-        if (!isFloatingViewAttached && ::floatingView.isInitialized) {
-            try {
-                windowManager.addView(floatingView, params)
-                isFloatingViewAttached = true
-            } catch (_: Exception) {}
-        }
-        isSmartFrozen = false
-    }
-
-    // ==========================================================================
-    // SIRI EDGE GLOW AURA
-    // ==========================================================================
-    private fun showSiriAura() {
-        if (isSiriAuraActive) return
-        isSiriAuraActive = true
-
-        val layoutFlag = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
-        } else {
-            @Suppress("DEPRECATION")
-            WindowManager.LayoutParams.TYPE_PHONE
-        }
-
-        val auraParams = WindowManager.LayoutParams(
-            WindowManager.LayoutParams.MATCH_PARENT,
-            WindowManager.LayoutParams.MATCH_PARENT,
-            layoutFlag,
-            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
-                    WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
-                    WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
-                    WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
-            PixelFormat.TRANSLUCENT
-        )
-
-        val glowView = SiriEdgeGlowView(this).apply { alpha = 0f }
-        siriGlowView = glowView
-        try {
-            windowManager.addView(glowView, auraParams)
-            glowView.startSiriAnimation()
-            glowView.animate().alpha(1f).setDuration(340).start()
-        } catch (_: Exception) {}
-    }
-
-    private fun dismissSiriAura() {
-        val glowView = siriGlowView ?: return
-        isSiriAuraActive = false
-        siriGlowView = null
-        glowView.animate()
-            .alpha(0f)
-            .setDuration(240)
-            .withEndAction {
-                glowView.stopAndFreezeAnimation()
-                try { windowManager.removeViewImmediate(glowView) } catch (_: Exception) {}
-            }
-            .start()
-    }
-
-    private fun triggerHaptic() {
-        if (!prefHapticFeedback) return
-        try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                val vm = getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager
-                vm.defaultVibrator.vibrate(VibrationEffect.createPredefined(VibrationEffect.EFFECT_TICK))
-            } else {
-                @Suppress("DEPRECATION")
-                val vibrator = getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    vibrator.vibrate(VibrationEffect.createOneShot(14, VibrationEffect.DEFAULT_AMPLITUDE))
-                } else {
-                    @Suppress("DEPRECATION")
-                    vibrator.vibrate(14)
-                }
-            }
-        } catch (_: Exception) {}
-    }
-
-    private fun currentTimeLabel(): String = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date())
-
-    private fun loadUserPreferences() {
-        val prefs = getSharedPreferences("gemini_prefs", Context.MODE_PRIVATE)
-        val density = resources.displayMetrics.density
-        activeProvider = AiProviderType.fromId(prefs.getString("active_provider_id", "gemini"))
-        prefAutoRouter = prefs.getBoolean("auto_router_enabled", false)
-        prefOverlayStyle = prefs.getString("overlay_style", "dynamic_island") ?: "dynamic_island"
-        prefPillAppearance = prefs.getString("pill_appearance", "standard") ?: "standard"
-        prefAutoHidePill = prefs.getBoolean("auto_hide_pill", false)
-        prefSmartFreeze = prefs.getBoolean("smart_freeze", true)
-        prefTapOutsideClose = prefs.getBoolean("tap_outside_close", true)
-        prefLiquidBlur = prefs.getBoolean("liquid_blur", true)
-        prefHapticFeedback = prefs.getBoolean("haptic_feedback", true)
-        prefAutoSpeakTts = prefs.getBoolean("auto_speak_tts", true)
-        prefTtsVoiceName = prefs.getString("tts_voice_name", "") ?: ""
-        val animProg = prefs.getInt("anim_speed_prog", 5)
-        prefAnimSpeedMultiplier = (0.5f + animProg * 0.1f).coerceIn(0.5f, 1.5f)
-        prefIslandWidthPx = (prefs.getInt("island_width_dp", 164) * density).toInt()
-        prefIslandPosYPx = (prefs.getInt("island_pos_y_dp", 12) * density).toInt()
-        prefIslandOffsetXPx = (prefs.getInt("island_offset_x_dp", 0) * density).toInt()
-        prefPopupAlpha = (prefs.getInt("popup_opacity", 84) / 100f).coerceIn(0.45f, 1.0f)
-        prefBubbleSizePx = (54 * density).toInt()
-        prefPersona = prefs.getString("ai_persona", "asik") ?: "asik"
-        prefCustomSystemInstruction = prefs.getString("custom_system_instruction", "") ?: ""
-    }
-
-    private fun applyVisualPreferences() {
-        if (::dynamicIslandView.isInitialized) {
-            val lp = dynamicIslandView.layoutParams
-            lp.width = prefIslandWidthPx
-            dynamicIslandView.layoutParams = lp
-
-            when (prefPillAppearance) {
-                "polos" -> {
-                    dynamicIslandView.setBackgroundResource(R.drawable.bg_dynamic_island_polos)
-                    ivIslandSparkle.visibility = View.GONE
-                    tvIslandLabel.visibility = View.GONE
-                    viewIslandPulseDot.visibility = View.GONE
-                }
-                "minimal" -> {
-                    dynamicIslandView.setBackgroundResource(R.drawable.bg_dynamic_island)
-                    ivIslandSparkle.visibility = View.VISIBLE
-                    tvIslandLabel.visibility = View.GONE
-                    viewIslandPulseDot.visibility = View.VISIBLE
-                }
-                else -> {
-                    dynamicIslandView.setBackgroundResource(R.drawable.bg_dynamic_island)
-                    ivIslandSparkle.visibility = View.VISIBLE
-                    tvIslandLabel.visibility = View.VISIBLE
-                    viewIslandPulseDot.visibility = View.VISIBLE
-                }
-            }
-        }
-        if (::popupChatView.isInitialized) {
-            popupChatView.alpha = prefPopupAlpha
-        }
-        if (::tvActiveProviderHeader.isInitialized) {
-            val modelName = vault.getSelectedModel(activeProvider)
-            val prefix = if (prefAutoRouter) "Auto • " else ""
-            tvActiveProviderHeader.text = "$prefix${activeProvider.shortBadge} • $modelName"
-        }
-        if (::tvCurrentPersonaBadge.isInitialized) {
-            tvCurrentPersonaBadge.text = when (prefPersona) {
-                "ringkas" -> "Singkat"
-                "detail" -> "Detail"
-                "teknis" -> "Teknis"
-                else -> "Asik"
-            }
-        }
-    }
-
-    // ==========================================================================
-    // MULTI-THREAD CONVERSATION & HISTORY MANAGEMENT
-    // ==========================================================================
-    private fun initializeThreads() {
-        allThreads = repo.loadAllThreads()
-        val activeId = repo.getActiveThreadId()
-        val existing = allThreads.firstOrNull { it.id == activeId } ?: allThreads.firstOrNull()
-        if (existing != null) {
-            currentThread = existing
-        } else {
-            currentThread = ChatThread(
-                id = UUID.randomUUID().toString(),
-                title = "Obrolan Baru",
-                updatedAt = System.currentTimeMillis()
-            )
-            allThreads.add(0, currentThread)
-            repo.setActiveThreadId(currentThread.id)
-        }
-        renderCurrentThreadMessages()
-    }
-
-    private fun startNewConversationThread() {
-        currentThread = ChatThread(
-            id = UUID.randomUUID().toString(),
-            title = "Obrolan Baru",
-            updatedAt = System.currentTimeMillis()
-        )
-        allThreads.add(0, currentThread)
-        repo.setActiveThreadId(currentThread.id)
-        repo.saveAllThreads(allThreads)
-        renderCurrentThreadMessages()
-    }
-
-    private fun renderCurrentThreadMessages() {
-        chatContainer.removeAllViews()
-        if (currentThread.messages.isEmpty()) {
-            val greeting = "Halo! Floamini OS siap membantu dengan 11 AI Provider, Streaming SSE, Voice Chat, dan PDF/Screen Vision."
-            lastBotReply = greeting
-            addChatBubbleView(
-                ChatMessage(UUID.randomUUID().toString(), "model", greeting, currentTimeLabel(), activeProvider.shortBadge),
-                animateEntrance = false
-            )
-        } else {
-            for (m in currentThread.messages) {
-                if (m.role == "model") lastBotReply = m.text
-                addChatBubbleView(m, animateEntrance = false)
-            }
-        }
-    }
-
-    private fun persistCurrentThread() {
-        currentThread.updatedAt = System.currentTimeMillis()
-        if (currentThread.title == "Obrolan Baru") {
-            val firstUser = currentThread.messages.firstOrNull { it.role == "user" }
-            if (firstUser != null) {
-                currentThread.title = firstUser.text.take(34)
-            }
-        }
-        allThreads.removeAll { it.id == currentThread.id }
-        allThreads.add(0, currentThread)
-        repo.setActiveThreadId(currentThread.id)
-        repo.saveAllThreads(allThreads)
-    }
-
     private fun startForegroundNotification(withMediaProjection: Boolean) {
-        val channelId = "floamini_os_channel"
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(channelId, "Floamini OS Assistant", NotificationManager.IMPORTANCE_LOW)
-            getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
+            val channel = NotificationChannel(
+                CHANNEL_ID,
+                "Floamini Liquid Glass Overlay",
+                NotificationManager.IMPORTANCE_LOW
+            )
+            val nm = getSystemService(NotificationManager::class.java)
+            nm.createNotificationChannel(channel)
         }
 
-        val notification: Notification = NotificationCompat.Builder(this, channelId)
-            .setContentTitle("Floamini OS")
-            .setContentText(if (withMediaProjection) "Live Screen Vision aktif" else "Multi-AI Liquid Glass aktif")
-            .setSmallIcon(android.R.drawable.ic_dialog_info)
+        val notif: Notification = NotificationCompat.Builder(this, CHANNEL_ID)
+            .setContentTitle("Floamini OS Aktif")
+            .setContentText("Ketuk Dynamic Island / Control Center untuk memanggil AI")
+            .setSmallIcon(R.drawable.ic_sparkle)
+            .setOngoing(true)
             .build()
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-            val type = if (withMediaProjection) {
-                ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION or ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE
+            val fgsType = if (withMediaProjection) {
+                ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE or ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION
             } else {
                 ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE
             }
-            startForeground(101, notification, type)
+            startForeground(NOTIF_ID, notif, fgsType)
         } else {
-            startForeground(101, notification)
+            startForeground(NOTIF_ID, notif)
         }
     }
 
-    private fun setupScreenMetrics() {
-        val metrics = DisplayMetrics()
-        val wm = getSystemService(WINDOW_SERVICE) as WindowManager
-        @Suppress("DEPRECATION")
-        wm.defaultDisplay.getRealMetrics(metrics)
-        fullScreenWidth = metrics.widthPixels
-        fullScreenHeight = metrics.heightPixels
-        captureWidth = fullScreenWidth / 2
-        captureHeight = fullScreenHeight / 2
-        screenDensity = metrics.densityDpi
+    private fun loadPreferences() {
+        val prefs = getSharedPreferences("gemini_prefs", Context.MODE_PRIVATE)
+        val d = resources.displayMetrics.density
+
+        activeProvider = AiProvider.fromId(prefs.getString("active_provider", AiProvider.GEMINI.id))
+        activeModel = prefs.getString("active_model", activeProvider.models.first()).orEmpty()
+            .ifEmpty { activeProvider.models.first() }
+
+        prefOverlayStyle = prefs.getString("overlay_style", "dynamic_island").orEmpty()
+        prefPillAppearance = prefs.getString("pill_appearance", "lengkap").orEmpty()
+        prefAutoHidePill = prefs.getBoolean("auto_hide_pill", false)
+        prefSmartFreeze = prefs.getBoolean("smart_freeze", true)
+        prefLiquidBlur = prefs.getBoolean("liquid_blur", true)
+        prefIslandWidthPx = (prefs.getInt("island_width_dp", 164) * d).toInt()
+        prefIslandPosYPx = (prefs.getInt("island_pos_y_dp", 12) * d).toInt()
+        prefIslandOffsetXPx = (prefs.getInt("island_offset_x_dp", 0) * d).toInt()
+        prefPopupAlpha = (prefs.getInt("popup_opacity_pct", 92) / 100f).coerceIn(0.55f, 1.0f)
     }
 
-    private fun setupFloatingOverlay() {
-        windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
+    private fun initFloatingOverlay() {
         floatingView = LayoutInflater.from(this).inflate(R.layout.layout_floating_assistant, null)
-
-        val layoutFlag = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+        val overlayType = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
         } else {
             @Suppress("DEPRECATION")
@@ -5759,12 +4499,12 @@ class FloatingAssistantService : Service() {
         params = WindowManager.LayoutParams(
             WindowManager.LayoutParams.WRAP_CONTENT,
             WindowManager.LayoutParams.WRAP_CONTENT,
-            layoutFlag,
+            overlayType,
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
             PixelFormat.TRANSLUCENT
         ).apply {
             gravity = Gravity.TOP or Gravity.START
-            x = ((fullScreenWidth - prefIslandWidthPx) / 2) + prefIslandOffsetXPx
+            x = (fullScreenWidth - prefIslandWidthPx) / 2
             y = prefIslandPosYPx
         }
 
@@ -5772,6 +4512,7 @@ class FloatingAssistantService : Service() {
         isFloatingViewAttached = true
 
         // Bind Views
+        dynamicIslandGlassHost = floatingView.findViewById(R.id.dynamicIslandGlassHost)
         dynamicIslandView = floatingView.findViewById(R.id.dynamicIslandView)
         ivIslandSparkle = floatingView.findViewById(R.id.ivIslandSparkle)
         tvIslandLabel = floatingView.findViewById(R.id.tvIslandLabel)
@@ -5780,133 +4521,33 @@ class FloatingAssistantService : Service() {
         xiaomiEdgeView = floatingView.findViewById(R.id.xiaomiEdgeView)
         popupChatView = floatingView.findViewById(R.id.popupChatView)
 
-        val glassTitleBar = floatingView.findViewById<LinearLayout>(R.id.glassTitleBar)
-        val btnCloseWindowX = floatingView.findViewById<ImageView>(R.id.btnCloseWindowX)
-        val btnToggleMiniWindow = floatingView.findViewById<ImageView>(R.id.btnToggleMiniWindow)
-        val btnSwitchProviderPill = floatingView.findViewById<LinearLayout>(R.id.btnSwitchProviderPill)
         tvActiveProviderHeader = floatingView.findViewById(R.id.tvActiveProviderHeader)
         btnScreenShare = floatingView.findViewById(R.id.btnScreenShare)
-        val btnToolsDrawer = floatingView.findViewById<ImageView>(R.id.btnToolsDrawer)
-        val btnPlusMenu = floatingView.findViewById<ImageView>(R.id.btnPlusMenu)
-
         tvScreenShareStatus = floatingView.findViewById(R.id.tvScreenShareStatus)
-        attachmentPreviewBar = floatingView.findViewById(R.id.attachmentPreviewBar)
-        tvAttachmentName = floatingView.findViewById(R.id.tvAttachmentName)
-        val btnRemoveAttachment = floatingView.findViewById<TextView>(R.id.btnRemoveAttachment)
+        tvAttachmentBadge = floatingView.findViewById(R.id.tvAttachmentBadge)
+        chatScrollView = floatingView.findViewById(R.id.chatScrollView)
+        chatMessagesContainer = floatingView.findViewById(R.id.chatMessagesContainer)
+        etPromptInput = floatingView.findViewById(R.id.etPromptInput)
+        btnSendOrStop = floatingView.findViewById(R.id.btnSendOrStop)
+        voiceWaveformBar = floatingView.findViewById(R.id.voiceWaveformBar)
+        voiceWaveformView = floatingView.findViewById(R.id.voiceWaveformView)
+        tvVoiceHint = floatingView.findViewById(R.id.tvVoiceHint)
 
-        val plusMenuDrawer = floatingView.findViewById<LinearLayout>(R.id.plusMenuDrawer)
+        val glassTitleBar = floatingView.findViewById<LinearLayout>(R.id.glassTitleBar)
         val smartToolsDrawer = floatingView.findViewById<LinearLayout>(R.id.smartToolsDrawer)
 
-        val actionCompareAi = floatingView.findViewById<LinearLayout>(R.id.actionCompareAi)
-        tvCompareBadge = floatingView.findViewById(R.id.tvCompareBadge)
-        val actionRegenerate = floatingView.findViewById<LinearLayout>(R.id.actionRegenerate)
-        val actionCyclePersona = floatingView.findViewById<LinearLayout>(R.id.actionCyclePersona)
-        tvCurrentPersonaBadge = floatingView.findViewById(R.id.tvCurrentPersonaBadge)
-        val actionCopyLast = floatingView.findViewById<LinearLayout>(R.id.actionCopyLast)
-        val actionNewThread = floatingView.findViewById<LinearLayout>(R.id.actionNewThread)
-        val actionOpenDashboard = floatingView.findViewById<LinearLayout>(R.id.actionOpenDashboard)
-        val actionQuickForceStop = floatingView.findViewById<LinearLayout>(R.id.actionQuickForceStop)
-
-        // 9 Quick Actions
-        val qaTranslate = floatingView.findViewById<TextView>(R.id.qaTranslate)
-        val qaSummarize = floatingView.findViewById<TextView>(R.id.qaSummarize)
-        val qaRewrite = floatingView.findViewById<TextView>(R.id.qaRewrite)
-        val qaExplain = floatingView.findViewById<TextView>(R.id.qaExplain)
-        val qaBrainstorm = floatingView.findViewById<TextView>(R.id.qaBrainstorm)
-        val qaCoding = floatingView.findViewById<TextView>(R.id.qaCoding)
-        val qaGrammar = floatingView.findViewById<TextView>(R.id.qaGrammar)
-        val qaExtractText = floatingView.findViewById<TextView>(R.id.qaExtractText)
-        val qaAskSelection = floatingView.findViewById<TextView>(R.id.qaAskSelection)
-
-        // Smart Tools
-        val btnToolClipboard = floatingView.findViewById<Button>(R.id.btnToolClipboard)
-        val btnToolCalculator = floatingView.findViewById<Button>(R.id.btnToolCalculator)
-        val btnToolNotes = floatingView.findViewById<Button>(R.id.btnToolNotes)
-        val btnToolHistory = floatingView.findViewById<Button>(R.id.btnToolHistory)
-        val panelCalculator = floatingView.findViewById<LinearLayout>(R.id.panelCalculator)
-        val etCalcExpression = floatingView.findViewById<EditText>(R.id.etCalcExpression)
-        val tvCalcResult = floatingView.findViewById<TextView>(R.id.tvCalcResult)
-        val btnEvalCalc = floatingView.findViewById<Button>(R.id.btnEvalCalc)
-        val panelQuickNotes = floatingView.findViewById<LinearLayout>(R.id.panelQuickNotes)
-        val etQuickNotes = floatingView.findViewById<EditText>(R.id.etQuickNotes)
-        val btnSendNotesToAi = floatingView.findViewById<Button>(R.id.btnSendNotesToAi)
-        val panelChatHistory = floatingView.findViewById<LinearLayout>(R.id.panelChatHistory)
-        val etSearchChat = floatingView.findViewById<EditText>(R.id.etSearchChat)
-        val historyThreadsList = floatingView.findViewById<LinearLayout>(R.id.historyThreadsList)
-
-        scrollChat = floatingView.findViewById(R.id.scrollChat)
-        chatContainer = floatingView.findViewById(R.id.chatContainer)
-        typingIndicatorRow = floatingView.findViewById(R.id.typingIndicatorRow)
-        tvThinkingLabel = floatingView.findViewById(R.id.tvThinkingLabel)
-        val btnStopGeneration = floatingView.findViewById<TextView>(R.id.btnStopGeneration)
-
-        voiceWaveformBar = floatingView.findViewById(R.id.voiceWaveformBar)
-        tvVoiceStatusLabel = floatingView.findViewById(R.id.tvVoiceStatusLabel)
-        voiceWaveformView = floatingView.findViewById(R.id.voiceWaveformView)
-        val btnStopVoiceAction = floatingView.findViewById<TextView>(R.id.btnStopVoiceAction)
-
-        val btnAttachFile = floatingView.findViewById<ImageButton>(R.id.btnAttachFile)
-        val btnVoiceMic = floatingView.findViewById<ImageButton>(R.id.btnVoiceMic)
-        etPrompt = floatingView.findViewById(R.id.etPrompt)
-        btnSendPrompt = floatingView.findViewById(R.id.btnSendPrompt)
-        val btnResizeHandle = floatingView.findViewById<ImageView>(R.id.btnResizeHandle)
-
-        val prefs = getSharedPreferences("gemini_prefs", Context.MODE_PRIVATE)
-        applyVisualPreferences()
-        initializeThreads()
-        showCollapsedTriggerState()
-
-        // Tap outside window to close
+        // Tap outside popup to collapse back to Dynamic Island / Bubble
         floatingView.setOnTouchListener { _, event ->
-            if (event.action == MotionEvent.ACTION_OUTSIDE &&
-                popupChatView.visibility == View.VISIBLE &&
-                prefTapOutsideClose
-            ) {
-                triggerHaptic()
-                closePopupChat()
+            if (event.action == MotionEvent.ACTION_OUTSIDE && popupChatView.visibility == View.VISIBLE) {
+                showCollapsedTriggerState()
                 true
             } else {
                 false
             }
         }
 
-        // Smooth Model Switching directly from Header Pill
-        btnSwitchProviderPill.setOnClickListener {
-            triggerHaptic()
-            val configured = vault.getConfiguredProviders()
-            val pool = if (configured.isNotEmpty()) configured else AiProviderType.values().toList()
-            val nextIdx = (pool.indexOf(activeProvider) + 1) % pool.size
-            activeProvider = pool[nextIdx]
-            prefs.edit().putString("active_provider_id", activeProvider.id).apply()
-
-            btnSwitchProviderPill.animate().scaleX(0.92f).scaleY(0.92f).setDuration(90).withEndAction {
-                applyVisualPreferences()
-                btnSwitchProviderPill.animate().scaleX(1f).scaleY(1f).setDuration(120).start()
-            }.start()
-            Toast.makeText(this, "Beralih ke ${activeProvider.displayName}", Toast.LENGTH_SHORT).show()
-        }
-
-        // Toggle Mini Window vs Full Floating Window
-        btnToggleMiniWindow.setOnClickListener {
-            triggerHaptic()
-            isMiniWindowMode = !isMiniWindowMode
-            val density = resources.displayMetrics.density
-            val lp = popupChatView.layoutParams
-            if (isMiniWindowMode) {
-                lp.width = (280 * density).toInt()
-                lp.height = (255 * density).toInt()
-                Toast.makeText(this, "Mini Window Mode", Toast.LENGTH_SHORT).show()
-            } else {
-                lp.width = prefs.getInt("last_win_w", (352 * density).toInt())
-                lp.height = prefs.getInt("last_win_h", (500 * density).toInt())
-                Toast.makeText(this, "Full Floating Window", Toast.LENGTH_SHORT).show()
-            }
-            popupChatView.layoutParams = lp
-            windowManager.updateViewLayout(floatingView, params)
-        }
-
         // Dynamic Island Touch & Drag
-        dynamicIslandView.setOnTouchListener(object : View.OnTouchListener {
+        dynamicIslandGlassHost.setOnTouchListener(object : View.OnTouchListener {
             private var initialX = 0
             private var initialY = 0
             private var initialTouchX = 0f
@@ -5921,7 +4562,7 @@ class FloatingAssistantService : Service() {
                         initialY = params.y
                         initialTouchX = event.rawX
                         initialTouchY = event.rawY
-                        animateSpringScale(dynamicIslandView, 1.07f)
+                        animateSpringScale(dynamicIslandGlassHost, 1.07f)
                         return true
                     }
                     MotionEvent.ACTION_MOVE -> {
@@ -5935,11 +4576,11 @@ class FloatingAssistantService : Service() {
                         return true
                     }
                     MotionEvent.ACTION_UP -> {
-                        animateSpringScale(dynamicIslandView, 1.0f)
+                        animateSpringScale(dynamicIslandGlassHost, 1.0f)
                         if (abs(event.rawX - initialTouchX) < 18 && abs(event.rawY - initialTouchY) < 18) {
                             triggerHaptic()
                             isPillAutoHidden = false
-                            dynamicIslandView.alpha = 1.0f
+                            dynamicIslandGlassHost.alpha = 1.0f
                             openPopupChat(fromSiri = false)
                         } else {
                             scheduleAutoHideAndFreeze()
@@ -5951,7 +4592,7 @@ class FloatingAssistantService : Service() {
             }
         })
 
-        // Bubble Touch & Snap
+        // Classic & Xiaomi Bubble Touch + Edge Snap
         bubbleView.setOnTouchListener(object : View.OnTouchListener {
             private var initialX = 0
             private var initialY = 0
@@ -5967,20 +4608,27 @@ class FloatingAssistantService : Service() {
                         initialY = params.y
                         initialTouchX = event.rawX
                         initialTouchY = event.rawY
+                        animateSpringScale(bubbleView, 1.1f)
                         return true
                     }
                     MotionEvent.ACTION_MOVE -> {
                         params.x = (initialX + (event.rawX - initialTouchX).toInt()).coerceIn(0, fullScreenWidth - prefBubbleSizePx)
-                        params.y = (initialY + (event.rawY - initialTouchY).toInt()).coerceIn(0, fullScreenHeight - prefBubbleSizePx)
+                        params.y = (initialY + (event.rawY - initialTouchY).toInt()).coerceIn(40, fullScreenHeight - prefBubbleSizePx - 80)
                         windowManager.updateViewLayout(floatingView, params)
                         return true
                     }
                     MotionEvent.ACTION_UP -> {
-                        if (abs(event.rawX - initialTouchX) < 15 && abs(event.rawY - initialTouchY) < 15) {
+                        animateSpringScale(bubbleView, 1.0f)
+                        if (abs(event.rawX - initialTouchX) < 18 && abs(event.rawY - initialTouchY) < 18) {
                             triggerHaptic()
                             openPopupChat(fromSiri = false)
                         } else {
-                            snapBubbleToNearestEdge()
+                            snappedToRightEdge = (params.x + prefBubbleSizePx / 2) > (fullScreenWidth / 2)
+                            params.x = if (snappedToRightEdge) (fullScreenWidth - prefBubbleSizePx) else 0
+                            windowManager.updateViewLayout(floatingView, params)
+                            if (prefOverlayStyle == "xiaomi_edge") {
+                                mainHandler.postDelayed(transformToXiaomiEdgeRunnable, 2500L)
+                            }
                         }
                         return true
                     }
@@ -5989,39 +4637,12 @@ class FloatingAssistantService : Service() {
             }
         })
 
-        // Xiaomi Edge Pill
-        xiaomiEdgeView.setOnTouchListener(object : View.OnTouchListener {
-            private var initialY = 0
-            private var initialTouchX = 0f
-            private var initialTouchY = 0f
+        xiaomiEdgeView.setOnClickListener {
+            triggerHaptic()
+            openPopupChat(fromSiri = false)
+        }
 
-            override fun onTouch(v: View, event: MotionEvent): Boolean {
-                when (event.action) {
-                    MotionEvent.ACTION_DOWN -> {
-                        wakeFromSmartFreeze()
-                        initialY = params.y
-                        initialTouchX = event.rawX
-                        initialTouchY = event.rawY
-                        return true
-                    }
-                    MotionEvent.ACTION_MOVE -> {
-                        params.y = (initialY + (event.rawY - initialTouchY).toInt()).coerceIn(0, fullScreenHeight - 180)
-                        windowManager.updateViewLayout(floatingView, params)
-                        return true
-                    }
-                    MotionEvent.ACTION_UP -> {
-                        val diffX = event.rawX - initialTouchX
-                        val swipedInward = (snappedToRightEdge && diffX < -45) || (!snappedToRightEdge && diffX > 45)
-                        triggerHaptic()
-                        if (swipedInward) openPopupChat(fromSiri = false) else exitXiaomiEdgeMode()
-                        return true
-                    }
-                }
-                return false
-            }
-        })
-
-        // Drag Window & Remember Position
+        // Drag Floating Window via Glass Title Bar
         glassTitleBar.setOnTouchListener(object : View.OnTouchListener {
             private var initialX = 0
             private var initialY = 0
@@ -6038,18 +4659,15 @@ class FloatingAssistantService : Service() {
                         return true
                     }
                     MotionEvent.ACTION_MOVE -> {
-                        val maxW = (fullScreenWidth - popupChatView.width).coerceAtLeast(0)
-                        val maxH = (fullScreenHeight - popupChatView.height).coerceAtLeast(0)
-                        params.x = (initialX + (event.rawX - initialTouchX).toInt()).coerceIn(0, maxW)
-                        params.y = (initialY + (event.rawY - initialTouchY).toInt()).coerceIn(0, maxH)
+                        params.x = (initialX + (event.rawX - initialTouchX).toInt())
+                            .coerceIn(0, (fullScreenWidth - popupChatView.width).coerceAtLeast(0))
+                        params.y = (initialY + (event.rawY - initialTouchY).toInt())
+                            .coerceIn(0, (fullScreenHeight - popupChatView.height).coerceAtLeast(0))
                         windowManager.updateViewLayout(floatingView, params)
                         return true
                     }
                     MotionEvent.ACTION_UP -> {
-                        prefs.edit()
-                            .putInt("last_win_x", params.x)
-                            .putInt("last_win_y", params.y)
-                            .apply()
+                        saveLastWindowGeometry()
                         return true
                     }
                 }
@@ -6057,43 +4675,34 @@ class FloatingAssistantService : Service() {
             }
         })
 
-        // Resize Window & Remember Size
-        btnResizeHandle.setOnTouchListener(object : View.OnTouchListener {
-            private var initialW = 0
-            private var initialH = 0
-            private var initialTouchX = 0f
-            private var initialTouchY = 0f
+        // Corner Resize Handle
+        floatingView.findViewById<ImageView>(R.id.btnResizeHandle).setOnTouchListener(object : View.OnTouchListener {
+            private var startW = 0
+            private var startH = 0
+            private var startTouchX = 0f
+            private var startTouchY = 0f
 
             override fun onTouch(v: View, event: MotionEvent): Boolean {
-                val density = resources.displayMetrics.density
-                val minW = (275 * density).toInt()
-                val minH = (250 * density).toInt()
-                val maxW = (fullScreenWidth * 0.96f).toInt()
-                val maxH = (fullScreenHeight * 0.84f).toInt()
-
+                val d = resources.displayMetrics.density
                 when (event.action) {
                     MotionEvent.ACTION_DOWN -> {
-                        initialW = popupChatView.width
-                        initialH = popupChatView.height
-                        initialTouchX = event.rawX
-                        initialTouchY = event.rawY
+                        startW = popupChatView.layoutParams.width
+                        startH = popupChatView.layoutParams.height
+                        startTouchX = event.rawX
+                        startTouchY = event.rawY
                         return true
                     }
                     MotionEvent.ACTION_MOVE -> {
-                        val newW = (initialW + (event.rawX - initialTouchX).toInt()).coerceIn(minW, maxW)
-                        val newH = (initialH + (event.rawY - initialTouchY).toInt()).coerceIn(minH, maxH)
                         val lp = popupChatView.layoutParams
-                        lp.width = newW
-                        lp.height = newH
+                        lp.width = (startW + (event.rawX - startTouchX).toInt())
+                            .coerceIn((260 * d).toInt(), (fullScreenWidth - 24).coerceAtLeast(300))
+                        lp.height = (startH + (event.rawY - startTouchY).toInt())
+                            .coerceIn((260 * d).toInt(), (fullScreenHeight - 100).coerceAtLeast(350))
                         popupChatView.layoutParams = lp
-                        windowManager.updateViewLayout(floatingView, params)
                         return true
                     }
                     MotionEvent.ACTION_UP -> {
-                        prefs.edit()
-                            .putInt("last_win_w", popupChatView.width)
-                            .putInt("last_win_h", popupChatView.height)
-                            .apply()
+                        saveLastWindowGeometry()
                         return true
                     }
                 }
@@ -6101,227 +4710,235 @@ class FloatingAssistantService : Service() {
             }
         })
 
-        btnCloseWindowX.setOnClickListener {
+        // Header Buttons
+        floatingView.findViewById<ImageView>(R.id.btnClosePopup).setOnClickListener {
             triggerHaptic()
-            closePopupChat()
+            showCollapsedTriggerState()
         }
 
-        btnScreenShare.setOnClickListener {
+        floatingView.findViewById<ImageView>(R.id.btnToggleMiniWindow).setOnClickListener {
             triggerHaptic()
-            if (!isScreenShareActive) {
-                startActivity(Intent(this, ScreenCapturePermissionActivity::class.java).apply {
-                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                })
-            } else {
-                stopMediaProjection()
-                Toast.makeText(this, "Screen Vision dihentikan", Toast.LENGTH_SHORT).show()
-            }
+            isMiniWindowMode = !isMiniWindowMode
+            openPopupChat(fromSiri = false)
         }
 
-        btnPlusMenu.setOnClickListener {
-            triggerHaptic()
-            smartToolsDrawer.visibility = View.GONE
-            val show = plusMenuDrawer.visibility != View.VISIBLE
-            plusMenuDrawer.visibility = if (show) View.VISIBLE else View.GONE
-            btnPlusMenu.animate().rotation(if (show) 45f else 0f).setDuration(200).start()
-        }
-
-        btnToolsDrawer.setOnClickListener {
-            triggerHaptic()
-            plusMenuDrawer.visibility = View.GONE
-            btnPlusMenu.animate().rotation(0f).setDuration(200).start()
-            val show = smartToolsDrawer.visibility != View.VISIBLE
-            smartToolsDrawer.visibility = if (show) View.VISIBLE else View.GONE
-            if (show) {
-                etQuickNotes.setText(repo.getQuickNotes())
-                refreshHistoryList(historyThreadsList, "")
-            }
-        }
-
-        // Plus Menu Actions
-        actionCompareAi.setOnClickListener {
+        floatingView.findViewById<ImageView>(R.id.btnCompareMode).setOnClickListener { view ->
             triggerHaptic()
             isCompareMode = !isCompareMode
-            tvCompareBadge.text = if (isCompareMode) "Compare AI: ON" else "Compare AI: OFF"
-            tvCompareBadge.setTextColor(Color.parseColor(if (isCompareMode) "#34D399" else "#38BDF8"))
+            (view as ImageView).setColorFilter(
+                if (isCompareMode) Color.parseColor("#E879F9") else Color.parseColor("#94A3B8")
+            )
             Toast.makeText(
                 this,
-                if (isCompareMode) "Compare AI aktif: membandingkan 2 provider sekaligus" else "Compare AI dimatikan",
+                if (isCompareMode) "Mode Compare 2 AI Aktif" else "Mode Single AI",
                 Toast.LENGTH_SHORT
             ).show()
         }
 
-        actionRegenerate.setOnClickListener {
-            if (lastUserPrompt.isNotEmpty()) {
-                plusMenuDrawer.visibility = View.GONE
-                btnPlusMenu.animate().rotation(0f).setDuration(180).start()
-                triggerSendPrompt(lastUserPrompt, fromVoice = false, isRegenerate = true)
+        btnScreenShare.setOnClickListener {
+            triggerHaptic()
+            if (isScreenShareActive) {
+                stopMediaProjection()
             } else {
-                Toast.makeText(this, "Belum ada pertanyaan untuk diulang", Toast.LENGTH_SHORT).show()
+                val permIntent = Intent(this, ScreenCapturePermissionActivity::class.java).apply {
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+                startActivity(permIntent)
             }
         }
 
-        actionCyclePersona.setOnClickListener {
+        floatingView.findViewById<ImageView>(R.id.btnToggleSmartDrawer).setOnClickListener {
             triggerHaptic()
-            prefPersona = when (prefPersona) {
-                "asik" -> "ringkas"
-                "ringkas" -> "detail"
-                "detail" -> "teknis"
-                else -> "asik"
+            val show = smartToolsDrawer.visibility != View.VISIBLE
+            smartToolsDrawer.visibility = if (show) View.VISIBLE else View.GONE
+            if (show) {
+                refreshHistoryList(floatingView.findViewById(R.id.historyResultsContainer), "")
             }
-            prefs.edit().putString("ai_persona", prefPersona).apply()
+        }
+
+        // Smart Drawer Chips
+        floatingView.findViewById<TextView>(R.id.chipSwitchProvider).setOnClickListener {
+            val all = AiProvider.entries
+            val nextIdx = (all.indexOf(activeProvider) + 1) % all.size
+            activeProvider = all[nextIdx]
+            activeModel = if (activeProvider == AiProvider.CUSTOM) {
+                vault.getCustomModelId().ifEmpty { "custom-model" }
+            } else {
+                activeProvider.models.first()
+            }
+            getSharedPreferences("gemini_prefs", Context.MODE_PRIVATE).edit()
+                .putString("active_provider", activeProvider.id)
+                .putString("active_model", activeModel)
+                .apply()
             applyVisualPreferences()
+            Toast.makeText(this, "Beralih ke ${activeProvider.displayName}", Toast.LENGTH_SHORT).show()
         }
 
-        actionCopyLast.setOnClickListener {
-            if (lastBotReply.isNotEmpty()) {
-                val cb = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                cb.setPrimaryClip(ClipData.newPlainText("Floamini Reply", lastBotReply))
-                Toast.makeText(this, "Jawaban terakhir disalin", Toast.LENGTH_SHORT).show()
-            }
+        floatingView.findViewById<TextView>(R.id.chipAutoRouter).setOnClickListener { tv ->
+            isAutoRouterEnabled = !isAutoRouterEnabled
+            (tv as TextView).text = if (isAutoRouterEnabled) "Auto-Router: ON" else "Auto-Router: OFF"
+            tv.setTextColor(if (isAutoRouterEnabled) Color.parseColor("#38BDF8") else Color.parseColor("#E2E8F0"))
         }
 
-        actionNewThread.setOnClickListener {
-            triggerHaptic()
-            startNewConversationThread()
-            plusMenuDrawer.visibility = View.GONE
-            btnPlusMenu.animate().rotation(0f).setDuration(180).start()
-            Toast.makeText(this, "Sesi obrolan baru dimulai", Toast.LENGTH_SHORT).show()
-        }
-
-        actionOpenDashboard.setOnClickListener {
-            closePopupChat()
-            startActivity(Intent(this, MainActivity::class.java).apply { addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) })
-        }
-
-        actionQuickForceStop.setOnClickListener {
-            triggerHaptic()
-            performQuickForceStop()
-        }
-
-        // 9 Quick Actions
-        qaTranslate.setOnClickListener { triggerSendPrompt("Terjemahkan teks atau konten layar ini ke Bahasa Indonesia yang natural.") }
-        qaSummarize.setOnClickListener { triggerSendPrompt("Ringkas poin-poin terpenting dari konteks atau layar ini secara padat.") }
-        qaRewrite.setOnClickListener { triggerSendPrompt("Tulis ulang teks terakhir agar lebih rapi, jelas, dan enak dibaca.") }
-        qaExplain.setOnClickListener { triggerSendPrompt("Jelaskan konsep atau isi layar ini dengan bahasa yang mudah dipahami.") }
-        qaBrainstorm.setOnClickListener { triggerSendPrompt("Berikan 5 ide kreatif dan segar terkait topik yang sedang kita bahas.") }
-        qaCoding.setOnClickListener { triggerSendPrompt("Bantu analisis, perbaiki bug, atau tulis kode bersih untuk kebutuhan ini.") }
-        qaGrammar.setOnClickListener { triggerSendPrompt("Periksa dan perbaiki tata bahasa (grammar & ejaan) pada teks terakhir.") }
-        qaExtractText.setOnClickListener { triggerSendPrompt("Ekstrak seluruh teks penting yang terlihat pada gambar atau layar secara rapi.") }
-        qaAskSelection.setOnClickListener {
-            // Explicit user action: read clipboard only when button is tapped
-            val cb = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-            val clipText = cb.primaryClip?.getItemAt(0)?.coerceToText(this)?.toString()?.trim() ?: ""
-            if (clipText.isNotEmpty()) {
-                triggerSendPrompt("Bantu jelaskan atau proses teks dari clipboard ini:\n\"$clipText\"")
+        floatingView.findViewById<TextView>(R.id.chipClipboard).setOnClickListener {
+            val cm = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+            val clipText = cm.primaryClip?.getItemAt(0)?.text?.toString().orEmpty()
+            if (clipText.isBlank()) {
+                Toast.makeText(this, "Clipboard kosong.", Toast.LENGTH_SHORT).show()
             } else {
-                Toast.makeText(this, "Clipboard saat ini kosong", Toast.LENGTH_SHORT).show()
-            }
-        }
-
-        // Smart Tools Drawer Buttons
-        btnToolClipboard.setOnClickListener {
-            val cb = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-            val clipText = cb.primaryClip?.getItemAt(0)?.coerceToText(this)?.toString()?.trim() ?: ""
-            if (clipText.isNotEmpty()) {
-                etPrompt.setText("Analisis teks clipboard ini:\n$clipText")
+                etPromptInput.setText("Ringkas / jelaskan isi clipboard ini:\n$clipText")
                 smartToolsDrawer.visibility = View.GONE
-            } else {
-                Toast.makeText(this, "Clipboard kosong", Toast.LENGTH_SHORT).show()
             }
         }
 
-        btnToolCalculator.setOnClickListener {
-            panelCalculator.visibility = if (panelCalculator.visibility == View.VISIBLE) View.GONE else View.VISIBLE
-            panelQuickNotes.visibility = View.GONE
-            panelChatHistory.visibility = View.GONE
+        floatingView.findViewById<TextView>(R.id.chipCalculator).setOnClickListener {
+            val expr = etPromptInput.text.toString().trim()
+            if (expr.isEmpty()) {
+                etPromptInput.hint = "Ketik hitungan (mis. (25*4)+15) lalu klik Kalkulator"
+            } else {
+                val res = SmartToolsHelper.evaluateMath(expr)
+                appendMessageBubble(ChatMessage(role = "assistant", content = "Hasil Kalkulator ($expr) = $res", providerTag = "Kalkulator"))
+                etPromptInput.setText("")
+            }
         }
 
-        btnEvalCalc.setOnClickListener {
-            val expr = etCalcExpression.text.toString()
-            tvCalcResult.text = "= ${SmartToolsHelper.evaluateMathExpression(expr)}"
+        floatingView.findViewById<TextView>(R.id.chipNewSession).setOnClickListener {
+            currentThread = repo.createNewThread("Sesi ${System.currentTimeMillis() % 1000}")
+            renderCurrentThreadMessages()
+            smartToolsDrawer.visibility = View.GONE
+            Toast.makeText(this, "Sesi baru dimulai.", Toast.LENGTH_SHORT).show()
         }
 
-        btnToolNotes.setOnClickListener {
-            panelQuickNotes.visibility = if (panelQuickNotes.visibility == View.VISIBLE) View.GONE else View.VISIBLE
-            panelCalculator.visibility = View.GONE
-            panelChatHistory.visibility = View.GONE
+        floatingView.findViewById<TextView>(R.id.chipQuickForceStop).setOnClickListener {
+            stopSelf()
         }
 
-        etQuickNotes.addTextChangedListener(object : TextWatcher {
+        floatingView.findViewById<EditText>(R.id.etSearchHistory).addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
-                repo.saveQuickNotes(s?.toString() ?: "")
+                refreshHistoryList(floatingView.findViewById(R.id.historyResultsContainer), s?.toString().orEmpty())
             }
             override fun afterTextChanged(s: Editable?) {}
         })
 
-        btnSendNotesToAi.setOnClickListener {
-            val note = etQuickNotes.text.toString().trim()
-            if (note.isNotEmpty()) {
-                smartToolsDrawer.visibility = View.GONE
-                triggerSendPrompt("Bantu rapikan atau kembangkan catatan cepat berikut:\n$note")
-            }
-        }
+        // Quick Action Prompts
+        setupQuickPromptChips()
 
-        btnToolHistory.setOnClickListener {
-            panelChatHistory.visibility = if (panelChatHistory.visibility == View.VISIBLE) View.GONE else View.VISIBLE
-            panelCalculator.visibility = View.GONE
-            panelQuickNotes.visibility = View.GONE
-            refreshHistoryList(historyThreadsList, etSearchChat.text.toString())
-        }
-
-        etSearchChat.addTextChangedListener(object : TextWatcher {
-            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
-            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
-                refreshHistoryList(historyThreadsList, s?.toString() ?: "")
-            }
-            override fun afterTextChanged(s: Editable?) {}
-        })
-
-        // Attachments (PDF, Image, File)
-        btnAttachFile.setOnClickListener {
-            triggerHaptic()
-            startActivity(Intent(this, FilePickerProxyActivity::class.java).apply {
+        // Composer Buttons
+        floatingView.findViewById<ImageView>(R.id.btnAttachFile).setOnClickListener {
+            val pick = Intent(this, FilePickerProxyActivity::class.java).apply {
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            })
+            }
+            startActivity(pick)
         }
 
-        btnRemoveAttachment.setOnClickListener {
-            pendingAttachment = null
-            attachmentPreviewBar.visibility = View.GONE
-        }
-
-        // Voice System Controls
-        btnVoiceMic.setOnClickListener {
-            if (voiceManager?.isListening == true) {
-                voiceManager?.stopListening()
+        floatingView.findViewById<ImageView>(R.id.btnVoiceMic).setOnClickListener {
+            triggerHaptic()
+            if (voiceManager.isListening) {
+                voiceManager.stopListening()
             } else {
-                startVoiceChatSession()
+                voiceManager.startListening()
             }
         }
 
-        btnStopVoiceAction.setOnClickListener {
-            isVoiceChatLoop = false
-            voiceManager?.stopListening()
-            voiceManager?.stopSpeaking()
-            voiceWaveformView.stopAnimation()
-            voiceWaveformBar.visibility = View.GONE
+        btnSendOrStop.setOnClickListener {
+            triggerHaptic()
+            if (activeGenerationJob?.isActive == true) {
+                activeGenerationJob?.cancel()
+                btnSendOrStop.setImageResource(R.drawable.ic_send)
+            } else {
+                val text = etPromptInput.text.toString().trim()
+                if (text.isNotEmpty() || pendingAttachment != null || isScreenShareActive) {
+                    sendUserPrompt(text.ifEmpty { "Analisis tampilan layar / lampiran ini secara singkat dan jelas." })
+                }
+            }
         }
 
-        // Stop Generation Button
-        btnStopGeneration.setOnClickListener {
-            activeGenerationJob?.cancel()
-            typingIndicatorRow.visibility = View.GONE
-            btnSendPrompt.isEnabled = true
-            tvIslandLabel.text = "Floamini"
-            Toast.makeText(this, "Generasi dihentikan", Toast.LENGTH_SHORT).show()
-        }
+        applyVisualPreferences()
+        renderCurrentThreadMessages()
+    }
 
-        // Send Prompt
-        btnSendPrompt.setOnClickListener {
-            isVoiceChatLoop = false
-            triggerSendPrompt(etPrompt.text.toString(), fromVoice = false)
+    private fun setupQuickPromptChips() {
+        val row = floatingView.findViewById<LinearLayout>(R.id.quickPromptsRow)
+        row.removeAllViews()
+        val d = resources.displayMetrics.density
+        val actions = listOf(
+            "Baca Layar" to "Jelaskan apa yang tampil di layar ini dan bantu jawab jika ada pertanyaan.",
+            "Ringkas" to "Ringkas teks berikut menjadi poin inti yang mudah dipahami:",
+            "Terjemahkan" to "Terjemahkan ke Bahasa Indonesia yang natural:",
+            "Perbaiki Bahasa" to "Perbaiki tata bahasa dan buat kalimat ini lebih rapi:",
+            "Bantu Balas" to "Buatkan 3 opsi balasan yang sopan dan asik untuk pesan ini:"
+        )
+
+        for ((label, promptPrefix) in actions) {
+            val chip = TextView(this).apply {
+                text = label
+                textSize = 11f
+                setTextColor(Color.parseColor("#CBD5E1"))
+                setPadding((10 * d).toInt(), (5 * d).toInt(), (10 * d).toInt(), (5 * d).toInt())
+                setBackgroundResource(R.drawable.bg_chip_glass)
+                setOnClickListener {
+                    val existing = etPromptInput.text.toString().trim()
+                    if (label == "Baca Layar") {
+                        sendUserPrompt(promptPrefix)
+                    } else if (existing.isNotEmpty()) {
+                        sendUserPrompt("$promptPrefix\n$existing")
+                    } else {
+                        etPromptInput.setText("$promptPrefix ")
+                        etPromptInput.setSelection(etPromptInput.text.length)
+                    }
+                }
+            }
+            val lp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                marginEnd = (6 * d).toInt()
+            }
+            row.addView(chip, lp)
+        }
+    }
+
+    private fun applyVisualPreferences() {
+        if (::dynamicIslandGlassHost.isInitialized && ::dynamicIslandView.isInitialized) {
+            dynamicIslandGlassHost.cornerRadiusDp = 17f
+            dynamicIslandGlassHost.bevelWidthDp = 9f
+            dynamicIslandGlassHost.materialVariant = LiquidGlassFrameLayout.GlassMaterialVariant.CLEAR
+            dynamicIslandGlassHost.dispersionStrength = if (prefPillAppearance == "polos") 0f else 0.34f
+            dynamicIslandGlassHost.specularIntensity = if (prefPillAppearance == "polos") 0f else 0.72f
+
+            val lp = dynamicIslandView.layoutParams
+            lp.width = prefIslandWidthPx
+            dynamicIslandView.layoutParams = lp
+
+            when (prefPillAppearance) {
+                "polos" -> {
+                    dynamicIslandView.setBackgroundResource(R.drawable.bg_dynamic_island_polos)
+                    ivIslandSparkle.visibility = View.GONE
+                    tvIslandLabel.visibility = View.GONE
+                    viewIslandPulseDot.visibility = View.GONE
+                }
+                "minimal" -> {
+                    dynamicIslandView.background = null
+                    ivIslandSparkle.visibility = View.VISIBLE
+                    tvIslandLabel.visibility = View.GONE
+                    viewIslandPulseDot.visibility = View.VISIBLE
+                }
+                else -> {
+                    dynamicIslandView.background = null
+                    ivIslandSparkle.visibility = View.VISIBLE
+                    tvIslandLabel.visibility = View.VISIBLE
+                    viewIslandPulseDot.visibility = View.VISIBLE
+                }
+            }
+        }
+        if (::popupChatView.isInitialized) {
+            popupChatView.cornerRadiusDp = 28f
+            popupChatView.bevelWidthDp = 16f
+            popupChatView.materialVariant = LiquidGlassFrameLayout.GlassMaterialVariant.REGULAR
+            popupChatView.dispersionStrength = 0.28f
+            popupChatView.specularIntensity = 0.62f
+            popupChatView.alpha = prefPopupAlpha
+        }
+        if (::tvActiveProviderHeader.isInitialized) {
+            tvActiveProviderHeader.text = "${activeProvider.displayName} • $activeModel"
         }
     }
 
@@ -6356,394 +4973,283 @@ class FloatingAssistantService : Service() {
         }
     }
 
-    // ==========================================================================
-    // SEND PROMPT, SSE STREAMING, COMPARE AI & AUTO-ROUTER
-    // ==========================================================================
-    private fun triggerSendPrompt(rawPrompt: String, fromVoice: Boolean = false, isRegenerate: Boolean = false) {
-        val prompt = rawPrompt.trim()
-        if (prompt.isEmpty()) return
-
+    private fun sendUserPrompt(rawPrompt: String) {
+        etPromptInput.setText("")
         val attachment = pendingAttachment
         pendingAttachment = null
-        attachmentPreviewBar.visibility = View.GONE
+        tvAttachmentBadge.visibility = View.GONE
 
-        val imagesList = mutableListOf<String>()
+        val composedPrompt = buildString {
+            append(rawPrompt)
+            if (attachment != null && attachment.extractedText.isNotEmpty()) {
+                append("\n\n[Isi Dokumen ${attachment.displayName}]:\n")
+                append(attachment.extractedText)
+            }
+        }
+
+        val userMsg = ChatMessage(role = "user", content = rawPrompt)
+        currentThread.messages.add(userMsg)
+        if (currentThread.messages.size == 1) {
+            currentThread.title = rawPrompt.take(28)
+        }
+        repo.saveThread(currentThread)
+        appendMessageBubble(userMsg)
+
+        val imagesToSend = mutableListOf<String>()
+        if (attachment != null) imagesToSend.addAll(attachment.base64Images)
         if (isScreenShareActive) {
-            captureCurrentScreenBase64()?.let { imagesList.add(it) }
-        }
-        if (attachment != null) {
-            imagesList.addAll(attachment.imageBase64List)
+            captureCurrentScreenBase64()?.let { imagesToSend.add(it) }
         }
 
-        val combinedPrompt = if (attachment != null && attachment.extractedText.isNotBlank()) {
-            "$prompt\n\n--- Isi Lampiran (${attachment.displayName}) ---\n${attachment.extractedText}"
-        } else {
-            prompt
-        }
+        val systemInstruction = buildSystemPrompt()
+        btnSendOrStop.setImageResource(R.drawable.ic_stop)
 
-        val chosenProvider = if (prefAutoRouter) {
-            AiEngineRegistry.resolveAutoRoute(vault, activeProvider, combinedPrompt, imagesList.isNotEmpty())
-        } else {
-            activeProvider
-        }
-
-        val apiKey = vault.getApiKey(chosenProvider)
-        if (apiKey.isEmpty()) {
-            Toast.makeText(this, "API Key ${chosenProvider.displayName} belum diisi! Buka Settings.", Toast.LENGTH_LONG).show()
-            return
-        }
-
-        floatingView.findViewById<LinearLayout>(R.id.plusMenuDrawer).visibility = View.GONE
-        floatingView.findViewById<LinearLayout>(R.id.smartToolsDrawer).visibility = View.GONE
-        floatingView.findViewById<ImageView>(R.id.btnPlusMenu).animate().rotation(0f).setDuration(180).start()
-
-        wakeFromSmartFreeze()
-        triggerHaptic()
-        lastUserPrompt = prompt
-
-        if (!isRegenerate) {
-            val userMsg = ChatMessage(
-                id = UUID.randomUUID().toString(),
-                role = "user",
-                text = prompt,
-                timestamp = currentTimeLabel(),
-                attachmentLabel = attachment?.displayName
-            )
-            currentThread.messages.add(userMsg)
-            addChatBubbleView(userMsg, animateEntrance = true)
-        }
-
-        etPrompt.text.clear()
-        btnSendPrompt.isEnabled = false
-        typingIndicatorRow.visibility = View.VISIBLE
-        tvIslandLabel.text = "Streaming..."
-
-        activeGenerationJob?.cancel()
         activeGenerationJob = serviceScope.launch {
             if (isCompareMode) {
-                executeDualCompareStream(chosenProvider, combinedPrompt, imagesList)
+                val primary = Pair(activeProvider, activeModel)
+                val secondaryProv = AiProvider.entries.firstOrNull { it != activeProvider && vault.hasApiKey(it.id) }
+                    ?: activeProvider
+                val secondary = Pair(secondaryProv, secondaryProv.models.first())
+
+                val leftView = appendStreamingAssistantBubble("${primary.first.displayName}")
+                val rightView = appendStreamingAssistantBubble("${secondary.first.displayName}")
+
+                val historyCopy = currentThread.messages.dropLast(1) + ChatMessage(role = "user", content = composedPrompt)
+
+                launch {
+                    val sb1 = StringBuilder()
+                    val r1 = aiEngine.streamChat(primary.first, primary.second, systemInstruction, historyCopy, imagesToSend) { chunk ->
+                        sb1.append(chunk)
+                        withContext(Dispatchers.Main) {
+                            leftView.text = cleanMarkdownSymbols(sb1.toString()) + " ▍"
+                            scrollChatToBottom()
+                        }
+                    }
+                    val final1 = r1.getOrElse { "Error: ${it.message}" }
+                    leftView.text = cleanMarkdownSymbols(final1)
+                    repo.recordUsage(primary.first.displayName, final1.length)
+                }
+
+                val sb2 = StringBuilder()
+                val r2 = aiEngine.streamChat(secondary.first, secondary.second, systemInstruction, historyCopy, imagesToSend) { chunk ->
+                    sb2.append(chunk)
+                    withContext(Dispatchers.Main) {
+                        rightView.text = cleanMarkdownSymbols(sb2.toString()) + " ▍"
+                        scrollChatToBottom()
+                    }
+                }
+                val final2 = r2.getOrElse { "Error: ${it.message}" }
+                rightView.text = cleanMarkdownSymbols(final2)
+                repo.recordUsage(secondary.first.displayName, final2.length)
+                btnSendOrStop.setImageResource(R.drawable.ic_send)
             } else {
-                executeSingleProviderStream(chosenProvider, apiKey, combinedPrompt, imagesList, fromVoice)
-            }
-        }
-    }
-
-    private suspend fun executeSingleProviderStream(
-        provider: AiProviderType,
-        apiKey: String,
-        promptText: String,
-        imagesList: List<String>,
-        fromVoice: Boolean
-    ) {
-        val modelId = vault.getSelectedModel(provider)
-        tvThinkingLabel.text = "${provider.shortBadge} ($modelId) sedang mengetik..."
-
-        val botTime = currentTimeLabel()
-        val streamingTv = addStreamingBotBubble(provider.shortBadge, modelId, botTime)
-        val buffer = StringBuilder()
-
-        val payload = AiRequestPayload(
-            provider = provider,
-            apiKey = apiKey,
-            model = modelId,
-            customBaseUrl = vault.getCustomBaseUrl(),
-            systemInstruction = buildSystemInstructionText(),
-            history = currentThread.messages.dropLast(1).takeLast(14),
-            userPrompt = promptText,
-            imageBase64List = imagesList
-        )
-
-        AiEngineRegistry.getAdapter(provider).streamChat(payload).collect { event ->
-            when (event) {
-                is StreamEvent.Delta -> {
-                    buffer.append(event.chunk)
-                    streamingTv.text = "${buffer} ▍"
-                    scrollChat.post { scrollChat.fullScroll(View.FOCUS_DOWN) }
+                val (chosenProv, chosenModel) = if (isAutoRouterEnabled) {
+                    aiEngine.resolveAutoRouter(composedPrompt, imagesToSend.isNotEmpty())
+                } else {
+                    Pair(activeProvider, activeModel)
                 }
-                is StreamEvent.Completed -> {
-                    val finalReply = event.fullText.ifBlank { "Respons kosong dari ${provider.shortBadge}." }
-                    streamingTv.text = SmartToolsHelper.formatRichMarkdown(finalReply)
-                    lastBotReply = finalReply
 
-                    val botMsg = ChatMessage(
-                        id = UUID.randomUUID().toString(),
-                        role = "model",
-                        text = finalReply,
-                        timestamp = botTime,
-                        providerBadge = provider.shortBadge,
-                        modelName = modelId
-                    )
-                    currentThread.messages.add(botMsg)
-                    persistCurrentThread()
-                    repo.recordUsage(provider, event.estimatedTokens)
+                val aiTextView = appendStreamingAssistantBubble("${chosenProv.displayName} • $chosenModel")
+                val historyForApi = currentThread.messages.dropLast(1) + ChatMessage(role = "user", content = composedPrompt)
+                val sb = StringBuilder()
 
-                    typingIndicatorRow.visibility = View.GONE
-                    btnSendPrompt.isEnabled = true
-                    tvIslandLabel.text = if (isScreenShareActive) "Live Vision" else "Floamini"
-                    triggerHaptic()
-
-                    if ((fromVoice || isVoiceChatLoop) && prefAutoSpeakTts) {
-                        val plainForSpeech = finalReply.replace("```", " ").replace("**", "").replace("`", "")
-                        voiceManager?.speak(plainForSpeech, 1.05f, prefTtsVoiceName)
+                val result = aiEngine.streamChat(
+                    provider = chosenProv,
+                    model = chosenModel,
+                    systemPrompt = systemInstruction,
+                    history = historyForApi,
+                    imageBase64List = imagesToSend,
+                    onChunk = { chunk ->
+                        sb.append(chunk)
+                        withContext(Dispatchers.Main) {
+                            aiTextView.text = cleanMarkdownSymbols(sb.toString()) + " ▍"
+                            scrollChatToBottom()
+                        }
                     }
-                }
-                is StreamEvent.Error -> {
-                    streamingTv.text = event.message
-                    streamingTv.setTextColor(Color.parseColor("#FCA5A5"))
-                    typingIndicatorRow.visibility = View.GONE
-                    btnSendPrompt.isEnabled = true
-                    tvIslandLabel.text = "Floamini"
-                }
+                )
+
+                val finalClean = result.fold(
+                    onSuccess = { cleanMarkdownSymbols(it).ifEmpty { "Tidak ada respons." } },
+                    onFailure = { "Kendala: ${it.message}" }
+                )
+                aiTextView.text = finalClean
+                btnSendOrStop.setImageResource(R.drawable.ic_send)
+
+                val assistantMsg = ChatMessage(
+                    role = "assistant",
+                    content = finalClean,
+                    providerTag = "${chosenProv.displayName} • $chosenModel"
+                )
+                currentThread.messages.add(assistantMsg)
+                repo.saveThread(currentThread)
+                repo.recordUsage(chosenProv.displayName, finalClean.length)
+                scrollChatToBottom()
             }
         }
     }
 
-    private suspend fun executeDualCompareStream(
-        primary: AiProviderType,
-        promptText: String,
-        imagesList: List<String>
-    ) {
-        val configured = vault.getConfiguredProviders()
-        val secondary = configured.firstOrNull { it != primary } ?: primary
-        tvThinkingLabel.text = "Membandingkan ${primary.shortBadge} vs ${secondary.shortBadge}..."
+    private fun buildSystemPrompt(): String {
+        val prefs = getSharedPreferences("gemini_prefs", Context.MODE_PRIVATE)
+        val pIdx = prefs.getInt("personality_index", 0)
+        val customNote = prefs.getString("custom_system_prompt", "").orEmpty()
+        val styleRule = when (pIdx) {
+            1 -> "Jawab singkat, padat, langsung ke inti pertanyaan."
+            2 -> "Jawab terstruktur dan jelas dengan penjelasan menyeluruh."
+            3 -> "Jawab kreatif, ekspresif, dan inspiratif."
+            4 -> "Jawab sebagai senior software engineer yang akurat."
+            else -> "Jawab dengan gaya bahasa Indonesia yang asik, santai, ramah, dan langsung ke inti pertanyaan minimal 1-3 kalimat."
+        }
+        return "Kamu adalah Floamini, asisten AI pribadi di layar Android. $styleRule Jangan gunakan simbol markdown bintang (* atau **) atau tanda pagar (#). $customNote".trim()
+    }
 
-        val (tvLeft, tvRight) = addSideBySideCompareCards(primary.shortBadge, secondary.shortBadge)
-        val bufLeft = StringBuilder()
-        val bufRight = StringBuilder()
+    private fun cleanMarkdownSymbols(text: String): String {
+        return text.replace("**", "").replace("*", "").replace("###", "").replace("##", "").trim()
+    }
 
-        val job1 = serviceScope.async {
-            val payload1 = AiRequestPayload(
-                provider = primary,
-                apiKey = vault.getApiKey(primary),
-                model = vault.getSelectedModel(primary),
-                customBaseUrl = vault.getCustomBaseUrl(),
-                systemInstruction = buildSystemInstructionText(),
-                history = currentThread.messages.dropLast(1).takeLast(10),
-                userPrompt = promptText,
-                imageBase64List = imagesList
+    private fun renderCurrentThreadMessages() {
+        chatMessagesContainer.removeAllViews()
+        if (currentThread.messages.isEmpty()) {
+            appendMessageBubble(
+                ChatMessage(
+                    role = "assistant",
+                    content = "Halo! Aku Floamini Liquid Glass siap bantu. Ketuk ikon layar untuk berbagi tampilan layar atau langsung ketik pertanyaanmu.",
+                    providerTag = "Floamini OS"
+                )
             )
-            AiEngineRegistry.getAdapter(primary).streamChat(payload1).collect { ev ->
-                when (ev) {
-                    is StreamEvent.Delta -> {
-                        bufLeft.append(ev.chunk)
-                        tvLeft.text = "${bufLeft} ▍"
-                    }
-                    is StreamEvent.Completed -> {
-                        tvLeft.text = SmartToolsHelper.formatRichMarkdown(ev.fullText)
-                        repo.recordUsage(primary, ev.estimatedTokens)
-                    }
-                    is StreamEvent.Error -> tvLeft.text = ev.message
-                }
-            }
+            return
         }
-
-        val job2 = serviceScope.async {
-            val payload2 = AiRequestPayload(
-                provider = secondary,
-                apiKey = vault.getApiKey(secondary),
-                model = vault.getSelectedModel(secondary),
-                customBaseUrl = vault.getCustomBaseUrl(),
-                systemInstruction = buildSystemInstructionText(),
-                history = currentThread.messages.dropLast(1).takeLast(10),
-                userPrompt = promptText,
-                imageBase64List = imagesList
-            )
-            AiEngineRegistry.getAdapter(secondary).streamChat(payload2).collect { ev ->
-                when (ev) {
-                    is StreamEvent.Delta -> {
-                        bufRight.append(ev.chunk)
-                        tvRight.text = "${bufRight} ▍"
-                        scrollChat.post { scrollChat.fullScroll(View.FOCUS_DOWN) }
-                    }
-                    is StreamEvent.Completed -> {
-                        tvRight.text = SmartToolsHelper.formatRichMarkdown(ev.fullText)
-                        repo.recordUsage(secondary, ev.estimatedTokens)
-                    }
-                    is StreamEvent.Error -> tvRight.text = ev.message
-                }
-            }
+        for (m in currentThread.messages) {
+            appendMessageBubble(m)
         }
-
-        awaitAll(job1, job2)
-        val mergedSummary = "[${primary.shortBadge}]: $bufLeft\n\n[${secondary.shortBadge}]: $bufRight"
-        lastBotReply = mergedSummary
-        currentThread.messages.add(
-            ChatMessage(UUID.randomUUID().toString(), "model", mergedSummary, currentTimeLabel(), "Compare")
-        )
-        persistCurrentThread()
-        typingIndicatorRow.visibility = View.GONE
-        btnSendPrompt.isEnabled = true
-        tvIslandLabel.text = "Floamini"
-        triggerHaptic()
+        scrollChatToBottom()
     }
 
-    // ==========================================================================
-    // CHAT BUBBLES & STAGGERED ENTRANCE ANIMATION
-    // ==========================================================================
-    private fun addChatBubbleView(msg: ChatMessage, animateEntrance: Boolean) {
-        val isUser = (msg.role == "user")
+    private fun appendMessageBubble(msg: ChatMessage) {
+        val d = resources.displayMetrics.density
+        val isUser = msg.role == "user"
+
         val wrapper = LinearLayout(this).apply {
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT
-            ).apply { setMargins(0, 6, 0, 6) }
             orientation = LinearLayout.VERTICAL
             gravity = if (isUser) Gravity.END else Gravity.START
-        }
-
-        val tvMessage = TextView(this).apply {
-            text = if (isUser) msg.text else SmartToolsHelper.formatRichMarkdown(msg.text)
-            textSize = 13f
-            lineHeight = (19 * resources.displayMetrics.density).toInt()
-            setTextColor(Color.parseColor("#F8FAFC"))
-            setPadding(26, 16, 26, 16)
-            maxWidth = (264 * resources.displayMetrics.density).toInt()
-            setBackgroundResource(if (isUser) R.drawable.bg_chat_user else R.drawable.bg_chat_bot)
-            setOnClickListener {
-                val cb = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                cb.setPrimaryClip(ClipData.newPlainText("Floamini Message", msg.text))
-                Toast.makeText(this@FloatingAssistantService, "Pesan disalin", Toast.LENGTH_SHORT).show()
-            }
-        }
-
-        val metaText = if (isUser) {
-            val att = if (!msg.attachmentLabel.isNullOrEmpty()) " • ${msg.attachmentLabel}" else ""
-            "Kamu • ${msg.timestamp}$att"
-        } else {
-            "${msg.providerBadge} • ${msg.timestamp}"
-        }
-
-        val tvTime = TextView(this).apply {
-            text = metaText
-            textSize = 9.5f
-            setTextColor(Color.parseColor("#64748B"))
-            setPadding(8, 3, 8, 0)
-        }
-
-        wrapper.addView(tvMessage)
-        wrapper.addView(tvTime)
-        chatContainer.addView(wrapper)
-
-        if (animateEntrance) {
-            wrapper.alpha = 0f
-            wrapper.translationY = 18f
-            wrapper.animate()
-                .alpha(1f)
-                .translationY(0f)
-                .setDuration((210 / prefAnimSpeedMultiplier).toLong())
-                .setInterpolator(DecelerateInterpolator())
-                .start()
-        }
-        scrollChat.post { scrollChat.fullScroll(View.FOCUS_DOWN) }
-    }
-
-    private fun addStreamingBotBubble(providerBadge: String, modelName: String, timeLabel: String): TextView {
-        val wrapper = LinearLayout(this).apply {
-            layoutParams = LinearLayout.LayoutParams(
+            val lp = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT
-            ).apply { setMargins(0, 6, 0, 6) }
+            ).apply {
+                bottomMargin = (8 * d).toInt()
+            }
+            layoutParams = lp
+            alpha = 0f
+            translationY = 12f * d
+        }
+
+        if (!isUser && msg.providerTag.isNotEmpty()) {
+            val tagTv = TextView(this).apply {
+                text = msg.providerTag
+                textSize = 9.5f
+                setTextColor(Color.parseColor("#38BDF8"))
+                setPadding((4 * d).toInt(), 0, 0, (2 * d).toInt())
+            }
+            wrapper.addView(tagTv)
+        }
+
+        val bubbleTv = TextView(this).apply {
+            text = msg.content
+            textSize = 12.5f
+            setTextColor(Color.parseColor("#F8FAFC"))
+            setPadding((12 * d).toInt(), (9 * d).toInt(), (12 * d).toInt(), (9 * d).toInt())
+            setBackgroundResource(if (isUser) R.drawable.bg_msg_user else R.drawable.bg_msg_ai)
+            maxWidth = (268 * d).toInt()
+            setOnLongClickListener {
+                val cm = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                cm.setPrimaryClip(ClipData.newPlainText("Floamini", msg.content))
+                Toast.makeText(this@FloatingAssistantService, "Teks disalin!", Toast.LENGTH_SHORT).show()
+                true
+            }
+        }
+        wrapper.addView(bubbleTv)
+
+        if (!isUser) {
+            val actionRow = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                setPadding((4 * d).toInt(), (3 * d).toInt(), 0, 0)
+            }
+            val btnSpeak = TextView(this).apply {
+                text = "Dengarkan"
+                textSize = 10f
+                setTextColor(Color.parseColor("#94A3B8"))
+                setPadding(0, 0, (12 * d).toInt(), 0)
+                setOnClickListener { voiceManager.speak(msg.content) }
+            }
+            val btnCopy = TextView(this).apply {
+                text = "Salin"
+                textSize = 10f
+                setTextColor(Color.parseColor("#94A3B8"))
+                setOnClickListener {
+                    val cm = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                    cm.setPrimaryClip(ClipData.newPlainText("Floamini", msg.content))
+                    Toast.makeText(this@FloatingAssistantService, "Disalin!", Toast.LENGTH_SHORT).show()
+                }
+            }
+            actionRow.addView(btnSpeak)
+            actionRow.addView(btnCopy)
+            wrapper.addView(actionRow)
+        }
+
+        chatMessagesContainer.addView(wrapper)
+        wrapper.animate().alpha(1f).translationY(0f).setDuration(200L).start()
+        scrollChatToBottom()
+    }
+
+    private fun appendStreamingAssistantBubble(providerLabel: String): TextView {
+        val d = resources.displayMetrics.density
+        val wrapper = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.START
-        }
-
-        val tvMessage = TextView(this).apply {
-            text = "▍"
-            textSize = 13f
-            lineHeight = (19 * resources.displayMetrics.density).toInt()
-            setTextColor(Color.parseColor("#F8FAFC"))
-            setPadding(26, 16, 26, 16)
-            maxWidth = (264 * resources.displayMetrics.density).toInt()
-            setBackgroundResource(R.drawable.bg_chat_bot)
-        }
-
-        val tvTime = TextView(this).apply {
-            text = "$providerBadge ($modelName) • $timeLabel"
-            textSize = 9.5f
-            setTextColor(Color.parseColor("#38BDF8"))
-            setPadding(8, 3, 8, 0)
-        }
-
-        wrapper.addView(tvMessage)
-        wrapper.addView(tvTime)
-        chatContainer.addView(wrapper)
-        scrollChat.post { scrollChat.fullScroll(View.FOCUS_DOWN) }
-        return tvMessage
-    }
-
-    private fun addSideBySideCompareCards(leftTitle: String, rightTitle: String): Pair<TextView, TextView> {
-        val row = LinearLayout(this).apply {
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT
-            ).apply { setMargins(0, 6, 0, 6) }
-            orientation = LinearLayout.HORIZONTAL
+            ).apply {
+                bottomMargin = (8 * d).toInt()
+            }
         }
-
-        fun createCol(title: String): Pair<LinearLayout, TextView> {
-            val col = LinearLayout(this).apply {
-                layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply {
-                    setMargins(3, 0, 3, 0)
-                }
-                orientation = LinearLayout.VERTICAL
-                setBackgroundResource(R.drawable.bg_chat_bot)
-                setPadding(16, 12, 16, 12)
-            }
-            val header = TextView(this).apply {
-                text = title
-                textSize = 10.5f
-                setTextColor(Color.parseColor("#38BDF8"))
-            }
-            val body = TextView(this).apply {
-                text = "▍"
-                textSize = 12f
-                setTextColor(Color.parseColor("#F8FAFC"))
-            }
-            col.addView(header)
-            col.addView(body)
-            return col to body
+        val tagTv = TextView(this).apply {
+            text = providerLabel
+            textSize = 9.5f
+            setTextColor(Color.parseColor("#38BDF8"))
+            setPadding((4 * d).toInt(), 0, 0, (2 * d).toInt())
         }
+        val bubbleTv = TextView(this).apply {
+            text = "Berpikir... ▍"
+            textSize = 12.5f
+            setTextColor(Color.parseColor("#F8FAFC"))
+            setPadding((12 * d).toInt(), (9 * d).toInt(), (12 * d).toInt(), (9 * d).toInt())
+            setBackgroundResource(R.drawable.bg_msg_ai)
+            maxWidth = (268 * d).toInt()
+        }
+        wrapper.addView(tagTv)
+        wrapper.addView(bubbleTv)
+        chatMessagesContainer.addView(wrapper)
+        scrollChatToBottom()
+        return bubbleTv
+    }
 
-        val (col1, tv1) = createCol(leftTitle)
-        val (col2, tv2) = createCol(rightTitle)
-        row.addView(col1)
-        row.addView(col2)
-        chatContainer.addView(row)
-        return tv1 to tv2
+    private fun scrollChatToBottom() {
+        chatScrollView.post {
+            chatScrollView.fullScroll(View.FOCUS_DOWN)
+        }
     }
 
     // ==========================================================================
-    // SPRING ANIMATIONS & WINDOW TRANSITIONS
+    // OVERLAY TRANSITIONS, SIRI MODE, SMART FREEZE & BLUR
     // ==========================================================================
-    private fun animateSpringScale(target: View, finalScale: Float) {
-        val stiff = SpringForce.STIFFNESS_MEDIUM * prefAnimSpeedMultiplier
-        SpringAnimation(target, DynamicAnimation.SCALE_X, finalScale).apply {
-            spring.dampingRatio = SpringForce.DAMPING_RATIO_LOW_BOUNCY
-            spring.stiffness = stiff
-            start()
-        }
-        SpringAnimation(target, DynamicAnimation.SCALE_Y, finalScale).apply {
-            spring.dampingRatio = SpringForce.DAMPING_RATIO_LOW_BOUNCY
-            spring.stiffness = stiff
-            start()
-        }
-    }
-
-    private fun scheduleAutoHideAndFreeze() {
-        mainHandler.removeCallbacks(autoHidePillRunnable)
-        if (prefAutoHidePill && prefOverlayStyle == "dynamic_island") {
-            mainHandler.postDelayed(autoHidePillRunnable, 3000L)
-        }
-        scheduleSmartFreeze()
-    }
-
     private fun showCollapsedTriggerState() {
         mainHandler.removeCallbacks(transformToXiaomiEdgeRunnable)
         mainHandler.removeCallbacks(autoHidePillRunnable)
         dismissSiriAura()
 
+        popupChatView.stopAmbientRefraction()
         popupChatView.visibility = View.GONE
-        dynamicIslandView.visibility = View.GONE
+        dynamicIslandGlassHost.visibility = View.GONE
         bubbleView.visibility = View.GONE
         xiaomiEdgeView.visibility = View.GONE
         isPillAutoHidden = false
@@ -6765,7 +5271,6 @@ class FloatingAssistantService : Service() {
                 params.y = fullScreenHeight / 3
                 windowManager.updateViewLayout(floatingView, params)
                 mainHandler.postDelayed(transformToXiaomiEdgeRunnable, 2500L)
-                scheduleSmartFreeze()
             }
             "classic_bubble" -> {
                 wakeFromSmartFreeze()
@@ -6774,19 +5279,21 @@ class FloatingAssistantService : Service() {
                 params.x = if (snappedToRightEdge) (fullScreenWidth - prefBubbleSizePx) else 0
                 params.y = fullScreenHeight / 3
                 windowManager.updateViewLayout(floatingView, params)
-                scheduleSmartFreeze()
             }
             else -> {
                 wakeFromSmartFreeze()
-                dynamicIslandView.visibility = View.VISIBLE
-                dynamicIslandView.scaleX = 0.72f
-                dynamicIslandView.scaleY = 0.72f
-                dynamicIslandView.alpha = 1.0f
+                dynamicIslandGlassHost.visibility = View.VISIBLE
+                dynamicIslandGlassHost.scaleX = 0.72f
+                dynamicIslandGlassHost.scaleY = 0.72f
+                dynamicIslandGlassHost.alpha = 1.0f
+                if (prefPillAppearance != "polos") {
+                    dynamicIslandGlassHost.startAmbientRefraction()
+                }
                 params.x = (((fullScreenWidth - prefIslandWidthPx) / 2) + prefIslandOffsetXPx)
                     .coerceIn(12, (fullScreenWidth - prefIslandWidthPx - 12).coerceAtLeast(12))
                 params.y = prefIslandPosYPx
                 windowManager.updateViewLayout(floatingView, params)
-                animateSpringScale(dynamicIslandView, 1.0f)
+                animateSpringScale(dynamicIslandGlassHost, 1.0f)
                 scheduleAutoHideAndFreeze()
             }
         }
@@ -6797,7 +5304,8 @@ class FloatingAssistantService : Service() {
         mainHandler.removeCallbacks(transformToXiaomiEdgeRunnable)
         mainHandler.removeCallbacks(autoHidePillRunnable)
 
-        dynamicIslandView.visibility = View.GONE
+        dynamicIslandGlassHost.stopAmbientRefraction()
+        dynamicIslandGlassHost.visibility = View.GONE
         xiaomiEdgeView.visibility = View.GONE
         bubbleView.visibility = View.GONE
 
@@ -6807,14 +5315,15 @@ class FloatingAssistantService : Service() {
         val savedH = prefs.getInt("last_win_h", (500 * density).toInt())
         val lp = popupChatView.layoutParams
         lp.width = if (isMiniWindowMode) (280 * density).toInt() else savedW
-        lp.height = if (isMiniWindowMode) (255 * density).toInt() else savedH
+        lp.height = if (isMiniWindowMode) (265 * density).toInt() else savedH
         popupChatView.layoutParams = lp
 
         popupChatView.visibility = View.VISIBLE
+        popupChatView.startAmbientRefraction()
         popupChatView.pivotX = lp.width / 2f
         popupChatView.pivotY = if (fromSiri) lp.height.toFloat() else 0f
-        popupChatView.scaleX = 0.55f
-        popupChatView.scaleY = 0.35f
+        popupChatView.scaleX = 0.58f
+        popupChatView.scaleY = 0.38f
         popupChatView.alpha = 0f
 
         val defaultX = ((fullScreenWidth - lp.width) / 2).coerceIn(16, (fullScreenWidth - lp.width - 16).coerceAtLeast(16))
@@ -6832,22 +5341,82 @@ class FloatingAssistantService : Service() {
 
         popupChatView.animate()
             .alpha(prefPopupAlpha)
-            .setDuration((240 / prefAnimSpeedMultiplier).toLong())
+            .setDuration(220L)
             .start()
         animateSpringScale(popupChatView, 1.0f)
     }
 
-    private fun closePopupChat() {
-        voiceManager?.stopListening()
-        voiceManager?.stopSpeaking()
-        popupChatView.animate()
-            .scaleX(0.45f)
-            .scaleY(0.22f)
-            .alpha(0f)
-            .setDuration((190 / prefAnimSpeedMultiplier).toLong())
-            .setInterpolator(DecelerateInterpolator())
-            .withEndAction { showCollapsedTriggerState() }
-            .start()
+    private fun triggerSiriSummon() {
+        wakeFromSmartFreeze()
+        triggerHaptic()
+        if (!isSiriAuraAttached) {
+            val glow = SiriEdgeGlowView(this)
+            val overlayType = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
+            } else {
+                @Suppress("DEPRECATION")
+                WindowManager.LayoutParams.TYPE_PHONE
+            }
+            val glowParams = WindowManager.LayoutParams(
+                WindowManager.LayoutParams.MATCH_PARENT,
+                WindowManager.LayoutParams.MATCH_PARENT,
+                overlayType,
+                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                        WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
+                        WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+                PixelFormat.TRANSLUCENT
+            )
+            windowManager.addView(glow, glowParams)
+            siriGlowView = glow
+            isSiriAuraAttached = true
+        }
+        siriGlowView?.startSiriAnimation()
+        openPopupChat(fromSiri = true)
+    }
+
+    private fun dismissSiriAura() {
+        if (isSiriAuraAttached && siriGlowView != null) {
+            siriGlowView?.stopAndFreezeAnimation()
+            try {
+                windowManager.removeView(siriGlowView)
+            } catch (_: Exception) {
+            }
+            siriGlowView = null
+            isSiriAuraAttached = false
+        }
+    }
+
+    private fun scheduleAutoHideAndFreeze() {
+        mainHandler.removeCallbacks(autoHidePillRunnable)
+        if (prefAutoHidePill) {
+            mainHandler.postDelayed(autoHidePillRunnable, 3000L)
+        }
+    }
+
+    private fun enterSmartFreezeState() {
+        if (isSmartFrozen) return
+        isSmartFrozen = true
+        mainHandler.removeCallbacks(autoHidePillRunnable)
+        mainHandler.removeCallbacks(transformToXiaomiEdgeRunnable)
+        dynamicIslandGlassHost.stopAmbientRefraction()
+        popupChatView.stopAmbientRefraction()
+        siriGlowView?.stopAndFreezeAnimation()
+
+        if (prefOverlayStyle == "siri_mode" && isFloatingViewAttached) {
+            try {
+                windowManager.removeView(floatingView)
+                isFloatingViewAttached = false
+            } catch (_: Exception) {
+            }
+        }
+    }
+
+    private fun wakeFromSmartFreeze() {
+        isSmartFrozen = false
+        if (!isFloatingViewAttached) {
+            windowManager.addView(floatingView, params)
+            isFloatingViewAttached = true
+        }
     }
 
     private fun applyWindowBlur(enabled: Boolean) {
@@ -6855,104 +5424,102 @@ class FloatingAssistantService : Service() {
             try {
                 if (enabled) {
                     params.flags = params.flags or WindowManager.LayoutParams.FLAG_BLUR_BEHIND
-                    params.blurBehindRadius = 38
+                    params.blurBehindRadius = 42
                 } else {
                     params.flags = params.flags and WindowManager.LayoutParams.FLAG_BLUR_BEHIND.inv()
                     params.blurBehindRadius = 0
                 }
-            } catch (_: Exception) {}
+            } catch (_: Throwable) {
+            }
         }
     }
 
-    private fun snapBubbleToNearestEdge() {
-        snappedToRightEdge = (params.x + prefBubbleSizePx / 2) >= (fullScreenWidth / 2)
-        val targetX = if (snappedToRightEdge) (fullScreenWidth - prefBubbleSizePx) else 0
-        ValueAnimator.ofInt(params.x, targetX).apply {
-            duration = 230
-            interpolator = DecelerateInterpolator()
-            addUpdateListener { anim ->
-                params.x = anim.animatedValue as Int
-                try { windowManager.updateViewLayout(floatingView, params) } catch (_: Exception) {}
+    private fun saveLastWindowGeometry() {
+        getSharedPreferences("gemini_prefs", Context.MODE_PRIVATE).edit()
+            .putInt("last_win_x", params.x)
+            .putInt("last_win_y", params.y)
+            .putInt("last_win_w", popupChatView.layoutParams.width)
+            .putInt("last_win_h", popupChatView.layoutParams.height)
+            .apply()
+    }
+
+    private fun animateSpringScale(target: View, endScale: Float) {
+        SpringAnimation(target, DynamicAnimation.SCALE_X, endScale).apply {
+            spring = SpringForce(endScale).apply {
+                dampingRatio = SpringForce.DAMPING_RATIO_MEDIUM_BOUNCY
+                stiffness = SpringForce.STIFFNESS_MEDIUM
             }
             start()
         }
-        if (prefOverlayStyle == "xiaomi_edge") {
-            mainHandler.removeCallbacks(transformToXiaomiEdgeRunnable)
-            mainHandler.postDelayed(transformToXiaomiEdgeRunnable, 2500L)
-        }
-        scheduleSmartFreeze()
-    }
-
-    private fun enterXiaomiEdgeMode() {
-        snappedToRightEdge = (params.x + prefBubbleSizePx / 2) >= (fullScreenWidth / 2)
-        xiaomiEdgeView.setBackgroundResource(
-            if (snappedToRightEdge) R.drawable.bg_xiaomi_edge_right else R.drawable.bg_xiaomi_edge_left
-        )
-        bubbleView.visibility = View.GONE
-        xiaomiEdgeView.visibility = View.VISIBLE
-        xiaomiEdgeView.alpha = 0.85f
-        val pillW = (18 * resources.displayMetrics.density).toInt()
-        params.x = if (snappedToRightEdge) (fullScreenWidth - pillW) else 0
-        windowManager.updateViewLayout(floatingView, params)
-        xiaomiEdgeView.animate().alpha(0.45f).setDuration(380).start()
-        scheduleSmartFreeze()
-    }
-
-    private fun exitXiaomiEdgeMode() {
-        mainHandler.removeCallbacks(transformToXiaomiEdgeRunnable)
-        xiaomiEdgeView.visibility = View.GONE
-        bubbleView.visibility = View.VISIBLE
-        bubbleView.alpha = 1.0f
-        params.x = if (snappedToRightEdge) (fullScreenWidth - prefBubbleSizePx) else 0
-        windowManager.updateViewLayout(floatingView, params)
-        mainHandler.postDelayed(transformToXiaomiEdgeRunnable, 2500L)
-        scheduleSmartFreeze()
-    }
-
-    private fun performQuickForceStop() {
-        Toast.makeText(this, "Menghentikan paksa Floamini...", Toast.LENGTH_SHORT).show()
-        dismissSiriAura()
-        stopMediaProjection()
-        startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-            data = Uri.parse("package:$packageName")
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        })
-        stopSelf()
-        exitProcess(0)
-    }
-
-    // ==========================================================================
-    // LIVE SCREEN VISION (MEDIAPROJECTION)
-    // ==========================================================================
-    private fun startMediaProjection(resultCode: Int, data: Intent) {
-        startForegroundNotification(withMediaProjection = true)
-        val projectionManager = getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
-        mediaProjection = projectionManager.getMediaProjection(resultCode, data)
-
-        mediaProjection?.registerCallback(object : MediaProjection.Callback() {
-            override fun onStop() {
-                mainHandler.post { stopMediaProjection() }
+        SpringAnimation(target, DynamicAnimation.SCALE_Y, endScale).apply {
+            spring = SpringForce(endScale).apply {
+                dampingRatio = SpringForce.DAMPING_RATIO_MEDIUM_BOUNCY
+                stiffness = SpringForce.STIFFNESS_MEDIUM
             }
-        }, mainHandler)
+            start()
+        }
+    }
 
-        imageReader = ImageReader.newInstance(captureWidth, captureHeight, PixelFormat.RGBA_8888, 2)
+    private fun triggerHaptic() {
+        floatingView.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+    }
+
+    // ==========================================================================
+    // MEDIA PROJECTION LIVE VISION & FILE ATTACHMENT
+    // ==========================================================================
+    private fun startMediaProjectionCapture(resultCode: Int, data: Intent) {
+        stopMediaProjection()
+        startForegroundNotification(withMediaProjection = true)
+        val mgr = getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
+        mediaProjection = mgr.getMediaProjection(resultCode, data)
+
+        val capW = (fullScreenWidth / 2).coerceAtLeast(360)
+        val capH = (fullScreenHeight / 2).coerceAtLeast(640)
+        imageReader = ImageReader.newInstance(capW, capH, PixelFormat.RGBA_8888, 2)
         virtualDisplay = mediaProjection?.createVirtualDisplay(
-            "FloaminiScreenShare",
-            captureWidth,
-            captureHeight,
-            screenDensity,
+            "FloaminiScreenVision",
+            capW,
+            capH,
+            resources.displayMetrics.densityDpi,
             DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR,
             imageReader?.surface,
             null,
-            null
+            mainHandler
         )
 
         isScreenShareActive = true
         btnScreenShare.setColorFilter(Color.parseColor("#38BDF8"))
         tvScreenShareStatus.visibility = View.VISIBLE
         tvIslandLabel.text = "Live Vision"
-        popupChatView.setBackgroundResource(R.drawable.bg_liquid_glass_window_share)
+        popupChatView.dispersionStrength = 0.46f
+        popupChatView.specularIntensity = 0.88f
         Toast.makeText(this, "Live Screen Vision aktif", Toast.LENGTH_SHORT).show()
+    }
+
+    private fun captureCurrentScreenBase64(): String? {
+        val image = imageReader?.acquireLatestImage() ?: return null
+        return try {
+            val plane = image.planes[0]
+            val buffer = plane.buffer
+            val pixelStride = plane.pixelStride
+            val rowStride = plane.rowStride
+            val rowPadding = rowStride - pixelStride * image.width
+            val bmp = Bitmap.createBitmap(
+                image.width + rowPadding / pixelStride,
+                image.height,
+                Bitmap.Config.ARGB_8888
+            )
+            bmp.copyPixelsFromBuffer(buffer)
+            val cropped = Bitmap.createBitmap(bmp, 0, 0, image.width, image.height)
+            bmp.recycle()
+            val b64 = SmartToolsHelper.bitmapToBase64(cropped, 960)
+            cropped.recycle()
+            b64
+        } catch (_: Exception) {
+            null
+        } finally {
+            image.close()
+        }
     }
 
     private fun stopMediaProjection() {
@@ -6966,67 +5533,40 @@ class FloatingAssistantService : Service() {
         if (::btnScreenShare.isInitialized) btnScreenShare.setColorFilter(Color.parseColor("#94A3B8"))
         if (::tvScreenShareStatus.isInitialized) tvScreenShareStatus.visibility = View.GONE
         if (::tvIslandLabel.isInitialized) tvIslandLabel.text = "Floamini"
-        if (::popupChatView.isInitialized) popupChatView.setBackgroundResource(R.drawable.bg_liquid_glass_window)
+        if (::popupChatView.isInitialized) {
+            popupChatView.dispersionStrength = 0.28f
+            popupChatView.specularIntensity = 0.62f
+        }
         startForegroundNotification(withMediaProjection = false)
     }
 
-    private fun captureCurrentScreenBase64(): String? {
-        return try {
-            val image = imageReader?.acquireLatestImage() ?: return null
-            val planes = image.planes
-            val buffer = planes[0].buffer
-            val pixelStride = planes[0].pixelStride
-            val rowStride = planes[0].rowStride
-            val rowPadding = rowStride - pixelStride * captureWidth
-
-            val bitmap = Bitmap.createBitmap(
-                captureWidth + rowPadding / pixelStride,
-                captureHeight,
-                Bitmap.Config.ARGB_8888
-            )
-            bitmap.copyPixelsFromBuffer(buffer)
-            image.close()
-
-            val cropped = Bitmap.createBitmap(bitmap, 0, 0, captureWidth, captureHeight)
-            val out = ByteArrayOutputStream()
-            cropped.compress(Bitmap.CompressFormat.JPEG, 68, out)
-            bitmap.recycle()
-            cropped.recycle()
-            Base64.encodeToString(out.toByteArray(), Base64.NO_WRAP)
-        } catch (_: Exception) {
-            null
+    private fun handlePickedUri(uri: Uri) {
+        serviceScope.launch(Dispatchers.IO) {
+            val processed = SmartToolsHelper.processUri(this@FloatingAssistantService, uri)
+            withContext(Dispatchers.Main) {
+                pendingAttachment = processed
+                tvAttachmentBadge.text = "Lampiran siap: ${processed.displayName}"
+                tvAttachmentBadge.visibility = View.VISIBLE
+            }
         }
-    }
-
-    private fun buildSystemInstructionText(): String {
-        val basePersona = when (prefPersona) {
-            "ringkas" -> "Kamu adalah Floamini, asisten AI yang sigap dan padat. Jawab langsung ke inti dalam 1-2 kalimat."
-            "detail" -> "Kamu adalah Floamini, asisten AI yang ramah dan informatif. Jelaskan jawaban secara runtut dan jelas."
-            "teknis" -> "Kamu adalah Floamini, asisten teknis dan software architect cerdas. Berikan solusi terstruktur."
-            else -> "Kamu adalah Floamini, asisten AI yang asik, santai, cerdas, dan terasa menyatu dengan sistem operasi Android."
-        }
-        val custom = if (prefCustomSystemInstruction.isNotBlank()) "\nInstruksi Tambahan Pengguna: $prefCustomSystemInstruction" else ""
-        return "$basePersona Selalu ingat konteks percakapan sebelumnya dalam sesi ini.$custom"
     }
 
     override fun onDestroy() {
-        super.onDestroy()
-        try { unregisterReceiver(screenStateReceiver) } catch (_: Exception) {}
-        mainHandler.removeCallbacks(transformToXiaomiEdgeRunnable)
-        mainHandler.removeCallbacks(autoHidePillRunnable)
-        mainHandler.removeCallbacks(smartFreezeRunnable)
-        voiceManager?.release()
-        dismissSiriAura()
+        mainHandler.removeCallbacksAndMessages(null)
+        serviceScope.cancel()
         stopMediaProjection()
-        activeGenerationJob?.cancel()
-        serviceJob.cancel()
-        if (isFloatingViewAttached && ::floatingView.isInitialized) {
+        dismissSiriAura()
+        if (::voiceManager.isInitialized) voiceManager.release()
+        try { unregisterReceiver(screenOffReceiver) } catch (_: Exception) {}
+        if (isFloatingViewAttached) {
             try { windowManager.removeView(floatingView) } catch (_: Exception) {}
         }
+        super.onDestroy()
     }
 }
 """
 }
+
 
 def generate_project():
     for filepath, content in PROJECT_FILES.items():
@@ -7035,8 +5575,22 @@ def generate_project():
             os.makedirs(directory)
         with open(filepath, "w", encoding="utf-8") as f:
             f.write(content.strip() + "\n")
-        print(f"Berhasil membuat/memperbarui: {filepath}")
-    print("\nProyek Floamini OS Edition (v6.0) siap di-generate dan di-build di GitHub Actions!")
+        print(f"Berhasil membuat: {filepath}")
+
+    termux_aapt2 = "/data/data/com.termux/files/usr/bin/aapt2"
+    termux_sdk = os.path.expanduser("~/android-sdk")
+    if os.path.exists(termux_aapt2):
+        with open("gradle.properties", "a", encoding="utf-8") as gp:
+            gp.write(f"\nandroid.aapt2FromMavenOverride={termux_aapt2}\n")
+        print(f"Termux ARM64 aapt2 override aktif: {termux_aapt2}")
+
+    if os.path.exists(termux_sdk):
+        with open("local.properties", "w", encoding="utf-8") as lp:
+            lp.write(f"sdk.dir={termux_sdk}\n")
+        print(f"Termux local.properties aktif: {termux_sdk}")
+
+    print("\nProyek Floamini OS v7.0 (Full Kyant0 Liquid Glass UI & Navbar) selesai dibuat!")
+
 
 if __name__ == "__main__":
     generate_project()

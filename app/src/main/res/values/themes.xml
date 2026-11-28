@@ -1,9 +1,18 @@
-<?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <style name="Theme.Floamini.Adaptive" parent="Theme.Material3.DayNight.NoActionBar">
-        <item name="colorPrimary">@color/accent_primary</item>
-        <item name="colorSecondary">@color/accent_secondary</item>
-        <item name="android:windowBackground">@color/bg_screen</item>
-        <item name="android:statusBarColor">@color/bg_screen</item>
+    <style name="Theme.FloaminiOS" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <item name="colorPrimary">#38BDF8</item>
+        <item name="colorPrimaryVariant">#0284C7</item>
+        <item name="colorOnPrimary">#020617</item>
+        <item name="colorSecondary">#A855F7</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+    </style>
+
+    <style name="Theme.FloaminiTransparent" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowContentOverlay">@null</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:backgroundDimEnabled">false</item>
     </style>
 </resources>

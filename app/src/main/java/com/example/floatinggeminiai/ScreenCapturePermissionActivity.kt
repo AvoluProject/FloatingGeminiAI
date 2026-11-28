@@ -5,27 +5,25 @@ import android.content.Context
 import android.content.Intent
 import android.media.projection.MediaProjectionManager
 import android.os.Bundle
+import androidx.core.content.ContextCompat
 
 class ScreenCapturePermissionActivity : Activity() {
 
-    private val REQUEST_CODE_SCREEN_CAPTURE = 1001
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        val projectionManager = getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
-        startActivityForResult(projectionManager.createScreenCaptureIntent(), REQUEST_CODE_SCREEN_CAPTURE)
+        val mgr = getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
+        startActivityForResult(mgr.createScreenCaptureIntent(), 9001)
     }
 
-    @Deprecated("Deprecated in Java")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
-        if (requestCode == REQUEST_CODE_SCREEN_CAPTURE) {
+        if (requestCode == 9001 && resultCode == RESULT_OK && data != null) {
             val serviceIntent = Intent(this, FloatingAssistantService::class.java).apply {
-                action = FloatingAssistantService.ACTION_SCREEN_CAPTURE_RESULT
+                action = FloatingAssistantService.ACTION_MEDIA_PROJECTION_READY
                 putExtra("resultCode", resultCode)
                 putExtra("data", data)
             }
-            startService(serviceIntent)
+            ContextCompat.startForegroundService(this, serviceIntent)
         }
         finish()
     }

@@ -1,0 +1,422 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/floatingRootContainer"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content">
+
+    <!-- 1A. DYNAMIC ISLAND PILL (KYANT0 CLEAR LIQUID GLASS) -->
+    <com.example.floatinggeminiai.ui.LiquidGlassFrameLayout
+        android:id="@+id/dynamicIslandGlassHost"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:elevation="16dp">
+
+        <LinearLayout
+            android:id="@+id/dynamicIslandView"
+            android:layout_width="164dp"
+            android:layout_height="34dp"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:paddingHorizontal="12dp">
+
+            <ImageView
+                android:id="@+id/ivIslandSparkle"
+                android:layout_width="15dp"
+                android:layout_height="15dp"
+                android:src="@drawable/ic_sparkle"
+                app:tint="#38BDF8" />
+
+            <TextView
+                android:id="@+id/tvIslandLabel"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:text="Floamini"
+                android:textSize="11.5sp"
+                android:textStyle="bold"
+                android:textColor="#F8FAFC"
+                android:singleLine="true" />
+
+            <View
+                android:id="@+id/viewIslandPulseDot"
+                android:layout_width="7dp"
+                android:layout_height="7dp"
+                android:background="@drawable/bg_island_pulse_dot" />
+        </LinearLayout>
+    </com.example.floatinggeminiai.ui.LiquidGlassFrameLayout>
+
+    <!-- 1B. CLASSIC FLOATING BUBBLE -->
+    <FrameLayout
+        android:id="@+id/bubbleView"
+        android:layout_width="54dp"
+        android:layout_height="54dp"
+        android:background="@drawable/bg_bubble_classic"
+        android:elevation="14dp"
+        android:visibility="gone">
+
+        <ImageView
+            android:layout_width="26dp"
+            android:layout_height="26dp"
+            android:layout_gravity="center"
+            android:src="@drawable/ic_sparkle"
+            app:tint="#38BDF8" />
+    </FrameLayout>
+
+    <!-- 1C. XIAOMI EDGE SIDEBAR PILL -->
+    <FrameLayout
+        android:id="@+id/xiaomiEdgeView"
+        android:layout_width="16dp"
+        android:layout_height="54dp"
+        android:background="@drawable/bg_xiaomi_edge"
+        android:elevation="14dp"
+        android:visibility="gone" />
+
+    <!-- 2. JENDELA CHAT GENUINE LIQUID GLASS (KYANT0 AGSL SHADER CONTAINER) -->
+    <com.example.floatinggeminiai.ui.LiquidGlassFrameLayout
+        android:id="@+id/popupChatView"
+        android:layout_width="352dp"
+        android:layout_height="500dp"
+        android:elevation="22dp"
+        android:visibility="gone">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:orientation="vertical">
+
+            <!-- TOP HEADER BAR -->
+            <LinearLayout
+                android:id="@+id/glassTitleBar"
+                android:layout_width="match_parent"
+                android:layout_height="44dp"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:paddingHorizontal="12dp">
+
+                <ImageView
+                    android:layout_width="17dp"
+                    android:layout_height="17dp"
+                    android:src="@drawable/ic_sparkle"
+                    app:tint="#38BDF8" />
+
+                <TextView
+                    android:id="@+id/tvActiveProviderHeader"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_marginStart="8dp"
+                    android:text="Gemini 2.5 Flash"
+                    android:textSize="12.5sp"
+                    android:textStyle="bold"
+                    android:textColor="#F8FAFC"
+                    android:singleLine="true" />
+
+                <ImageView
+                    android:id="@+id/btnCompareMode"
+                    android:layout_width="28dp"
+                    android:layout_height="28dp"
+                    android:padding="5dp"
+                    android:src="@drawable/ic_compare"
+                    app:tint="#94A3B8"
+                    android:contentDescription="Compare AI" />
+
+                <ImageView
+                    android:id="@+id/btnScreenShare"
+                    android:layout_width="28dp"
+                    android:layout_height="28dp"
+                    android:padding="5dp"
+                    android:src="@drawable/ic_screen_share"
+                    app:tint="#94A3B8"
+                    android:contentDescription="Live Screen Vision" />
+
+                <ImageView
+                    android:id="@+id/btnToggleMiniWindow"
+                    android:layout_width="28dp"
+                    android:layout_height="28dp"
+                    android:padding="6dp"
+                    android:src="@drawable/ic_expand"
+                    app:tint="#94A3B8"
+                    android:contentDescription="Mini/Full Window" />
+
+                <ImageView
+                    android:id="@+id/btnToggleSmartDrawer"
+                    android:layout_width="28dp"
+                    android:layout_height="28dp"
+                    android:padding="5dp"
+                    android:src="@drawable/ic_plus"
+                    app:tint="#38BDF8"
+                    android:contentDescription="Smart Tools" />
+
+                <ImageView
+                    android:id="@+id/btnClosePopup"
+                    android:layout_width="28dp"
+                    android:layout_height="28dp"
+                    android:padding="6dp"
+                    android:src="@drawable/ic_close"
+                    app:tint="#FCA5A5"
+                    android:contentDescription="Tutup" />
+            </LinearLayout>
+
+            <!-- STATUS STRIPS -->
+            <TextView
+                android:id="@+id/tvScreenShareStatus"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="LIVE SCREEN VISION AKTIF • AI DAPAT MELIHAT LAYAR ANDA"
+                android:textSize="10sp"
+                android:textStyle="bold"
+                android:textColor="#38BDF8"
+                android:gravity="center"
+                android:paddingVertical="3dp"
+                android:background="#2238BDF8"
+                android:visibility="gone" />
+
+            <TextView
+                android:id="@+id/tvAttachmentBadge"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text=""
+                android:textSize="11sp"
+                android:textColor="#E879F9"
+                android:paddingHorizontal="12dp"
+                android:paddingVertical="4dp"
+                android:background="#22E879F9"
+                android:visibility="gone" />
+
+            <!-- SMART TOOLS & SEARCH DRAWER -->
+            <LinearLayout
+                android:id="@+id/smartToolsDrawer"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:paddingHorizontal="12dp"
+                android:paddingVertical="8dp"
+                android:background="#33020617"
+                android:visibility="gone">
+
+                <HorizontalScrollView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:scrollbars="none"
+                    android:layout_marginBottom="6dp">
+
+                    <LinearLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal">
+
+                        <TextView
+                            android:id="@+id/chipSwitchProvider"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Ganti AI"
+                            android:textSize="11sp"
+                            android:textColor="#38BDF8"
+                            android:paddingHorizontal="10dp"
+                            android:paddingVertical="5dp"
+                            android:layout_marginEnd="6dp"
+                            android:background="@drawable/bg_chip_glass" />
+
+                        <TextView
+                            android:id="@+id/chipAutoRouter"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Auto-Router: OFF"
+                            android:textSize="11sp"
+                            android:textColor="#E2E8F0"
+                            android:paddingHorizontal="10dp"
+                            android:paddingVertical="5dp"
+                            android:layout_marginEnd="6dp"
+                            android:background="@drawable/bg_chip_glass" />
+
+                        <TextView
+                            android:id="@+id/chipClipboard"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Baca Clipboard"
+                            android:textSize="11sp"
+                            android:textColor="#E2E8F0"
+                            android:paddingHorizontal="10dp"
+                            android:paddingVertical="5dp"
+                            android:layout_marginEnd="6dp"
+                            android:background="@drawable/bg_chip_glass" />
+
+                        <TextView
+                            android:id="@+id/chipCalculator"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Kalkulator"
+                            android:textSize="11sp"
+                            android:textColor="#E2E8F0"
+                            android:paddingHorizontal="10dp"
+                            android:paddingVertical="5dp"
+                            android:layout_marginEnd="6dp"
+                            android:background="@drawable/bg_chip_glass" />
+
+                        <TextView
+                            android:id="@+id/chipNewSession"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Sesi Baru"
+                            android:textSize="11sp"
+                            android:textColor="#34D399"
+                            android:paddingHorizontal="10dp"
+                            android:paddingVertical="5dp"
+                            android:layout_marginEnd="6dp"
+                            android:background="@drawable/bg_chip_glass" />
+
+                        <TextView
+                            android:id="@+id/chipQuickForceStop"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Force Stop"
+                            android:textSize="11sp"
+                            android:textColor="#FCA5A5"
+                            android:paddingHorizontal="10dp"
+                            android:paddingVertical="5dp"
+                            android:background="@drawable/bg_chip_glass" />
+                    </LinearLayout>
+                </HorizontalScrollView>
+
+                <EditText
+                    android:id="@+id/etSearchHistory"
+                    android:layout_width="match_parent"
+                    android:layout_height="34dp"
+                    android:hint="Cari riwayat sesi..."
+                    android:textSize="11.5sp"
+                    android:textColor="#F8FAFC"
+                    android:textColorHint="#64748B"
+                    android:paddingHorizontal="10dp"
+                    android:background="@drawable/bg_input_glass" />
+
+                <LinearLayout
+                    android:id="@+id/historyResultsContainer"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:layout_marginTop="4dp" />
+            </LinearLayout>
+
+            <!-- CHAT MESSAGES SCROLL AREA -->
+            <ScrollView
+                android:id="@+id/chatScrollView"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:paddingHorizontal="12dp"
+                android:paddingVertical="6dp">
+
+                <LinearLayout
+                    android:id="@+id/chatMessagesContainer"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical" />
+            </ScrollView>
+
+            <!-- QUICK ACTION PROMPTS -->
+            <HorizontalScrollView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:scrollbars="none"
+                android:paddingHorizontal="10dp"
+                android:paddingVertical="4dp">
+
+                <LinearLayout
+                    android:id="@+id/quickPromptsRow"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal" />
+            </HorizontalScrollView>
+
+            <!-- VOICE WAVEFORM BAR -->
+            <LinearLayout
+                android:id="@+id/voiceWaveformBar"
+                android:layout_width="match_parent"
+                android:layout_height="34dp"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:paddingHorizontal="12dp"
+                android:visibility="gone">
+
+                <com.example.floatinggeminiai.ui.VoiceWaveformView
+                    android:id="@+id/voiceWaveformView"
+                    android:layout_width="0dp"
+                    android:layout_height="24dp"
+                    android:layout_weight="1" />
+
+                <TextView
+                    android:id="@+id/tvVoiceHint"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    android:text="Mendengarkan..."
+                    android:textSize="11sp"
+                    android:textColor="#38BDF8" />
+            </LinearLayout>
+
+            <!-- BOTTOM COMPOSER BAR + RESIZE HANDLE -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:paddingHorizontal="10dp"
+                android:paddingVertical="8dp">
+
+                <ImageView
+                    android:id="@+id/btnAttachFile"
+                    android:layout_width="32dp"
+                    android:layout_height="32dp"
+                    android:padding="6dp"
+                    android:src="@drawable/ic_attach"
+                    app:tint="#94A3B8"
+                    android:contentDescription="Lampirkan PDF/Gambar" />
+
+                <ImageView
+                    android:id="@+id/btnVoiceMic"
+                    android:layout_width="32dp"
+                    android:layout_height="32dp"
+                    android:padding="6dp"
+                    android:src="@drawable/ic_mic"
+                    app:tint="#94A3B8"
+                    android:contentDescription="Voice Input" />
+
+                <EditText
+                    android:id="@+id/etPromptInput"
+                    android:layout_width="0dp"
+                    android:layout_height="38dp"
+                    android:layout_weight="1"
+                    android:layout_marginHorizontal="4dp"
+                    android:hint="Tanya apa saja..."
+                    android:textColor="#F8FAFC"
+                    android:textColorHint="#64748B"
+                    android:textSize="12.5sp"
+                    android:maxLines="3"
+                    android:paddingHorizontal="12dp"
+                    android:background="@drawable/bg_input_glass" />
+
+                <ImageView
+                    android:id="@+id/btnSendOrStop"
+                    android:layout_width="34dp"
+                    android:layout_height="34dp"
+                    android:padding="7dp"
+                    android:src="@drawable/ic_send"
+                    app:tint="#38BDF8"
+                    android:contentDescription="Kirim" />
+
+                <ImageView
+                    android:id="@+id/btnResizeHandle"
+                    android:layout_width="20dp"
+                    android:layout_height="26dp"
+                    android:layout_marginStart="3dp"
+                    android:padding="2dp"
+                    android:src="@drawable/ic_resize_handle"
+                    app:tint="#64748B"
+                    android:contentDescription="Resize" />
+            </LinearLayout>
+
+        </LinearLayout>
+    </com.example.floatinggeminiai.ui.LiquidGlassFrameLayout>
+</FrameLayout>

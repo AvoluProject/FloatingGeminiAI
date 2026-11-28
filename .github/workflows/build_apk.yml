@@ -3,14 +3,11 @@ name: Build Floamini OS APK
 on:
   push:
     branches: [ "main", "master" ]
-  pull_request:
-    branches: [ "main", "master" ]
   workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -21,28 +18,25 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Restore Permanent Signing Keystore
-        uses: actions/cache@v4
-        with:
-          path: app/floamini.jks
-          key: floamini-permanent-keystore-v1
-
-      - name: Ensure Permanent Signing Keystore Exists
-        run: |
-          if [ ! -f app/floamini.jks ]; then
-            keytool -genkeypair -v -keystore app/floamini.jks -alias floamini_key -keyalg RSA -keysize 2048 -validity 10000 -storepass floamini_keystore_pass_2026 -keypass floamini_keystore_pass_2026 -dname "CN=Floamini, OU=Mobile, O=AvoluProject, L=Yogyakarta, ST=DIY, C=ID"
-          fi
-
       - name: Setup Gradle 8.5
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.5'
 
+      - name: Generate Persistent Signing Keystore
+        run: |
+          if [ ! -f app/floamini.jks ]; then
+            keytool -genkeypair -v -keystore app/floamini.jks -alias floamini_key \
+              -keyalg RSA -keysize 2048 -validity 10000 \
+              -storepass floamini_keystore_pass_2026 -keypass floamini_keystore_pass_2026 \
+              -dname "CN=Floamini, OU=Mobile, O=AvoluProject, L=Yogyakarta, ST=DIY, C=ID"
+          fi
+
       - name: Build Update-Ready APK
         run: gradle assembleDebug
 
-      - name: Upload Floamini APK Artifact
+      - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Floamini-OS-v6.0-update-ready
+          name: Floamini-OS-v7.0-LiquidGlass
           path: app/build/outputs/apk/debug/app-debug.apk

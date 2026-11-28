@@ -4,8 +4,8 @@ plugins {
 }
 
 val ciRunNumber = System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull() ?: 0
-val appVersionCode = 10 + ciRunNumber
-val appVersionName = "6.0.$ciRunNumber"
+val appVersionCode = 25 + ciRunNumber
+val appVersionName = "7.0.$ciRunNumber"
 
 android {
     namespace = "com.example.floatinggeminiai"
@@ -37,23 +37,22 @@ android {
             if (ksFile.exists()) {
                 signingConfig = signingConfigs.getByName("floaminiSign")
             }
+            isMinifyEnabled = false
         }
         release {
             isMinifyEnabled = false
-            val ksFile = file("floamini.jks")
-            if (ksFile.exists()) {
-                signingConfig = signingConfigs.getByName("floaminiSign")
-            }
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
         }
     }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
+
     kotlinOptions {
         jvmTarget = "17"
     }
